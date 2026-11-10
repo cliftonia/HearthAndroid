@@ -118,7 +118,11 @@ class ModelStore(private val fetchModels: suspend (String) -> List<ChatModel>) {
 /** The server addresses and preferences, shared by every screen and kept between launches. */
 class SettingsStore(defaults: ServerSettings, private val provider: SettingsDataProvider) {
     private val state = MutableStateFlow(
-        provider.load()?.let { runCatching { hearthJson.decodeFromString(ServerSettings.serializer(), it) }.getOrNull() } ?: defaults,
+        provider.load()
+            ?.let { runCatching { hearthJson.decodeFromString(ServerSettings.serializer(), it) }.getOrNull() }
+            // Settings saved before the user chose a model take the model the app was built to start with.
+            ?.let { saved -> if (saved.defaultModelId == null) saved.copy(defaultModelId = defaults.defaultModelId) else saved }
+            ?: defaults,
     )
     val settings: StateFlow<ServerSettings> = state.asStateFlow()
 

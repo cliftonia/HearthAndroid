@@ -92,7 +92,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun handle(intent: Intent?) {
-        if (intent?.action == ACTION_VOICE) coordinator.startVoice()
+        if (intent?.action == ACTION_VOICE) coordinator.startVoice(isFromOutside = true)
     }
 
     /** Offers "Start voice conversation" when the app's icon is held down. */

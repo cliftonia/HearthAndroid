@@ -54,10 +54,21 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
 
     private var loopJob: Job? = null
 
+    /**
+     * Whether the conversation waits, muted, for the user to tap before the phone listens. Set when it was
+     * opened from outside the app, where any other app could have asked for it.
+     */
+    var startsMuted = false
+
     /** Begins listening. The view has already asked for leave to use the microphone. */
     fun startAction(isMicrophoneAllowed: Boolean) {
         state.value = VoiceViewModel(modelName = dependencies.modelName(), voiceName = dependencies.settings().voice)
-        if (isMicrophoneAllowed) startLoop() else fail(VoiceFailureKind.PERMISSION_DENIED)
+        when {
+            !isMicrophoneAllowed -> fail(VoiceFailureKind.PERMISSION_DENIED)
+            startsMuted -> state.update { it.copy(state = VoiceStateKind.MUTED) }
+            else -> startLoop()
+        }
+        startsMuted = false
     }
 
     fun endAction() {

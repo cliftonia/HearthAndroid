@@ -10,6 +10,7 @@ import app.hearth.domain.ConversationStore
 import app.hearth.domain.DictationProvider
 import app.hearth.domain.MemoryDataProvider
 import app.hearth.domain.MemoryStore
+import app.hearth.domain.ModelId
 import app.hearth.domain.ModelStore
 import app.hearth.domain.SearchDataProvider
 import app.hearth.domain.ServerSettings
@@ -45,6 +46,7 @@ class AppDependencies(
                 ollamaAddress = BuildConfig.OLLAMA_ADDRESS,
                 searchAddress = BuildConfig.SEARCH_ADDRESS,
                 speechAddress = BuildConfig.SPEECH_ADDRESS,
+                defaultModelId = BuildConfig.DEFAULT_MODEL.takeIf { it.isNotEmpty() }?.let(::ModelId),
             )
             return AppDependencies(
                 settingsStore = SettingsStore(defaults, SettingsDataProvider.live(application.filesDir)),
@@ -118,9 +120,13 @@ class AppCoordinator(
         drawerState.value = isOpen
     }
 
-    /** Opens the voice conversation, as the app's shortcut does. */
-    fun startVoice() {
+    /**
+     * Opens the voice conversation. Asked for from outside the app, as by the shortcut, it opens muted:
+     * the microphone is not used until the user taps.
+     */
+    fun startVoice(isFromOutside: Boolean = false) {
         if (settingsStore.settings.value.speechUrl == null) return
+        voice.startsMuted = isFromOutside
         chat.stopAction()
         drawerState.value = false
         screenState.value = Screen.VOICE

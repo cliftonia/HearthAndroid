@@ -90,6 +90,8 @@ class PageService internal constructor(client: OkHttpClient) {
 
     private val client: OkHttpClient = client.newBuilder()
         .dns(PublicOnlyDns)
+        // A proxy would resolve the name itself and skip the check above, so pages are always fetched directly.
+        .proxy(java.net.Proxy.NO_PROXY)
         .connectTimeout(6, TimeUnit.SECONDS)
         .readTimeout(6, TimeUnit.SECONDS)
         .callTimeout(8, TimeUnit.SECONDS)
