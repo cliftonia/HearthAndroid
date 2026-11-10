@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="brand">Hearth</string>
+
+    <string name="chat_menu">Open chat list</string>
+    <string name="chat_new">New chat</string>
+    <string name="chat_model_picker">Choose model</string>
+    <string name="chat_no_model">No model</string>
+    <string name="chat_local_models">On your server</string>
+    <string name="chat_cloud_models">Cloud</string>
+    <string name="chat_private">Private chat</string>
+    <string name="chat_private_note">This chat uses no memories and adds none.</string>
+    <string name="chat_empty_title">What shall we talk about?</string>
+    <string name="chat_connect_title">Connect to your server</string>
+    <string name="chat_connect_message">Add the address of your Ollama server to begin.</string>
+    <string name="chat_open_settings">Open Settings</string>
+    <string name="chat_follow_ups">Suggested questions</string>
+
+    <string name="composer_placeholder">Message</string>
+    <string name="composer_placeholder_model">Message %1$s</string>
+    <string name="composer_thinking">Thinking</string>
+    <string name="composer_thinking_off">Off</string>
+    <string name="composer_thinking_light">Light</string>
+    <string name="composer_thinking_medium">Medium</string>
+    <string name="composer_thinking_high">High</string>
+    <string name="composer_search">Web search</string>
+    <string name="composer_send">Send</string>
+    <string name="composer_stop">Stop reply</string>
+
+    <string name="message_copy">Copy</string>
+    <string name="message_share">Share</string>
+    <string name="message_retry">Try again</string>
+    <string name="message_thinking">Thinking…</string>
+    <string name="message_thought_briefly">Thought briefly</string>
+    <plurals name="message_thought">
+        <item quantity="one">Thought for %1$d second</item>
+        <item quantity="other">Thought for %1$d seconds</item>
+    </plurals>
+    <string name="message_show_thinking">Show thinking</string>
+    <string name="message_hide_thinking">Hide thinking</string>
+    <string name="message_copy_code">Copy code</string>
+    <string name="message_code">code</string>
+    <string name="message_writing">Writing a reply</string>
+    <string name="message_searching">Searching the web for %1$s</string>
+    <string name="message_source">Source %1$d: %2$s</string>
+    <string name="notice_search_failed">Web search failed, so this reply does not use it.</string>
+    <string name="export_user">You</string>
+    <string name="untitled">Untitled chat</string>
+
+    <string name="error_title">Something went wrong</string>
+    <string name="error_retry">Retry</string>
+    <string name="error_dismiss">Dismiss</string>
+    <string name="error_server_not_configured">No server address is set. Add one in Settings.</string>
+    <string name="error_no_model">Choose a model first.</string>
+    <string name="error_unreachable">Could not reach the server. Check that your VPN is connected.</string>
+    <string name="error_save_failed">This chat could not be saved.</string>
+
+    <string name="drawer_search">Search chats</string>
+    <string name="drawer_today">Today</string>
+    <string name="drawer_yesterday">Yesterday</string>
+    <string name="drawer_previous_week">Previous 7 days</string>
+    <string name="drawer_earlier">Earlier</string>
+    <string name="drawer_pinned">Pinned</string>
+    <string name="drawer_pin">Pin</string>
+    <string name="drawer_unpin">Unpin</string>
+    <string name="drawer_rename">Rename</string>
+    <string name="drawer_rename_chat">Rename chat</string>
+    <string name="drawer_chat_title">Title</string>
+    <string name="drawer_save">Save</string>
+    <string name="drawer_delete">Delete</string>
+    <string name="drawer_empty">No chats yet</string>
+    <string name="drawer_settings">Settings</string>
+    <string name="drawer_not_connected">Not connected</string>
+    <string name="drawer_no_server">No server set</string>
+    <string name="drawer_chat_options">Options for %1$s</string>
+    <plurals name="drawer_connected">
+        <item quantity="one">Connected · %1$d model</item>
+        <item quantity="other">Connected · %1$d models</item>
+    </plurals>
+
+    <string name="settings_back">Back</string>
+    <string name="settings_cancel">Cancel</string>
+    <string name="settings_servers">Servers</string>
+    <string name="settings_ollama">Ollama address</string>
+    <string name="settings_search">Search address (SearXNG)</string>
+    <string name="settings_servers_footer">Search and speech are optional. An address without a scheme is taken to be HTTPS.</string>
+    <string name="settings_instructions">Custom instructions</string>
+    <string name="settings_instructions_placeholder">For example: answer briefly. I live in Brisbane.</string>
+    <string name="settings_instructions_footer">Instructions are given to the model at the start of every conversation. Suggestions cost one extra short request per reply.</string>
+    <string name="settings_follow_ups">Suggest follow-up questions</string>
+    <string name="settings_read_pages">Read the pages a search finds</string>
+    <string name="settings_read_pages_footer">Gives the model the text of the top results, not just a snippet. Your phone fetches those pages itself, so the sites see your phone\'s address rather than your server\'s.</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_test">Test connection</string>
+    <string name="settings_checking">Checking…</string>
+    <string name="settings_invalid_address">That Ollama address is not valid.</string>
+    <plurals name="settings_test_ok">
+        <item quantity="one">Connected. %1$d model found.</item>
+        <item quantity="other">Connected. %1$d models found.</item>
+    </plurals>
+
+    <string name="memory_title">Memory</string>
+    <string name="memory_toggle">Remember things about me</string>
+    <string name="memory_footer">Lasting facts you tell a model, or ask it to remember, are kept on this device and given to every conversation. Models that cannot call tools can read memories but not add to them.</string>
+    <string name="memory_placeholder">For example: I live in Brisbane</string>
+    <string name="memory_add">Add memory</string>
+    <string name="memory_list_footer">Up to 50 short memories. Delete one here, or tell the model to forget it.</string>
+    <string name="memory_none">Nothing is remembered yet.</string>
+    <string name="memory_delete">Forget: %1$s</string>
+    <string name="memory_clear">Forget everything</string>
+    <string name="memory_clear_question">Forget every saved memory?</string>
+    <string name="memory_notice_saved">Remembered: %1$s</string>
+    <string name="memory_notice_updated">Memory updated: %1$s</string>
+    <string name="memory_notice_forgotten">Forgotten: %1$s</string>
+    <string name="composer_attach">Attach</string>
+    <string name="composer_choose_file">Choose file</string>
+    <string name="composer_take_photo">Take photo</string>
+    <string name="composer_photo_library">Photo library</string>
+    <string name="composer_remove_file">Remove file %1$s</string>
+    <string name="composer_remove_photo">Remove photo</string>
+    <string name="composer_editing">Editing message</string>
+    <string name="composer_cancel_edit">Cancel editing</string>
+    <string name="composer_dictate">Dictate</string>
+    <string name="composer_stop_dictation">Stop dictation</string>
+    <string name="composer_voice">Start voice conversation</string>
+    <string name="composer_read_replies">Read replies aloud</string>
+    <string name="message_edit">Edit</string>
+    <string name="message_speak">Read aloud</string>
+    <string name="message_stop_speaking">Stop reading</string>
+    <string name="message_attached_photo">Attached photo</string>
+    <string name="message_attached_file">Attached file %1$s</string>
+    <string name="message_options">Message options</string>
+    <string name="error_files_unreadable">Some files could not be read. PDFs and text files are supported.</string>
+    <string name="error_speech_not_configured">No speech server address is set. Add one in Settings.</string>
+    <string name="error_speech_failed">The reply could not be spoken.</string>
+    <string name="error_dictation_denied">Allow microphone access in the phone\'s Settings to dictate.</string>
+    <string name="error_dictation_unavailable">Dictation is not available right now.</string>
+
+    <string name="settings_speech">Speech address (Kokoro)</string>
+    <string name="settings_voice">Voice</string>
+    <string name="settings_voice_name">Voice name</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_require_unlock">Require fingerprint, face or PIN</string>
+    <string name="settings_require_unlock_footer">Asked for each time Hearth is opened. Your conversations are hidden in the recent apps list.</string>
+    <string name="lock_title">Unlock Hearth</string>
+    <string name="lock_reason">Unlock your conversations.</string>
+    <string name="lock_enable_reason">Confirm it is you to turn on the lock.</string>
+    <string name="lock_unlock">Unlock</string>
+
+    <string name="voice_listening">Listening</string>
+    <string name="voice_thinking">Thinking</string>
+    <string name="voice_speaking">Speaking</string>
+    <string name="voice_muted">Muted</string>
+    <string name="voice_unavailable">Unavailable</string>
+    <string name="voice_mute">Mute</string>
+    <string name="voice_unmute">Unmute</string>
+    <string name="voice_end">End voice conversation</string>
+    <string name="voice_interrupt">Interrupt and listen</string>
+    <string name="voice_hint">Speak when you are ready.</string>
+    <string name="voice_muted_hint">Unmute to carry on.</string>
+    <string name="voice_permission_denied">Allow microphone access in the phone\'s Settings to talk.</string>
+</resources>

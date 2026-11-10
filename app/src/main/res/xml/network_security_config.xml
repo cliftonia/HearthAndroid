@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The app talks to a server the user names themselves, which on a home network or a VPN is often
+  plain HTTP. Plain HTTP is used only when the address is typed with http://; a bare host is taken
+  to be HTTPS. Web pages found by a search are fetched over HTTPS only, whatever this file says.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

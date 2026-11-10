@@ -1,0 +1,22 @@
+*.iml
+.gradle
+/.idea
+.DS_Store
+build/
+/captures
+.externalNativeBuild
+.cxx
+
+# Local settings: the SDK path, signing and the server addresses the app starts with
+local.properties
+*.jks
+*.keystore
+
+# Local tooling state
+.claude/
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.cursor/
+.cursorrules
+.superpowers/
