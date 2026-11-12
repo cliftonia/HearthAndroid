@@ -93,6 +93,8 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                 drawerContent = {
                     ModalDrawerSheet(
                         drawerContainerColor = HearthTheme.colors.paper,
+                        // No tint from elevation: the drawer is the same paper as the fade under its floating buttons.
+                        drawerTonalElevation = 0.dp,
                         modifier = Modifier.widthIn(max = HearthTheme.sizes.drawerWidth),
                     ) {
                         DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore)
