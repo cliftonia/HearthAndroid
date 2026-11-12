@@ -60,18 +60,24 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
      */
     var startsMuted = false
 
-    /** Begins listening. The view has already asked for leave to use the microphone. */
+    /**
+     * Begins listening. The view has already asked for leave to use the microphone.
+     *
+     * The screen may ask more than once, as when the phone is turned round, so a conversation already under way
+     * is left alone, and one that must wait muted stays muted until the user unmutes it.
+     */
     fun startAction(isMicrophoneAllowed: Boolean) {
+        if (loopJob?.isActive == true) return
         state.value = VoiceViewModel(modelName = dependencies.modelName(), voiceName = dependencies.settings().voice)
         when {
             !isMicrophoneAllowed -> fail(VoiceFailureKind.PERMISSION_DENIED)
             startsMuted -> state.update { it.copy(state = VoiceStateKind.MUTED) }
             else -> startLoop()
         }
-        startsMuted = false
     }
 
     fun endAction() {
+        startsMuted = false
         scope.launch {
             halt()
             delegate?.voicePresenterDidFinish()
@@ -81,6 +87,8 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
     fun muteAction() {
         scope.launch {
             if (state.value.state == VoiceStateKind.MUTED) {
+                // Only the user's own tap lifts the mute a conversation from outside began with.
+                startsMuted = false
                 startLoop()
             } else {
                 halt()
