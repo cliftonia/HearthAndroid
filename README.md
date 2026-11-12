@@ -26,18 +26,36 @@ two share a design and a feature list, not code.
 - **History**: pin, rename, share as Markdown, delete, search
 - **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
 
+## Finding your way round
+
+- **The composer** is a single row at rest. Tap it and it opens out, showing the options for the reply you are
+  about to ask for: web search, how hard the model should think, and whether replies are read aloud. Which of
+  these appear depends on the model and on the servers you have set.
+- **The chat list** slides in from the left. Its **Settings** and **New chat** buttons float at the bottom; the
+  dot on Settings is green while your server can be reached.
+- **Private chat** is the padlock at the top right of a chat that has not yet begun. Once the chat has begun,
+  the padlock only shows that it is private.
+- **Settings** hold the server addresses, the voice and its **Hear this voice** button, your memories, the lock
+  and the theme. Changes are kept as you make them.
+
 ## How it is built
 
 Three Gradle modules, each seeing only the one below it:
 
 | Module | Holds | Depends on |
 |---|---|---|
-| `app` | Coordinator, presenters, Compose screens, the phone's own services (speech, files, biometrics) | `domain` |
+| `app` | Coordinator, presenters, Compose screens, the design system, the phone's own services (speech, files, biometrics) | `domain` |
 | `domain` | Models, the chat and speech interactors, stores, the prompt and text transformers | `data` |
 | `data` | HTTP services and DTOs for Ollama, SearXNG, Kokoro and web pages | nothing |
 
 Presenters own their state as a `StateFlow` and tell the coordinator what the user asked for through a
 delegate. Dependencies are passed as closures and small provider classes; there is no injection framework.
+Inside `app` each screen has a package of its own, holding its presenter beside its composables.
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the modules, the presenter and coordinator pattern, where
+  things live and how to add a screen
+- [docs/DESIGN_SYSTEM.md](docs/DESIGN_SYSTEM.md): the colour, type, spacing and shape tokens, the shared
+  components, and the rule that screens use nothing else
 
 ### What is guarded
 
