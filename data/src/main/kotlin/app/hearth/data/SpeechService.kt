@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
+/** The body of a request for speech, in the form OpenAI's speech endpoint set. */
 @Serializable
 data class SpeechRequestDto(
     val model: String,
@@ -26,6 +27,7 @@ data class SpeechRequestDto(
 class SpeechService internal constructor(client: OkHttpClient) {
     constructor() : this(HearthHttp.client)
 
+    /** Given shorter timeouts than a chat: one sentence of speech should not take minutes. */
     private val client = client.newBuilder().readTimeout(60, TimeUnit.SECONDS).callTimeout(90, TimeUnit.SECONDS).build()
 
     /** MP3 audio of the text, spoken in the given voice. */
@@ -38,6 +40,7 @@ class SpeechService internal constructor(client: OkHttpClient) {
         }
     }
 
+    /** The names of the voices the server offers. */
     suspend fun fetchVoices(baseUrl: String): List<String> = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(HearthHttp.url(baseUrl, "v1/audio/voices")).build()
         client.newCall(request).execute().use { response ->
@@ -49,7 +52,7 @@ class SpeechService internal constructor(client: OkHttpClient) {
     internal companion object {
         private val JSON = "application/json".toMediaType()
 
-        /** Kokoro has answered with bare names and with objects, depending on its version. */
+        /** The voice names in the server's answer. Kokoro has answered with bare names and with objects, depending on its version. */
         fun voices(body: String): List<String> {
             val list = hearthJson.parseToJsonElement(body).jsonObject["voices"] as? JsonArray ?: return emptyList()
             return list.mapNotNull { entry ->

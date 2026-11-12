@@ -1,25 +1,17 @@
 package app.hearth
 
-import android.app.Application
-import app.hearth.domain.AudioPlaybackProvider
-import app.hearth.domain.ChatDataProvider
-import app.hearth.domain.ChatInteractor
-import app.hearth.domain.ConversationDataProvider
+import app.hearth.chat.ChatPresenter
+import app.hearth.chat.ChatPresenterDelegate
+import app.hearth.chat.stopDictation
+import app.hearth.chat.stopSpeaking
 import app.hearth.domain.ConversationId
-import app.hearth.domain.ConversationStore
-import app.hearth.domain.DictationProvider
-import app.hearth.domain.MemoryDataProvider
-import app.hearth.domain.MemoryStore
-import app.hearth.domain.ModelId
-import app.hearth.domain.ModelStore
-import app.hearth.domain.SearchDataProvider
-import app.hearth.domain.ServerSettings
-import app.hearth.domain.SettingsDataProvider
-import app.hearth.domain.SettingsStore
-import app.hearth.domain.SpeechDataProvider
-import app.hearth.domain.SpeechInteractor
-import app.hearth.integrations.AttachmentLoader
-import app.hearth.integrations.live
+import app.hearth.drawer.DrawerPresenter
+import app.hearth.drawer.DrawerPresenterDelegate
+import app.hearth.lock.LockPresenter
+import app.hearth.settings.SettingsPresenter
+import app.hearth.settings.SettingsPresenterDelegate
+import app.hearth.voice.VoicePresenter
+import app.hearth.voice.VoicePresenterDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,43 +20,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Everything the screens are built from, made once for the life of the app. */
-class AppDependencies(
-    val settingsStore: SettingsStore,
-    val modelStore: ModelStore,
-    val conversationStore: ConversationStore,
-    val memoryStore: MemoryStore,
-    val chat: ChatInteractor,
-    val speech: SpeechInteractor,
-    val dictation: DictationProvider,
-    val attachments: AttachmentLoader,
-) {
-    companion object {
-        fun live(application: Application): AppDependencies {
-            val chat = ChatDataProvider.live()
-            val defaults = ServerSettings(
-                ollamaAddress = BuildConfig.OLLAMA_ADDRESS,
-                searchAddress = BuildConfig.SEARCH_ADDRESS,
-                speechAddress = BuildConfig.SPEECH_ADDRESS,
-                defaultModelId = BuildConfig.DEFAULT_MODEL.takeIf { it.isNotEmpty() }?.let(::ModelId),
-            )
-            return AppDependencies(
-                settingsStore = SettingsStore(defaults, SettingsDataProvider.live(application.filesDir)),
-                modelStore = ModelStore(chat.fetchModels),
-                conversationStore = ConversationStore(ConversationDataProvider.live(application.filesDir)),
-                memoryStore = MemoryStore(MemoryDataProvider.live(application.filesDir)),
-                chat = ChatInteractor(chat, SearchDataProvider.live()),
-                speech = SpeechInteractor(SpeechDataProvider.live(), AudioPlaybackProvider.live(application)),
-                dictation = DictationProvider.live(application),
-                attachments = AttachmentLoader(application),
-            )
-        }
-    }
-}
-
+/** The screens that can fill the window. The chat list is not one: it opens over, or sits beside, the chat. */
 enum class Screen { CHAT, SETTINGS, VOICE }
 
-/** Owns the presenters and decides which screen is showing. */
+/**
+ * Owns the presenters and decides which screen is showing.
+ *
+ * Presenters never speak to each other. Each tells the coordinator what the user asked for through its
+ * delegate, and the coordinator calls whichever presenter must act on it.
+ */
 class AppCoordinator(
     dependencies: AppDependencies,
     // The app's own scope, so that a reply keeps streaming while the screen is rotated or in the background.
@@ -73,6 +37,8 @@ class AppCoordinator(
     private val screenState = MutableStateFlow(Screen.CHAT)
     private val drawerState = MutableStateFlow(false)
     val screen: StateFlow<Screen> = screenState.asStateFlow()
+
+    /** Whether the chat list should be open. It has no meaning on a wide screen, where the list is always there. */
     val isDrawerOpen: StateFlow<Boolean> = drawerState.asStateFlow()
     val settingsStore = dependencies.settingsStore
     val modelStore = dependencies.modelStore
@@ -107,6 +73,7 @@ class AppCoordinator(
         ),
     )
 
+    /** Wires each presenter back to the coordinator and loads what was saved. Called once, as the app starts. */
     fun start() {
         chat.delegate = this
         drawer.delegate = this
@@ -179,15 +146,5 @@ class AppCoordinator(
         screenState.value = Screen.CHAT
         // The addresses may have changed, so the models are asked for afresh.
         scope.launch { chat.refreshModelsAction() }
-    }
-}
-
-class HearthApplication : Application() {
-    lateinit var coordinator: AppCoordinator
-        private set
-
-    override fun onCreate() {
-        super.onCreate()
-        coordinator = AppCoordinator(AppDependencies.live(this)).also { it.start() }
     }
 }

@@ -3,6 +3,7 @@ package app.hearth.domain
 /** The rules for what may be remembered: short, few, and never the same thing twice. */
 class MemoryLedger {
 
+    /** The memories as they stand after a request, and what became of it. */
     data class Result(val memories: List<Memory>, val outcome: MemoryOutcome)
 
     /** Applies one change and returns the memories as they then stand, with what became of the request. */
@@ -36,6 +37,7 @@ class MemoryLedger {
     /** One line, trimmed and cut to length. */
     private fun normalised(text: String): String = text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ").take(MAXIMUM_LENGTH)
 
+    /** Why the fact may not be kept alongside the given memories; `null` when it may. */
     private fun refusal(fact: String, memories: List<Memory>): MemoryRefusal? = when {
         fact.isEmpty() -> MemoryRefusal.EMPTY
         memories.any { it.text.equals(fact, ignoreCase = true) } -> MemoryRefusal.ALREADY_SAVED
@@ -49,7 +51,10 @@ class MemoryLedger {
     }
 
     companion object {
+        /** How many facts may be remembered at once. */
         const val MAXIMUM_COUNT = 50
+
+        /** The most characters one fact may run to. */
         const val MAXIMUM_LENGTH = 200
     }
 }

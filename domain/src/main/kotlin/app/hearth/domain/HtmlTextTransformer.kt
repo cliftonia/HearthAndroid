@@ -1,5 +1,7 @@
 package app.hearth.domain
 
+import java.io.ByteArrayOutputStream
+
 /**
  * Reduces a web page to the text a reader would see, for handing to a model.
  *
@@ -9,6 +11,7 @@ package app.hearth.domain
  */
 class HtmlTextTransformer {
 
+    /** The readable text of the page, one line per block of the page, cut to the given length. */
     fun text(html: String, maximumLength: Int): String {
         val bytes = mainContent(html.toByteArray(Charsets.UTF_8).let { it.copyOf(minOf(it.size, MAXIMUM_INPUT_LENGTH)) })
         val text = decodingEntities(String(strippingMarkup(bytes), Charsets.UTF_8))
@@ -31,7 +34,7 @@ class HtmlTextTransformer {
 
     /** Drops comments, tags and the contents of scripts, styles, navigation and the like. */
     private fun strippingMarkup(bytes: ByteArray): ByteArray {
-        val result = java.io.ByteArrayOutputStream(bytes.size)
+        val result = ByteArrayOutputStream(bytes.size)
         // A search that finds nothing ahead is made once: nothing later can succeed where it failed.
         val unclosedElements = mutableSetOf<String>()
         var hasClosingBracketAhead = true
@@ -99,18 +102,22 @@ class HtmlTextTransformer {
         return true
     }
 
+    /** Where the needle first sits at or after the given index, if anywhere. */
     private fun firstIndex(needle: ByteArray, bytes: ByteArray, from: Int): Int? {
         if (bytes.size < needle.size) return null
         return (from..bytes.size - needle.size).firstOrNull { matches(needle, bytes, it) }
     }
 
+    /** Where the needle last sits, if anywhere. */
     private fun lastIndex(needle: ByteArray, bytes: ByteArray): Int? {
         if (bytes.size < needle.size) return null
         return (bytes.size - needle.size downTo 0).firstOrNull { matches(needle, bytes, it) }
     }
 
+    /** Where the byte next occurs at or after the given index, if anywhere. */
     private fun indexOf(byte: Byte, bytes: ByteArray, from: Int): Int? = (from until bytes.size).firstOrNull { bytes[it] == byte }
 
+    /** Turns the commonest named entities, and numbered ones, back into the characters they stand for. */
     private fun decodingEntities(text: String): String {
         var result = text
         // The ampersand itself is decoded last, so that "&amp;lt;" reads as "&lt;" and not as a bracket.

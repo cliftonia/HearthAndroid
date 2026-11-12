@@ -9,34 +9,15 @@ import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-
-/** A transport or server failure, before the domain gives it a meaning. */
-sealed class HttpError(message: String) : IOException(message) {
-    class Status(val code: Int, val body: String) : HttpError("HTTP $code")
-    class Server(val detail: String) : HttpError(detail)
-}
-
-object HearthHttp {
-    /** Timeouts long enough for a model that must first be loaded into memory. */
-    internal val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(300, TimeUnit.SECONDS)
-        .build()
-
-    internal val jsonMediaType = "application/json".toMediaType()
-
-    internal fun url(base: String, path: String): String = base.trimEnd('/') + "/" + path
-}
 
 /** Talks to an Ollama server: lists its models and runs chats. */
 class OllamaService internal constructor(private val client: OkHttpClient) {
     constructor() : this(HearthHttp.client)
 
-
+    /** Every model the server has. Given a short timeout, since no model has to be loaded to answer. */
     suspend fun fetchModels(baseUrl: String): List<OllamaModelDto> = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(HearthHttp.url(baseUrl, "api/tags")).build()
         client.newBuilder().readTimeout(15, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
@@ -82,6 +63,7 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
         awaitClose { call.cancel() }
     }
 
+    /** The HTTP request both kinds of chat are made with. */
     private fun chatRequest(baseUrl: String, request: OllamaChatRequestDto): Request = Request.Builder()
         .url(HearthHttp.url(baseUrl, "api/chat"))
         .post(hearthJson.encodeToString(request).toRequestBody(HearthHttp.jsonMediaType))

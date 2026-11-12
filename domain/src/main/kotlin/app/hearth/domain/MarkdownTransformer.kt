@@ -1,19 +1,29 @@
 package app.hearth.domain
 
+/** One block of a reply, as the chat lays it out. Text inside a block still carries its inline Markdown. */
 sealed interface MarkdownBlock {
     data class Heading(val level: Int, val text: String) : MarkdownBlock
     data class Paragraph(val text: String) : MarkdownBlock
+
+    /** A fenced block of code, with the language named on its opening fence, if any. */
     data class Code(val language: String?, val text: String) : MarkdownBlock
+
+    /** A bulleted or numbered list. */
     data class ItemList(val isOrdered: Boolean, val items: List<String>) : MarkdownBlock
     data class Quote(val text: String) : MarkdownBlock
     data class Table(val header: List<String>, val rows: List<List<String>>) : MarkdownBlock
+
+    /** Display maths, as LaTeX without its delimiters. */
     data class Math(val text: String) : MarkdownBlock
+
+    /** A horizontal line between sections. */
     data object Rule : MarkdownBlock
 }
 
 /** Splits Markdown into the blocks a chat reply is laid out from. Inline styling is left in the text. */
 class MarkdownTransformer {
 
+    /** The blocks of the text in order. Lines that begin no other block gather into paragraphs. */
     fun blocks(markdown: String): List<MarkdownBlock> {
         val blocks = mutableListOf<MarkdownBlock>()
         val paragraph = mutableListOf<String>()
@@ -47,6 +57,7 @@ class MarkdownTransformer {
         return blocks
     }
 
+    /** Everything up to the closing fence, or to the end of a reply still being written. */
     private fun codeBlock(opening: String, lines: ArrayDeque<String>): MarkdownBlock {
         val language = opening.drop(3).trim()
         val code = mutableListOf<String>()
@@ -68,11 +79,13 @@ class MarkdownTransformer {
         return MarkdownBlock.Table(cells(header), rows)
     }
 
+    /** Whether the line is the row of dashes that sits under a table's header. */
     private fun isTableSeparator(line: String): Boolean {
         val trimmed = line.trim()
         return '-' in trimmed && '|' in trimmed && trimmed.all { it in "|-: " }
     }
 
+    /** The cells of one row of a table, without the bars that divide them. */
     private fun cells(row: String): List<String> = row.trim().removePrefix("|").removeSuffix("|").split("|").map { it.trim() }
 
     /** Display maths, opened by `$$` or `\[` and closed on the same line or a later one. */
@@ -88,6 +101,7 @@ class MarkdownTransformer {
         return MarkdownBlock.Math(body.map { it.trim() }.filter { it.isNotEmpty() }.joinToString(" "))
     }
 
+    /** A heading, a rule or a quoted line; `null` for anything else. */
     private fun singleLineBlock(line: String): MarkdownBlock? {
         HEADING.matchEntire(line)?.let { return MarkdownBlock.Heading(it.groupValues[1].length, it.groupValues[2]) }
         if (RULE.matches(line)) return MarkdownBlock.Rule
@@ -95,12 +109,14 @@ class MarkdownTransformer {
         return null
     }
 
+    /** Whether the line is a numbered item, and its text; `null` when it is not a list item at all. */
     private fun listItem(line: String): Pair<Boolean, String>? {
         BULLET.matchEntire(line)?.let { return false to it.groupValues[1] }
         NUMBERED.matchEntire(line)?.let { return true to it.groupValues[1] }
         return null
     }
 
+    /** Gathers the items that follow the first, for as long as they are of the same kind of list. */
     private fun list(first: Pair<Boolean, String>, lines: ArrayDeque<String>): MarkdownBlock {
         val items = mutableListOf(first.second)
         while (lines.isNotEmpty()) {
@@ -126,66 +142,5 @@ class MarkdownTransformer {
         val QUOTE = Regex("^>\\s?(.*)$")
         val BULLET = Regex("^[-*+]\\s+(.+)$")
         val NUMBERED = Regex("^\\d+[.)]\\s+(.+)$")
-    }
-}
-
-/** One run of text within a line, with the styling Markdown gave it. */
-data class InlineSpan(
-    val text: String,
-    val isBold: Boolean = false,
-    val isItalic: Boolean = false,
-    val isCode: Boolean = false,
-    /** Where the run leads when tapped. Only ever a web address. */
-    val link: String? = null,
-)
-
-/** Reads the styling inside a line of Markdown: bold, italic, code and links. Maths is made readable first. */
-class InlineMarkdownTransformer {
-
-    fun spans(text: String): List<InlineSpan> {
-        val spans = mutableListOf<InlineSpan>()
-        parse(MathTransformer().readableInline(text), InlineSpan(""), spans, depth = 0)
-        return spans
-    }
-
-    private fun parse(text: String, style: InlineSpan, into: MutableList<InlineSpan>, depth: Int) {
-        var position = 0
-        while (position < text.length) {
-            val match = if (depth < MAXIMUM_DEPTH) TOKEN.find(text, position) else null
-            if (match == null) {
-                into += style.copy(text = text.substring(position))
-                return
-            }
-            if (match.range.first > position) into += style.copy(text = text.substring(position, match.range.first))
-            val groups = match.groups
-            when {
-                groups[1] != null -> into += style.copy(text = groups[1]!!.value, isCode = true)
-                groups[2] != null -> {
-                    // A link that is not a web address is shown as its text and leads nowhere.
-                    val address = groups[3]!!.value.trim()
-                    parse(groups[2]!!.value, style.copy(link = address.takeIf(SearchSource::isWebLink) ?: style.link), into, depth + 1)
-                }
-                groups[4] != null -> parse(groups[4]!!.value, style.copy(isBold = true), into, depth + 1)
-                groups[5] != null -> parse(groups[5]!!.value, style.copy(isBold = true), into, depth + 1)
-                groups[6] != null -> parse(groups[6]!!.value, style.copy(isItalic = true), into, depth + 1)
-                groups[7] != null -> parse(groups[7]!!.value, style.copy(isItalic = true), into, depth + 1)
-                else -> into += style.copy(text = match.value)
-            }
-            position = match.range.last + 1
-        }
-    }
-
-    private companion object {
-        const val MAXIMUM_DEPTH = 4
-
-        /** Code, a link, bold in either spelling, then italic in either spelling. */
-        val TOKEN = Regex(
-            "`([^`\\n]+)`" +
-                "|\\[([^\\]\\n]+)\\]\\(([^)\\s]+)\\)" +
-                "|\\*\\*(?=\\S)(.+?)(?<=\\S)\\*\\*(?!\\*)" +
-                "|__(?=\\S)(.+?)(?<=\\S)__" +
-                "|(?<![\\w*])\\*(?=[^\\s*])(.+?)(?<=[^\\s*])\\*(?![\\w*])" +
-                "|(?<![\\w_])_(?=[^\\s_])(.+?)(?<=[^\\s_])_(?![\\w_])",
-        )
     }
 }

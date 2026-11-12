@@ -142,6 +142,10 @@
     <string name="settings_speech">Speech address (Kokoro)</string>
     <string name="settings_voice">Voice</string>
     <string name="settings_voice_name">Voice name</string>
+    <string name="settings_voice_sample">Hello. This is how I sound when I read a reply aloud.</string>
+    <string name="settings_voice_sample_play">Hear this voice</string>
+    <string name="settings_voice_sample_stop">Stop</string>
+    <string name="settings_voice_sample_failed">The voice could not be played. Check the speech address and the voice name.</string>
     <string name="settings_privacy">Privacy</string>
     <string name="settings_require_unlock">Require fingerprint, face or PIN</string>
     <string name="settings_require_unlock_footer">Asked for each time Hearth is opened. Your conversations are hidden in the recent apps list.</string>

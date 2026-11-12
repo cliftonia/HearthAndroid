@@ -53,10 +53,16 @@ class MathTransformer {
 
     private companion object {
         val WHITESPACE = Regex("\\s+")
+
+        /** Commands that only style their contents, such as `\text{…}`; the contents are kept. */
         val TEXT_COMMAND = Regex("\\\\(?:text|mathrm|mathbf|mathit|operatorname|boxed)\\s*\\{([^{}]*)\\}")
         val ROOT = Regex("\\\\sqrt\\s*\\{([^{}]*)\\}")
         val FRACTION = Regex("\\\\d?frac\\s*\\{([^{}]*)\\}\\s*\\{([^{}]*)\\}")
+
+        /** Any other command, looked up in [SYMBOLS]; an unknown one is left as its bare name. */
         val COMMAND = Regex("\\\\([A-Za-z]+)")
+
+        /** Spacing commands such as `\,`, which become a plain space. */
         val SPACING = Regex("\\\\[,;:! ]")
         val SUPERSCRIPT = Regex("\\^\\s*(?:\\{([^{}]*)\\}|(\\S))")
         val SUBSCRIPT = Regex("_\\s*(?:\\{([^{}]*)\\}|(\\S))")
@@ -80,6 +86,7 @@ class MathTransformer {
             'a' to 'ₐ', 'e' to 'ₑ', 'i' to 'ᵢ', 'j' to 'ⱼ', 'k' to 'ₖ', 'm' to 'ₘ', 'n' to 'ₙ', 'o' to 'ₒ', 't' to 'ₜ', 'x' to 'ₓ',
         )
 
+        /** Command names and the characters they are written as. Commands that only lay things out become nothing. */
         val SYMBOLS = mapOf(
             "times" to "×", "cdot" to "·", "div" to "÷", "pm" to "±", "mp" to "∓",
             "leq" to "≤", "le" to "≤", "geq" to "≥", "ge" to "≥", "neq" to "≠", "ne" to "≠", "approx" to "≈", "equiv" to "≡",

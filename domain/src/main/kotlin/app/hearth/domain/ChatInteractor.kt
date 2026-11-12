@@ -1,5 +1,6 @@
 package app.hearth.domain
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -13,21 +14,30 @@ class ChatInteractor(
     private val search: SearchDataProvider,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    /** What happens during a turn, in the order it happens. */
     sealed interface Event {
         /** A web search has begun for this query. */
         data class Searching(val query: String) : Event
 
         /** Every source found so far in this turn. */
         data class Sources(val sources: List<SearchSource>) : Event
+
+        /** A search could not be made; the reply goes on without it. */
         data object SearchFailed : Event
 
         /** What became of a change the model asked to make to its memory. */
         data class MemoryChanged(val outcome: MemoryOutcome) : Event
+
+        /** A little more of the model's reasoning. */
         data class Thinking(val text: String) : Event
+
+        /** A little more of the reply itself. */
         data class Text(val text: String) : Event
     }
 
+    /** Everything one turn is run with. */
     class Turn(
+        /** The conversation so far, ending with the message to be answered. */
         val history: List<Message>,
         val model: ChatModel,
         val settings: ServerSettings,
@@ -147,7 +157,10 @@ class ChatInteractor(
         return transformer.questions(chat.complete(baseUrl, ChatRequest(model, listOf(PromptMessage(PromptRole.USER, prompt)), ThinkingLevel.OFF)))
     }
 
-    /** Searches the web. A failed search is reported and the turn carries on without it: the reply matters more. */
+    /**
+     * Searches the web and returns the leading results not already in [known]. A failed search is reported
+     * and the turn carries on without it: the reply matters more.
+     */
     private suspend fun found(
         request: SearchRequest,
         searchUrl: String,
@@ -158,7 +171,7 @@ class ChatInteractor(
         return try {
             search.search(searchUrl, request).filter { result -> known.none { it.url == result.url } }.take(MAXIMUM_SOURCES)
         } catch (failure: Exception) {
-            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            if (failure is CancellationException) throw failure
             report(Event.SearchFailed)
             emptyList()
         }
@@ -178,10 +191,13 @@ class ChatInteractor(
     }
 
     companion object {
+        /** How many results are kept from one search. */
         private const val MAXIMUM_SOURCES = 5
 
         /** How many times in one turn the model may go back to the web before it must answer. */
         private const val MAXIMUM_SEARCH_ROUNDS = 3
+
+        /** How many of a search's results have their pages read, and how much text is taken from each. */
         private const val MAXIMUM_PAGES_READ = 3
         private const val PAGE_EXCERPT_LENGTH = 2500
 

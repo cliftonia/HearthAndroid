@@ -21,28 +21,13 @@ class FollowUpTransformer {
         .take(MAXIMUM_COUNT)
 
     companion object {
+        /** How many questions are asked for, and the most that are shown. */
         const val MAXIMUM_COUNT = 3
-        private const val EXCERPT_LENGTH = 1500
-        private val LIST_MARKER = Regex("^([-*•]|\\d+[.)])\\s*")
-    }
-}
 
-/** Writes a conversation out as Markdown, ready to share. */
-class ConversationExporter(
-    /** The heading over each of the user's messages. */
-    private val userLabel: String,
-    /** The heading over each reply. */
-    private val assistantLabel: String,
-    /** The title used when the conversation has none. */
-    private val untitled: String,
-) {
-    fun markdown(conversation: Conversation): String {
-        val title = "# " + conversation.title.ifEmpty { untitled }
-        val turns = conversation.messages.filterNot { it.isEmpty }.map { message ->
-            val label = if (message.role == MessageRole.USER) userLabel else assistantLabel
-            val sources = message.sources.mapIndexed { index, source -> "${index + 1}. [${source.title}](${source.url})" }.joinToString("\n")
-            listOf("**$label**", message.text, sources).filter { it.isNotEmpty() }.joinToString("\n\n")
-        }
-        return (listOf(title) + turns).joinToString("\n\n") + "\n"
+        /** How much of the question and of the reply the model is shown. */
+        private const val EXCERPT_LENGTH = 1500
+
+        /** A bullet or a number at the start of a line. */
+        private val LIST_MARKER = Regex("^([-*•]|\\d+[.)])\\s*")
     }
 }

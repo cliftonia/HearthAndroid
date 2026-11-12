@@ -5,49 +5,31 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.SystemBarStyle
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.hearth.ui.ChatScreen
-import app.hearth.ui.DrawerContent
-import app.hearth.ui.HearthTheme
-import app.hearth.ui.LockScreen
-import app.hearth.ui.SettingsScreen
-import app.hearth.ui.VoiceScreen
-import app.hearth.ui.isDark
+import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.isDark
+import app.hearth.lock.LockScreen
 
+/**
+ * The app's one window. It draws the lock or the screens, and does what only an activity can: asks for a
+ * fingerprint, publishes the home screen shortcut, takes the shortcut's intent and keeps the window private.
+ *
+ * It holds no state of its own. Everything lives in the [AppCoordinator], which outlives it.
+ */
 class MainActivity : FragmentActivity() {
     private val coordinator: AppCoordinator get() = (application as HearthApplication).coordinator
 
@@ -67,12 +49,15 @@ class MainActivity : FragmentActivity() {
             }
             // With the lock on, the conversations are also kept out of the recent apps list and out of screenshots.
             LaunchedEffect(settings.isLockEnabled) {
-                if (settings.isLockEnabled) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                val secure = WindowManager.LayoutParams.FLAG_SECURE
+                if (settings.isLockEnabled) window.addFlags(secure) else window.clearFlags(secure)
             }
             HearthTheme(isDark) {
                 // While locked nothing else is drawn at all, so no menu or dialog can sit above the lock.
                 if (isLocked) {
-                    LockScreen(onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } })
+                    LockScreen(
+                        onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } },
+                    )
                 } else {
                     RootView(coordinator) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
                 }
@@ -91,13 +76,14 @@ class MainActivity : FragmentActivity() {
         if (!isChangingConfigurations) coordinator.lock.backgroundedAction()
     }
 
+    /** Opens the voice conversation when the app was started from its shortcut. */
     private fun handle(intent: Intent?) {
         if (intent?.action == ACTION_VOICE) coordinator.startVoice(isFromOutside = true)
     }
 
     /** Offers "Start voice conversation" when the app's icon is held down. */
     private fun publishVoiceShortcut() {
-        val shortcut = ShortcutInfoCompat.Builder(this, "voice")
+        val shortcut = ShortcutInfoCompat.Builder(this, VOICE_SHORTCUT_ID)
             .setShortLabel(getString(R.string.composer_voice))
             .setIcon(IconCompat.createWithResource(this, R.drawable.ic_shortcut_voice))
             .setIntent(Intent(this, MainActivity::class.java).setAction(ACTION_VOICE))
@@ -125,63 +111,10 @@ class MainActivity : FragmentActivity() {
     }
 
     private companion object {
+        /** The action of the intent the voice shortcut sends. */
         const val ACTION_VOICE = "app.hearth.action.VOICE"
-    }
-}
 
-@Composable
-private fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boolean) -> Unit) -> Unit) {
-    val screen by coordinator.screen.collectAsStateWithLifecycle()
-    val isDrawerOpen by coordinator.isDrawerOpen.collectAsStateWithLifecycle()
-    val chat by coordinator.chat.viewModel.collectAsStateWithLifecycle()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val focusManager = LocalFocusManager.current
-
-    // The coordinator says when the drawer should be open; a swipe by hand is reported back to it.
-    LaunchedEffect(isDrawerOpen) {
-        if (isDrawerOpen) {
-            focusManager.clearFocus()
-            drawerState.open()
-        } else {
-            drawerState.close()
-        }
-    }
-    LaunchedEffect(drawerState.currentValue) { coordinator.drawerChanged(drawerState.currentValue == DrawerValue.Open) }
-    BackHandler(enabled = isDrawerOpen || screen != Screen.CHAT) {
-        when {
-            isDrawerOpen -> coordinator.drawerChanged(false)
-            screen == Screen.VOICE -> coordinator.voice.endAction()
-            else -> coordinator.settings.doneAction()
-        }
-    }
-
-    BoxWithConstraints(Modifier.fillMaxSize().background(HearthTheme.colors.paper)) {
-        // On a tablet or an unfolded phone the chat list stays beside the conversation.
-        val isWide = maxWidth >= 840.dp
-        val insets = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
-        val content: @Composable (Modifier) -> Unit = { modifier ->
-            when (screen) {
-                Screen.CHAT -> ChatScreen(coordinator.chat, coordinator.settingsStore, coordinator.modelStore, coordinator.attachments, modifier, showsMenu = !isWide)
-                Screen.SETTINGS -> SettingsScreen(coordinator.settings, authenticate, modifier)
-                Screen.VOICE -> VoiceScreen(coordinator.voice, modifier)
-            }
-        }
-        if (isWide) {
-            Row(insets) {
-                DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore, Modifier.width(320.dp))
-                Box(Modifier.width(1.dp).fillMaxHeight().background(HearthTheme.colors.line))
-                content(Modifier.weight(1f))
-            }
-        } else {
-            ModalNavigationDrawer(
-                drawerState = drawerState,
-                gesturesEnabled = screen == Screen.CHAT,
-                drawerContent = {
-                    ModalDrawerSheet(drawerContainerColor = HearthTheme.colors.paper, modifier = Modifier.widthIn(max = 320.dp)) {
-                        DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore)
-                    }
-                },
-            ) { content(insets) }
-        }
+        /** The name the launcher knows the shortcut by; changing it would orphan one already pinned. */
+        const val VOICE_SHORTCUT_ID = "voice"
     }
 }
