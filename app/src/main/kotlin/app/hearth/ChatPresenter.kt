@@ -213,7 +213,11 @@ class ChatPresenter(
         }
     }
 
-    fun newChatAction() = show(Conversation(modelId = state.value.selectedModel?.id))
+    /** Starts afresh: anything half written is cleared along with the conversation. */
+    fun newChatAction() {
+        show(Conversation(modelId = state.value.selectedModel?.id))
+        state.update { it.copy(draft = "") }
+    }
 
     fun selectConversationAction(id: ConversationId) {
         if (id == state.value.conversation.id) return

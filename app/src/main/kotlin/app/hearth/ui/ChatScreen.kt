@@ -18,19 +18,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.filled.Lock as LockFilled
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +48,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,11 +84,11 @@ fun ChatScreen(
     val settings by settingsStore.settings.collectAsStateWithLifecycle()
     val models by modelStore.models.collectAsStateWithLifecycle()
     Column(modifier.fillMaxSize()) {
-        ChatHeader(viewModel, models, presenter, showsMenu)
+        ChatHeader(viewModel, models, settings, presenter, showsMenu)
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
-                viewModel.conversation.messages.isEmpty() -> EmptyState(viewModel, settings, presenter::togglePrivateAction)
+                viewModel.conversation.messages.isEmpty() -> EmptyState(viewModel.conversation.isPrivate)
                 else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null)
             }
         }
@@ -96,7 +98,7 @@ fun ChatScreen(
 }
 
 @Composable
-private fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, presenter: ChatPresenter, showsMenu: Boolean) {
+private fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter, showsMenu: Boolean) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         if (showsMenu) {
             HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), onClick = presenter::drawerAction)
@@ -104,22 +106,43 @@ private fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, presen
             Spacer(Modifier.size(48.dp))
         }
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            ModelPicker(viewModel.selectedModel, models, viewModel.conversation.isPrivate, presenter::selectModelAction)
+            ModelPicker(viewModel.selectedModel, models, presenter::selectModelAction)
         }
-        HearthIconButton(Icons.Outlined.Edit, stringResource(R.string.chat_new), onClick = presenter::newChatAction)
+        val canChange = viewModel.conversation.messages.isEmpty() && settings.isMemoryEnabled && settings.ollamaUrl != null
+        PrivateToggle(viewModel.conversation.isPrivate, canChange, presenter::togglePrivateAction)
+    }
+}
+
+/** Makes a chat that has not yet begun private. Once the chat has begun it only shows that the chat is private. */
+@Composable
+private fun PrivateToggle(isPrivate: Boolean, canChange: Boolean, onToggle: () -> Unit) {
+    val colors = HearthTheme.colors
+    if (!canChange && !isPrivate) {
+        Spacer(Modifier.size(48.dp))
+        return
+    }
+    IconButton(onClick = onToggle, enabled = canChange, modifier = Modifier.semantics { selected = isPrivate }) {
+        Box(
+            Modifier.size(36.dp).background(if (isPrivate) colors.pineSoft else androidx.compose.ui.graphics.Color.Transparent, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (isPrivate) Icons.Filled.LockFilled else Icons.Outlined.Lock,
+                stringResource(R.string.chat_private),
+                tint = if (isPrivate) colors.pine else colors.ink,
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
 @Composable
-private fun ModelPicker(selected: ChatModel?, models: List<ChatModel>, isPrivate: Boolean, onSelect: (ChatModel) -> Unit) {
+private fun ModelPicker(selected: ChatModel?, models: List<ChatModel>, onSelect: (ChatModel) -> Unit) {
     var isOpen by remember { mutableStateOf(false) }
     val colors = HearthTheme.colors
     Box {
         val openLabel = stringResource(R.string.chat_model_picker)
         TextButton(onClick = { isOpen = true }, modifier = Modifier.semantics { onClick(label = openLabel, action = null) }) {
-            if (isPrivate) {
-                Icon(Icons.Outlined.Lock, stringResource(R.string.chat_private), tint = colors.pine, modifier = Modifier.padding(end = 6.dp).size(16.dp))
-            }
             Text(
                 selected?.displayName ?: stringResource(R.string.chat_no_model),
                 color = colors.ink,
@@ -229,9 +252,8 @@ private fun FollowUps(questions: List<String>, onAsk: (String) -> Unit) {
 }
 
 @Composable
-private fun EmptyState(viewModel: ChatViewModel, settings: ServerSettings, onTogglePrivate: () -> Unit) {
+private fun EmptyState(isPrivate: Boolean) {
     val colors = HearthTheme.colors
-    val isPrivate = viewModel.conversation.isPrivate
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterVertically),
@@ -239,21 +261,13 @@ private fun EmptyState(viewModel: ChatViewModel, settings: ServerSettings, onTog
     ) {
         HearthMark(56.dp)
         Text(stringResource(R.string.chat_empty_title), style = HearthTheme.display, color = colors.ink, textAlign = TextAlign.Center)
-        if (settings.isMemoryEnabled) {
-            FilterChip(
-                selected = isPrivate,
-                onClick = onTogglePrivate,
-                label = { Text(stringResource(R.string.chat_private)) },
-                leadingIcon = { Icon(Icons.Outlined.Lock, null, modifier = Modifier.size(16.dp)) },
-            )
-            // The note keeps its place whether or not it shows, so the chip does not jump when tapped.
-            Text(
-                if (isPrivate) stringResource(R.string.chat_private_note) else "",
-                color = colors.mute,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-            )
-        }
+        // The note keeps its place whether or not it shows, so the greeting does not jump when the chat is made private.
+        Text(
+            if (isPrivate) stringResource(R.string.chat_private_note) else "",
+            color = colors.mute,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

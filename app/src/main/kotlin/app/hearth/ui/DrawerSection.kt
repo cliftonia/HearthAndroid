@@ -1,6 +1,7 @@
 package app.hearth.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,7 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,7 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Search
@@ -36,12 +39,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,7 +75,6 @@ fun DrawerContent(presenter: DrawerPresenter, selectedId: ConversationId, settin
         Row(Modifier.fillMaxWidth().padding(start = 6.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             HearthMark(28.dp)
             Text(stringResource(R.string.brand), style = HearthTheme.brand, color = colors.ink, modifier = Modifier.weight(1f).padding(start = 10.dp))
-            HearthIconButton(Icons.Outlined.Edit, stringResource(R.string.chat_new), onClick = presenter::newChatAction)
         }
         OutlinedTextField(
             value = query,
@@ -80,7 +85,9 @@ fun DrawerContent(presenter: DrawerPresenter, selectedId: ConversationId, settin
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         )
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(vertical = 4.dp)) {
+        Box(Modifier.weight(1f)) {
+        // The bottom padding leaves room for the last chat to be scrolled clear of the floating controls.
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp)) {
             if (sections.isEmpty()) {
                 item { Text(stringResource(R.string.drawer_empty), color = colors.mute, fontSize = 14.sp, modifier = Modifier.padding(10.dp)) }
             }
@@ -98,7 +105,8 @@ fun DrawerContent(presenter: DrawerPresenter, selectedId: ConversationId, settin
                 }
             }
         }
-        ConnectionFooter(settingsStore, modelStore, presenter::settingsAction)
+        FloatingControls(settingsStore, modelStore, presenter, Modifier.align(Alignment.BottomCenter))
+        }
     }
     renaming?.let { conversation ->
         RenameDialog(conversation.title, onDismiss = { renaming = null }) { title ->
@@ -172,8 +180,38 @@ private fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String
     )
 }
 
+/** The settings and the new chat button, floating over the end of the list. */
 @Composable
-private fun ConnectionFooter(settingsStore: SettingsStore, modelStore: ModelStore, onSettings: () -> Unit) {
+private fun FloatingControls(settingsStore: SettingsStore, modelStore: ModelStore, presenter: DrawerPresenter, modifier: Modifier = Modifier) {
+    val colors = HearthTheme.colors
+    Row(
+        modifier
+            .fillMaxWidth()
+            .background(Brush.verticalGradient(0f to colors.paper.copy(alpha = 0f), 0.4f to colors.paper, 1f to colors.paper))
+            .padding(start = 4.dp, end = 4.dp, top = 28.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsButton(settingsStore, modelStore, presenter::settingsAction)
+        Box(Modifier.weight(1f))
+        Row(
+            Modifier
+                .height(48.dp)
+                .clip(CircleShape)
+                .background(colors.pine)
+                .clickable(role = Role.Button, onClick = presenter::newChatAction)
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(Icons.Outlined.Add, null, tint = colors.onPine, modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.chat_new), color = colors.onPine, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Opens the settings. Its dot shows whether the server can be reached. */
+@Composable
+private fun SettingsButton(settingsStore: SettingsStore, modelStore: ModelStore, onSettings: () -> Unit) {
     val colors = HearthTheme.colors
     val settings by settingsStore.settings.collectAsStateWithLifecycle()
     val models by modelStore.models.collectAsStateWithLifecycle()
@@ -184,18 +222,17 @@ private fun ConnectionFooter(settingsStore: SettingsStore, modelStore: ModelStor
         isOnline -> pluralStringResource(R.plurals.drawer_connected, models.size, models.size)
         else -> stringResource(R.string.drawer_not_connected)
     }
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 8.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onSettings).padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(colors.card)
+            .border(1.dp, colors.line, CircleShape)
+            .clickable(role = Role.Button, onClick = onSettings)
+            .semantics { stateDescription = status },
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(Icons.Outlined.Settings, null, tint = colors.ink, modifier = Modifier.size(22.dp))
-        Column(Modifier.weight(1f)) {
-            Text(stringResource(R.string.drawer_settings), color = colors.ink, fontSize = 15.sp)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(Modifier.size(7.dp).background(if (isOnline) colors.online else colors.mute, CircleShape))
-                Text(status, color = colors.mute, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
+        Icon(Icons.Outlined.Settings, stringResource(R.string.drawer_settings), tint = colors.ink, modifier = Modifier.size(22.dp))
+        Box(Modifier.align(Alignment.TopEnd).padding(9.dp).size(8.dp).background(if (isOnline) colors.online else colors.mute, CircleShape))
     }
 }

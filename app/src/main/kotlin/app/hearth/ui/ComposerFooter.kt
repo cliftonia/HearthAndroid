@@ -38,6 +38,7 @@ import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,9 +47,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
@@ -95,13 +99,19 @@ fun ComposerFooter(
     val colors = HearthTheme.colors
     val model = viewModel.selectedModel
     val placeholder = model?.let { stringResource(R.string.composer_placeholder_model, it.displayName) } ?: stringResource(R.string.composer_placeholder)
+    val focusManager = LocalFocusManager.current
+    var isFocused by remember { mutableStateOf(false) }
+    // At rest the composer is a single row. It opens out, showing its options, while a message is being written.
+    val isExpanded = isFocused || viewModel.draft.isNotEmpty()
+    // A different conversation starts with the composer at rest.
+    LaunchedEffect(viewModel.conversation.id) { focusManager.clearFocus() }
     Column(
         modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp)
             .background(colors.card, RoundedCornerShape(24.dp))
             .border(1.dp, colors.line, RoundedCornerShape(24.dp))
-            .padding(start = 8.dp, end = 8.dp, top = 12.dp, bottom = 6.dp),
+            .padding(start = 8.dp, end = 8.dp, top = if (isExpanded) 12.dp else 6.dp, bottom = 6.dp),
     ) {
         if (viewModel.editingMessageId != null) {
             Row(Modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -110,13 +120,18 @@ fun ComposerFooter(
             }
         }
         PendingAttachments(viewModel, presenter, Modifier.padding(start = 8.dp, bottom = 8.dp))
-        BasicTextField(
+        ComposerLayout(isCompact = !isExpanded) {
+            BasicTextField(
             value = viewModel.draft,
             onValueChange = presenter::draftAction,
             textStyle = TextStyle(color = colors.ink, fontSize = 16.sp, lineHeight = 22.sp),
             cursorBrush = SolidColor(colors.pine),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 24.dp, max = 140.dp).padding(horizontal = 8.dp).semantics { contentDescription = placeholder },
+            modifier = Modifier
+                .heightIn(min = 24.dp, max = 140.dp)
+                .padding(horizontal = 8.dp)
+                .onFocusChanged { isFocused = it.isFocused }
+                .semantics { contentDescription = placeholder },
             decorationBox = { field ->
                 Box {
                     if (viewModel.draft.isEmpty()) Text(placeholder, color = colors.mute, fontSize = 16.sp, maxLines = 1)
@@ -124,21 +139,51 @@ fun ComposerFooter(
                 }
             },
         )
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 AttachMenu(canSee = model?.canSee == true, presenter = presenter, attachments = attachments)
-                if (model?.canThink == true) ThinkingMenu(settings.thinkingLevel, presenter::thinkingLevelAction)
-                // A model that can call tools searches when it sees fit; any other must be told to.
-                if (model != null && !model.canUseTools && settings.searchUrl != null) {
-                    Toggle(Icons.Outlined.Language, stringResource(R.string.composer_search), viewModel.isSearchForced, presenter::toggleSearchAction)
-                }
-                if (settings.speechUrl != null) {
-                    val icon = if (settings.isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff
-                    Toggle(icon, stringResource(R.string.composer_read_replies), settings.isAutoReadEnabled, presenter::toggleAutoReadAction)
+                if (isExpanded) {
+                    if (model?.canThink == true) ThinkingMenu(settings.thinkingLevel, presenter::thinkingLevelAction)
+                    // A model that can call tools searches when it sees fit; any other must be told to.
+                    if (model != null && !model.canUseTools && settings.searchUrl != null) {
+                        Toggle(Icons.Outlined.Language, stringResource(R.string.composer_search), viewModel.isSearchForced, presenter::toggleSearchAction)
+                    }
+                    if (settings.speechUrl != null) {
+                        val icon = if (settings.isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff
+                        Toggle(icon, stringResource(R.string.composer_read_replies), settings.isAutoReadEnabled, presenter::toggleAutoReadAction)
+                    }
                 }
             }
-            DictationButton(viewModel.isDictating, presenter)
-            SendButton(viewModel, canTalk = settings.speechUrl != null, presenter = presenter)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                DictationButton(viewModel.isDictating, presenter)
+                SendButton(viewModel, canTalk = settings.speechUrl != null, presenter = presenter)
+            }
+        }
+    }
+}
+
+/**
+ * Arranges the composer's field, its leading controls and its trailing controls, given in that order.
+ *
+ * At rest the three sit in one row. While a message is being written the field takes a row of its own above the
+ * controls. The field is the same element in both, so it keeps the keyboard as the arrangement changes.
+ */
+@Composable
+private fun ComposerLayout(isCompact: Boolean, content: @Composable () -> Unit) {
+    Layout(content, Modifier.fillMaxWidth()) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val trailing = measurables[2].measure(loose)
+        val leading = measurables[1].measure(loose.copy(maxWidth = (width - trailing.width).coerceAtLeast(0)))
+        val fieldWidth = if (isCompact) (width - leading.width - trailing.width).coerceAtLeast(0) else width
+        val field = measurables[0].measure(loose.copy(minWidth = fieldWidth, maxWidth = fieldWidth))
+        val controlsHeight = maxOf(leading.height, trailing.height)
+        val gap = if (isCompact) 0 else 4.dp.roundToPx()
+        val height = if (isCompact) maxOf(field.height, controlsHeight) else field.height + gap + controlsHeight
+        layout(width, height) {
+            val controlsTop = height - controlsHeight
+            field.placeRelative(if (isCompact) leading.width else 0, if (isCompact) (height - field.height) / 2 else 0)
+            leading.placeRelative(0, controlsTop + (controlsHeight - leading.height) / 2)
+            trailing.placeRelative(width - trailing.width, controlsTop + (controlsHeight - trailing.height) / 2)
         }
     }
 }
@@ -253,6 +298,7 @@ private fun ThinkingMenu(level: ThinkingLevel, onSelect: (ThinkingLevel) -> Unit
 @Composable
 private fun SendButton(viewModel: ChatViewModel, canTalk: Boolean, presenter: ChatPresenter) {
     val colors = HearthTheme.colors
+    val focusManager = LocalFocusManager.current
     val offersVoice = !viewModel.isStreaming && !viewModel.canSend && canTalk && viewModel.selectedModel != null
     val isEnabled = viewModel.isStreaming || viewModel.canSend || offersVoice
     val (icon, label) = when {
@@ -265,7 +311,11 @@ private fun SendButton(viewModel: ChatViewModel, canTalk: Boolean, presenter: Ch
             when {
                 viewModel.isStreaming -> presenter.stopAction()
                 offersVoice -> presenter.voiceAction()
-                else -> presenter.sendAction()
+                else -> {
+                    // Sending puts the keyboard away, leaving the whole screen for the reply.
+                    focusManager.clearFocus()
+                    presenter.sendAction()
+                }
             }
         },
         enabled = isEnabled,
