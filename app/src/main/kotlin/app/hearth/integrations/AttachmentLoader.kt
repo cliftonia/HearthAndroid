@@ -40,6 +40,20 @@ class AttachmentLoader(private val context: Context) {
     data class Shared(val images: List<String>, val documents: List<AttachedDocument>, val unreadableCount: Int)
 
     /**
+     * Whether an address is one another app has lent, and not a way into this app's own files.
+     *
+     * The owner is found by asking the system which app answers for the address, not by reading the address as text:
+     * an address can be written to look like another app's while still reaching this one. One that carries a user
+     * name before its host is refused outright, since that is how such a disguise is made.
+     */
+    private fun isLentByAnotherApp(uri: Uri): Boolean {
+        val authority = uri.encodedAuthority.orEmpty()
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT || authority.isEmpty() || '@' in authority) return false
+        val owner = context.packageManager.resolveContentProvider(authority, 0)?.packageName
+        return owner != context.packageName
+    }
+
+    /**
      * Reads what another app shared: pictures scaled down as photos are, anything else for its text.
      *
      * Only addresses lent by another app are read. One that points at a file by its path, or at this app's own
@@ -51,7 +65,7 @@ class AttachmentLoader(private val context: Context) {
         var unreadableCount = 0
         for (address in addresses.take(MAXIMUM_SHARED_ITEMS)) {
             val uri = Uri.parse(address)
-            val isLent = uri.scheme == ContentResolver.SCHEME_CONTENT && uri.authority?.startsWith(context.packageName) != true
+            val isLent = isLentByAnotherApp(uri)
             val isPicture = isLent && context.contentResolver.getType(uri)?.startsWith("image/") == true
             val image = if (isPicture) runCatching { jpegBase64(uri) }.getOrNull() else null
             val document = if (isLent && !isPicture) runCatching { document(uri) }.getOrNull() else null
