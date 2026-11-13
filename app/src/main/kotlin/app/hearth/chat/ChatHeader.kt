@@ -43,17 +43,12 @@ import app.hearth.domain.ServerSettings
 
 /** The top of the chat: the way to the chat list, the model in use, and the private chat button. */
 @Composable
-internal fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter, showsMenu: Boolean) {
+internal fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = HearthTheme.spacing.xs, vertical = HearthTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (showsMenu) {
-            HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), onClick = presenter::drawerAction)
-        } else {
-            // An empty place as wide as the button keeps the model's name in the middle.
-            Spacer(Modifier.size(HearthTheme.sizes.touchTarget))
-        }
+        HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), onClick = presenter::drawerAction)
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
             ModelPicker(viewModel.selectedModel, models, presenter::selectModelAction)
         }

@@ -2,7 +2,7 @@
 <resources>
     <string name="brand">Hearth</string>
 
-    <string name="chat_menu">Open chat list</string>
+    <string name="chat_menu">Chat list</string>
     <string name="chat_new">New chat</string>
     <string name="chat_model_picker">Choose model</string>
     <string name="chat_no_model">No model</string>

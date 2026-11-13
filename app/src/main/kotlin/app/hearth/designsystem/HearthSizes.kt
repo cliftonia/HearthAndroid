@@ -75,7 +75,7 @@ class HearthSizes {
     /** The chat list, as a drawer or beside the conversation. */
     val drawerWidth: Dp = 320.dp
 
-    /** From this width up the chat list stays beside the conversation. */
+    /** From this width up the chat list sits beside the conversation. */
     val wideLayoutMinWidth: Dp = 840.dp
 }
 

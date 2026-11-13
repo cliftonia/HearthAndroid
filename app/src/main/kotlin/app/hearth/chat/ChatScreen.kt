@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
@@ -19,9 +17,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
@@ -41,44 +43,106 @@ fun ChatScreen(
     modelStore: ModelStore,
     attachments: AttachmentLoader,
     modifier: Modifier = Modifier,
-    /** Whether the button that opens the chat list is shown; on a wide screen the list is always there. */
-    showsMenu: Boolean = true,
 ) {
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
     val settings by settingsStore.settings.collectAsStateWithLifecycle()
     val models by modelStore.models.collectAsStateWithLifecycle()
-    Column(modifier.fillMaxSize()) {
-        ChatHeader(viewModel, models, settings, presenter, showsMenu)
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+    ChatLayout(
+        modifier.fillMaxSize(),
+        header = { ChatHeader(viewModel, models, settings, presenter) },
+        content = {
             when {
                 settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
                 viewModel.conversation.messages.isEmpty() -> EmptyState(viewModel.conversation.isPrivate)
                 else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null)
             }
+        },
+        banner = { viewModel.error?.let { ErrorBanner(it, presenter::retryAction, presenter::dismissErrorAction) } },
+        footer = { ComposerFooter(viewModel, settings, presenter, attachments) },
+    )
+}
+
+/**
+ * Stacks the header, the conversation, any error and the composer, and settles what gives way when there is
+ * little height, as on a phone held sideways with the keyboard up.
+ *
+ * The composer comes first and is always whole. The error, and then the header, are shown only where they fit
+ * above it entire, and the conversation has whatever is left. So the composer is never pushed under the keyboard.
+ */
+@Composable
+private fun ChatLayout(
+    modifier: Modifier,
+    header: @Composable () -> Unit,
+    content: @Composable () -> Unit,
+    banner: @Composable () -> Unit,
+    footer: @Composable () -> Unit,
+) {
+    Layout(
+        content = {
+            Box { header() }
+            Box { content() }
+            Box { banner() }
+            Box { footer() }
+        },
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val height = constraints.maxHeight
+        val footerPlaceable = measurables[3].measure(Constraints(minWidth = width, maxWidth = width, maxHeight = height))
+        var remaining = height - footerPlaceable.height
+        // Measured at the height it wants, and left out if that is more than there is.
+        val fitted: (Measurable) -> Placeable? = { measurable ->
+            measurable.measure(Constraints(minWidth = width, maxWidth = width)).takeIf { it.height <= remaining }?.also { remaining -= it.height }
         }
-        viewModel.error?.let { ErrorBanner(it, presenter::retryAction, presenter::dismissErrorAction) }
-        ComposerFooter(viewModel, settings, presenter, attachments)
+        val bannerPlaceable = fitted(measurables[2])
+        val headerPlaceable = fitted(measurables[0])
+        val contentPlaceable = measurables[1].measure(Constraints.fixed(width, remaining))
+        layout(width, height) {
+            val headerHeight = headerPlaceable?.height ?: 0
+            headerPlaceable?.place(0, 0)
+            contentPlaceable.place(0, headerHeight)
+            bannerPlaceable?.place(0, headerHeight + contentPlaceable.height)
+            footerPlaceable.place(0, height - footerPlaceable.height)
+        }
     }
 }
 
-/** What a chat shows before its first message. */
+/**
+ * What a chat shows before its first message.
+ *
+ * Where there is not the height for all of it, the mark is left out first and then the note, so that the
+ * greeting is the last to go and nothing is ever shown cut in half.
+ */
 @Composable
 private fun EmptyState(isPrivate: Boolean) {
     val colors = HearthTheme.colors
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(HearthTheme.spacing.screen),
-        verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.gapS, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        HearthMark(HearthTheme.sizes.markM)
-        Text(stringResource(R.string.chat_empty_title), style = HearthTheme.type.display, color = colors.ink, textAlign = TextAlign.Center)
-        // The note keeps its place whether or not it shows, so the greeting does not jump when the chat is made private.
-        Text(
-            if (isPrivate) stringResource(R.string.chat_private_note) else "",
-            color = colors.mute,
-            style = HearthTheme.type.footnote,
-            textAlign = TextAlign.Center,
-        )
+    val gap = HearthTheme.spacing.gapS
+    Layout(
+        content = {
+            HearthMark(HearthTheme.sizes.markM)
+            Text(stringResource(R.string.chat_empty_title), style = HearthTheme.type.display, color = colors.ink, textAlign = TextAlign.Center)
+            // The note keeps its place whether or not it shows, so the greeting does not jump when the chat is made private.
+            Text(
+                if (isPrivate) stringResource(R.string.chat_private_note) else "",
+                color = colors.mute,
+                style = HearthTheme.type.footnote,
+                textAlign = TextAlign.Center,
+            )
+        },
+        modifier = Modifier.fillMaxSize().padding(HearthTheme.spacing.screen),
+    ) { measurables, constraints ->
+        val (mark, title, note) = measurables.map { it.measure(Constraints(maxWidth = constraints.maxWidth)) }
+        val spacing = gap.roundToPx()
+        val shown = listOf(listOf(mark, title, note), listOf(title, note), listOf(title))
+            .firstOrNull { parts -> parts.sumOf { it.height } + spacing * (parts.size - 1) <= constraints.maxHeight }
+            .orEmpty()
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            var top = (constraints.maxHeight - shown.sumOf { it.height } - spacing * (shown.size - 1)) / 2
+            shown.forEach { part ->
+                part.place((constraints.maxWidth - part.width) / 2, top)
+                top += part.height + spacing
+            }
+        }
     }
 }
 

@@ -119,6 +119,10 @@ fun ComposerFooter(
  *
  * At rest the three sit in one row. While a message is being written the field takes a row of its own above the
  * controls. The field is the same element in both, so it keeps the keyboard as the arrangement changes.
+ *
+ * The controls are never given up for height. Where there is not room for two rows, as on a phone held sideways
+ * with the keyboard up, the one row is kept; and the field is given only the height the controls leave, past
+ * which it scrolls.
  */
 @Composable
 private fun ComposerLayout(isCompact: Boolean, content: @Composable () -> Unit) {
@@ -127,14 +131,18 @@ private fun ComposerLayout(isCompact: Boolean, content: @Composable () -> Unit) 
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val trailing = measurables[2].measure(loose)
         val leading = measurables[1].measure(loose.copy(maxWidth = (width - trailing.width).coerceAtLeast(0)))
-        val fieldWidth = if (isCompact) (width - leading.width - trailing.width).coerceAtLeast(0) else width
-        val field = measurables[0].measure(loose.copy(minWidth = fieldWidth, maxWidth = fieldWidth))
         val controlsHeight = maxOf(leading.height, trailing.height)
-        val gap = if (isCompact) 0 else HearthTheme.spacing.xs.roundToPx()
-        val height = if (isCompact) maxOf(field.height, controlsHeight) else field.height + gap + controlsHeight
+        val rowGap = HearthTheme.spacing.xs.roundToPx()
+        val hasRoomForTwoRows = HearthTheme.sizes.fieldMinHeight.roundToPx() + rowGap + controlsHeight <= constraints.maxHeight
+        val isOneRow = isCompact || !hasRoomForTwoRows
+        val gap = if (isOneRow) 0 else rowGap
+        val fieldWidth = if (isOneRow) (width - leading.width - trailing.width).coerceAtLeast(0) else width
+        val fieldMaxHeight = if (isOneRow || !constraints.hasBoundedHeight) constraints.maxHeight else constraints.maxHeight - gap - controlsHeight
+        val field = measurables[0].measure(loose.copy(minWidth = fieldWidth, maxWidth = fieldWidth, maxHeight = fieldMaxHeight.coerceAtLeast(0)))
+        val height = if (isOneRow) maxOf(field.height, controlsHeight) else field.height + gap + controlsHeight
         layout(width, height) {
             val controlsTop = height - controlsHeight
-            field.placeRelative(if (isCompact) leading.width else 0, if (isCompact) (height - field.height) / 2 else 0)
+            field.placeRelative(if (isOneRow) leading.width else 0, if (isOneRow) (height - field.height) / 2 else 0)
             leading.placeRelative(0, controlsTop + (controlsHeight - leading.height) / 2)
             trailing.placeRelative(width - trailing.width, controlsTop + (controlsHeight - trailing.height) / 2)
         }

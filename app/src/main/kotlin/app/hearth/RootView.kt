@@ -18,6 +18,7 @@ import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -31,7 +32,8 @@ import app.hearth.voice.VoiceScreen
 
 /**
  * Lays out whichever screen the coordinator says is showing, with the chat list as a drawer on a phone and
- * as a column of its own on anything wide. Also decides what the back button does.
+ * as a column of its own on anything wide, where the chat's menu button puts it away and brings it back.
+ * Also decides what the back button does.
  *
  * [authenticate] asks the phone to confirm who is holding it, and reports whether it did.
  */
@@ -39,6 +41,7 @@ import app.hearth.voice.VoiceScreen
 internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boolean) -> Unit) -> Unit) {
     val screen by coordinator.screen.collectAsStateWithLifecycle()
     val isDrawerOpen by coordinator.isDrawerOpen.collectAsStateWithLifecycle()
+    val isSideListShown by coordinator.isSideListShown.collectAsStateWithLifecycle()
     val chat by coordinator.chat.viewModel.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val focusManager = LocalFocusManager.current
@@ -62,8 +65,9 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
     }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(HearthTheme.colors.paper)) {
-        // On a tablet or an unfolded phone the chat list stays beside the conversation.
+        // On a tablet or an unfolded phone the chat list sits beside the conversation until it is put away.
         val isWide = maxWidth >= HearthTheme.sizes.wideLayoutMinWidth
+        SideEffect { coordinator.widthChanged(isWide) }
         val insets = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
         val content: @Composable (Modifier) -> Unit = { modifier ->
             when (screen) {
@@ -73,7 +77,6 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                     coordinator.modelStore,
                     coordinator.attachments,
                     modifier,
-                    showsMenu = !isWide,
                 )
                 Screen.SETTINGS -> SettingsScreen(coordinator.settings, authenticate, modifier)
                 Screen.VOICE -> VoiceScreen(coordinator.voice, modifier)
@@ -81,9 +84,11 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
         }
         if (isWide) {
             Row(insets) {
-                val drawerWidth = Modifier.width(HearthTheme.sizes.drawerWidth)
-                DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore, drawerWidth)
-                Box(Modifier.width(HearthTheme.strokes.hairline).fillMaxHeight().background(HearthTheme.colors.line))
+                if (isSideListShown) {
+                    val drawerWidth = Modifier.width(HearthTheme.sizes.drawerWidth)
+                    DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore, drawerWidth)
+                    Box(Modifier.width(HearthTheme.strokes.hairline).fillMaxHeight().background(HearthTheme.colors.line))
+                }
                 content(Modifier.weight(1f))
             }
         } else {

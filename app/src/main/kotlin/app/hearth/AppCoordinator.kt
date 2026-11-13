@@ -36,10 +36,17 @@ class AppCoordinator(
 ) : ChatPresenterDelegate, DrawerPresenterDelegate, SettingsPresenterDelegate, VoicePresenterDelegate {
     private val screenState = MutableStateFlow(Screen.CHAT)
     private val drawerState = MutableStateFlow(false)
+    private val sideListState = MutableStateFlow(true)
+
+    /** Whether the window is wide enough for the chat list to sit beside the chat. Only the root view can tell. */
+    private var isWide = false
     val screen: StateFlow<Screen> = screenState.asStateFlow()
 
-    /** Whether the chat list should be open. It has no meaning on a wide screen, where the list is always there. */
+    /** Whether the chat list should be open as a drawer. It has no meaning on a wide screen, where the list sits beside the chat. */
     val isDrawerOpen: StateFlow<Boolean> = drawerState.asStateFlow()
+
+    /** Whether the chat list is shown beside the chat on a wide screen. It is there until the user puts it away. */
+    val isSideListShown: StateFlow<Boolean> = sideListState.asStateFlow()
     val settingsStore = dependencies.settingsStore
     val modelStore = dependencies.modelStore
     val attachments = dependencies.attachments
@@ -87,6 +94,11 @@ class AppCoordinator(
         drawerState.value = isOpen
     }
 
+    /** The window became wide enough for the chat list to sit beside the chat, or stopped being so. */
+    fun widthChanged(isWide: Boolean) {
+        this.isWide = isWide
+    }
+
     /**
      * Opens the voice conversation. Asked for from outside the app, as by the shortcut, it opens muted:
      * the microphone is not used until the user taps.
@@ -110,7 +122,8 @@ class AppCoordinator(
     }
 
     override fun chatPresenterDidRequestDrawer() {
-        drawerState.value = true
+        // Beside the chat the list is put away and brought back by the same button; as a drawer it only opens.
+        if (isWide) sideListState.value = !sideListState.value else drawerState.value = true
     }
 
     override fun chatPresenterDidRequestSettings() {
