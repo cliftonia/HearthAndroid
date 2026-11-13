@@ -43,13 +43,15 @@ class AttachmentLoader(private val context: Context) {
      * Whether an address is one another app has lent, and not a way into this app's own files.
      *
      * The owner is found by asking the system which app answers for the address, not by reading the address as text:
-     * an address can be written to look like another app's while still reaching this one. One that carries a user
-     * name before its host is refused outright, since that is how such a disguise is made.
+     * an address can be written to look like another app's while still reaching this one. Anything unusual is
+     * refused: a user name before the host, an escaped character in it, or an address the system cannot name an
+     * owner for. An app that lends an address is always one the system will name.
      */
     private fun isLentByAnotherApp(uri: Uri): Boolean {
-        val authority = uri.encodedAuthority.orEmpty()
-        if (uri.scheme != ContentResolver.SCHEME_CONTENT || authority.isEmpty() || '@' in authority) return false
-        val owner = context.packageManager.resolveContentProvider(authority, 0)?.packageName
+        val authority = uri.authority.orEmpty()
+        val isPlain = authority.isNotEmpty() && authority == uri.encodedAuthority && authority.none { it in "@%;" }
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT || !isPlain) return false
+        val owner = context.packageManager.resolveContentProvider(authority, 0)?.packageName ?: return false
         return owner != context.packageName
     }
 
