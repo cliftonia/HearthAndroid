@@ -34,6 +34,8 @@ data class ChatViewModel(
     val pictureModels: List<ImageModelKind> = emptyList(),
     /** What the picture server is doing right now, while a picture is on its way. */
     val pictureWork: PictureWorkKind? = null,
+    /** How many jobs the picture server has before this picture, while it waits its turn; `null` once it is being made. */
+    val pictureJobsAhead: Int? = null,
     /** The reply being read aloud. */
     val speakingMessageId: MessageId? = null,
     val error: ErrorViewConfiguration? = null,

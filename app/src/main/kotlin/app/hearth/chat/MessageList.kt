@@ -72,6 +72,7 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
                     isStreaming = isReplying,
                     searchingFor = if (isReplying) viewModel.searchingFor else null,
                     pictureWork = if (isReplying) viewModel.pictureWork else null,
+                    pictureJobsAhead = if (isReplying) viewModel.pictureJobsAhead else null,
                     hasSearchFailed = isLast && viewModel.hasSearchFailed,
                     memoryNotice = if (isLast) viewModel.memoryNotice else null,
                     canRetry = isLast && !viewModel.isStreaming,

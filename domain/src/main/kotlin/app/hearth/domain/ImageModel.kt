@@ -31,6 +31,15 @@ data class ImageCapabilities(
     val canEnlarge: Boolean = false,
 )
 
+/** How a picture stands while it is being made. */
+sealed interface ImageProgress {
+    /** The picture server is busy; this many jobs come first. */
+    data class Waiting(val ahead: Int) : ImageProgress
+
+    /** The picture is being made now. */
+    data object Working : ImageProgress
+}
+
 /**
  * Reads and writes the chosen picture model by its name. A name the app no longer knows is read as no choice,
  * not as a failure to read the settings.

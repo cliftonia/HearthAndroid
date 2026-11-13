@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.doubleOrNull
 
 /** A finished picture as ComfyUI names it. */
 @Serializable
@@ -41,4 +42,31 @@ data class ComfyHistoryDto(val status: ComfyStatusDto? = null, val outputs: Map<
             val details = parts?.getOrNull(1) as? JsonObject
             if (name == "execution_error") (details?.get("exception_message") as? JsonPrimitive)?.content else null
         }
+}
+
+/** What the server is running and what waits behind it. Each job is a list that begins with its place and its name. */
+@Serializable
+data class ComfyQueueDto(
+    @SerialName("queue_running") val running: List<JsonArray>,
+    @SerialName("queue_pending") val pending: List<JsonArray>,
+) {
+    /** The names of the jobs being worked on. */
+    val runningIds: List<String> get() = running.mapNotNull { name(it) }
+
+    /** The names of the waiting jobs, soonest first. The server does not list them in order. */
+    val pendingIds: List<String>
+        get() = pending
+            .mapNotNull { job -> place(job)?.let { place -> name(job)?.let { place to it } } }
+            .sortedBy { it.first }
+            .map { it.second }
+
+    /** Whether the server has nothing to do and nothing waiting. */
+    val isEmpty: Boolean get() = running.isEmpty() && pending.isEmpty()
+
+    /** How many jobs come before the named one, the one running included; `null` if it is not waiting. */
+    fun jobsAhead(promptId: String): Int? = pendingIds.indexOf(promptId).takeIf { it >= 0 }?.let { it + running.size }
+
+    private fun place(job: JsonArray): Double? = (job.getOrNull(0) as? JsonPrimitive)?.doubleOrNull
+
+    private fun name(job: JsonArray): String? = (job.getOrNull(1) as? JsonPrimitive)?.takeIf { it.isString }?.content
 }

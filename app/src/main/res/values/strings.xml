@@ -149,7 +149,12 @@
     <string name="picture_model_picker">Choose picture model</string>
     <string name="picture_mode">Make a picture</string>
     <string name="picture_placeholder">Describe a picture</string>
+    <string name="picture_follow_up_placeholder">Change it, or describe a new one</string>
     <string name="picture_change_placeholder">Say what to change, or send to enlarge</string>
+    <plurals name="picture_waiting">
+        <item quantity="one">Waiting in line, %1$d ahead…</item>
+        <item quantity="other">Waiting in line, %1$d ahead…</item>
+    </plurals>
     <string name="picture_creating">Making your picture…</string>
     <string name="picture_changing">Changing your picture…</string>
     <string name="picture_enlarging">Enlarging your picture…</string>

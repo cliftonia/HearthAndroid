@@ -53,6 +53,9 @@ fun ComposerFooter(
     val model = viewModel.selectedModel
     val isPictureMode = viewModel.isPictureMode
     val placeholder = when {
+        // With a picture already made, what is typed is taken to be about it unless it plainly starts another.
+        isPictureMode && viewModel.pendingImages.isEmpty() && viewModel.conversation.messages.any { it.isPicture } ->
+            stringResource(R.string.picture_follow_up_placeholder)
         isPictureMode && viewModel.pendingImages.isEmpty() -> stringResource(R.string.picture_placeholder)
         isPictureMode -> stringResource(R.string.picture_change_placeholder)
         model != null -> stringResource(R.string.composer_placeholder_model, model.displayName)

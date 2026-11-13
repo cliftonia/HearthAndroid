@@ -1,10 +1,15 @@
 package app.hearth.data
 
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -75,8 +80,16 @@ class ImageGraphTests {
 
 class ImageServiceTests {
 
-    /** A picture server that answers each path with what the test gives it, and keeps what it was sent. */
-    private class Server(private val answers: Map<String, String>) {
+    /**
+     * A picture server that answers each path with what the test gives it, and keeps what it was sent.
+     * A path in [changing] is answered afresh each time it is asked, for a queue that moves while a picture is waited for.
+     */
+    private class Server(
+        private val answers: Map<String, String>,
+        patienceMillis: Long = 200,
+        waitingPatienceMillis: Long = 200,
+        private val changing: Map<String, () -> String> = emptyMap(),
+    ) {
         val requests = mutableListOf<Pair<String, String>>()
         val service = ImageService(
             OkHttpClient.Builder().addInterceptor { chain ->
@@ -84,7 +97,8 @@ class ImageServiceTests {
                 val path = request.url.encodedPath
                 val sent = Buffer().also { request.body?.writeTo(it) }.readUtf8()
                 synchronized(requests) { requests += "${request.method} $path" to sent }
-                val answer = answers.entries.firstOrNull { path.startsWith(it.key) }?.value
+                val answer = changing.entries.firstOrNull { path.startsWith(it.key) }?.value?.invoke()
+                    ?: answers.entries.firstOrNull { path.startsWith(it.key) }?.value
                 Response.Builder()
                     .request(request)
                     .protocol(Protocol.HTTP_1_1)
@@ -94,10 +108,26 @@ class ImageServiceTests {
                     .build()
             }.build(),
             pollIntervalMillis = 1,
-            patienceMillis = 200,
+            patienceMillis = patienceMillis,
+            waitingPatienceMillis = waitingPatienceMillis,
         )
         val paths: List<String> get() = synchronized(requests) { requests.map { it.first } }
+
+        /** What the server was told, as opposed to asked, after the job was queued. */
+        val told: List<Pair<String, String>> get() = synchronized(requests) { requests.filter { it.first.startsWith("POST") }.drop(1) }
     }
+
+    private val fox = ImageJobDto.Create(ImageEngineDto.Z_IMAGE_TURBO, "a fox", 1024, 1024)
+
+    /** A job the server has taken and has no record of yet. */
+    private val queued = mapOf("/prompt" to """{"prompt_id":"p1"}""", "/history/p1" to "{}", "/interrupt" to "")
+
+    /** The job behind a video that is running and one other that was queued before it. */
+    private val waiting = """{"queue_running":[[4,"video",{},{},[]]],"queue_pending":[[6,"p1",{},{},[]],[5,"other",{},{},[]]]}"""
+    private val running = """{"queue_running":[[6,"p1",{},{},[]]],"queue_pending":[]}"""
+
+    /** What takes the job, and only the job, off the server: out of the queue, then stopped by name. */
+    private val cancelled = listOf("POST /queue" to """{"delete":["p1"]}""", "POST /interrupt" to """{"prompt_id":"p1"}""")
 
     private val done = """{"p1":{"status":{"messages":[["execution_start",{}]]},"outputs":{"7":{"images":[{"filename":"a.png","subfolder":"","type":"temp"}]}}}}"""
 
@@ -142,7 +172,7 @@ class ImageServiceTests {
         val failed = """{"p1":{"status":{"messages":[["execution_start",{}],["execution_error",{"exception_message":" out of memory\n"}]]},"outputs":{}}}"""
         val server = Server(mapOf("/prompt" to """{"prompt_id":"p1"}""", "/history/p1" to failed))
         val failure = assertFailsWith<ImageServiceError.Failed> {
-            server.service.render("http://host.example", ImageJobDto.Create(ImageEngineDto.Z_IMAGE_TURBO, "a fox", 1024, 1024))
+            server.service.render("http://host.example", fox)
         }
         assertEquals("out of memory", failure.detail)
         val empty = Server(mapOf("/upload/image" to """{"name":"kept.jpg"}""", "/prompt" to """{"prompt_id":"p1"}""", "/history/p1" to """{"p1":{"outputs":{}}}"""))
@@ -153,20 +183,77 @@ class ImageServiceTests {
     }
 
     @Test
-    fun `work that takes too long is stopped on the server`() = runBlocking {
-        val server = Server(mapOf("/prompt" to """{"prompt_id":"p1"}""", "/history/p1" to "{}", "/interrupt" to ""))
-        assertFailsWith<ImageServiceError.TimedOut> {
-            server.service.render("http://host.example", ImageJobDto.Create(ImageEngineDto.Z_IMAGE_TURBO, "a fox", 1024, 1024))
-        }
-        assertEquals("POST /interrupt", server.paths.last())
+    fun `work that takes too long is taken off the server, and a queue that cannot be read is let pass`() = runBlocking {
+        val server = Server(queued)
+        assertFailsWith<ImageServiceError.TimedOut> { server.service.render("http://host.example", fox) }
+        assertTrue("GET /queue" in server.paths)
+        assertEquals(cancelled, server.told)
+    }
+
+    @Test
+    fun `a waiting picture says how many come first, then that its turn has come`() = runBlocking {
+        val asked = AtomicInteger()
+        val server = Server(
+            mapOf("/prompt" to """{"prompt_id":"p1"}""", "/view" to "PNG"),
+            changing = mapOf(
+                "/queue" to { if (asked.getAndIncrement() < 2) waiting else running },
+                "/history/p1" to { if (asked.get() < 3) "{}" else done },
+            ),
+        )
+        val progress = mutableListOf<ImageProgressDto>()
+        val picture = server.service.render("http://host.example", fox) { progress += it }
+        assertEquals("PNG", picture.toString(Charsets.UTF_8))
+        assertEquals(listOf(ImageProgressDto.Waiting(2), ImageProgressDto.Waiting(2), ImageProgressDto.Working), progress)
+        assertEquals(emptyList(), server.told)
+    }
+
+    @Test
+    fun `giving up takes only this picture off the server`() = runBlocking {
+        val server = Server(queued + ("/queue" to waiting), patienceMillis = 10_000, waitingPatienceMillis = 10_000)
+        val isWaiting = CompletableDeferred<Unit>()
+        val work = launch(Dispatchers.Default) { server.service.render("http://host.example", fox) { isWaiting.complete(Unit) } }
+        isWaiting.await()
+        work.cancelAndJoin()
+        // The job is named both times; a stop with no name would end whatever the server was running.
+        assertEquals(cancelled, server.told)
+    }
+
+    @Test
+    fun `the time a picture may take is counted from when its turn comes`() = runBlocking {
+        val startedAt = System.nanoTime()
+        fun elapsedMillis() = (System.nanoTime() - startedAt) / 1_000_000
+        val server = Server(queued, patienceMillis = 60, waitingPatienceMillis = 10_000, changing = mapOf("/queue" to { if (elapsedMillis() < 300) waiting else running }))
+        val progress = mutableListOf<ImageProgressDto>()
+        assertFailsWith<ImageServiceError.TimedOut> { server.service.render("http://host.example", fox) { progress += it } }
+        // Counted from when it was queued, it would have been given up on while still waiting.
+        assertTrue(elapsedMillis() >= 300)
+        assertEquals(listOf(ImageProgressDto.Waiting(2), ImageProgressDto.Working), listOf(progress.first(), progress.last()))
+        assertEquals(cancelled, server.told)
+        // Waiting has a limit of its own.
+        val stuck = Server(queued + ("/queue" to waiting), patienceMillis = 10_000, waitingPatienceMillis = 60)
+        assertFailsWith<ImageServiceError.TimedOut> { stuck.service.render("http://host.example", fox) }
+        assertEquals(cancelled, stuck.told)
     }
 
     @Test
     fun `the server is asked for its memory back, and failing to is let pass`() = runBlocking {
-        val server = Server(mapOf("/free" to ""))
-        server.service.free("http://host.example")
-        assertEquals("POST /free" to """{"unload_models":true,"free_memory":true}""", server.requests.single())
+        val idle = Server(mapOf("/free" to "", "/queue" to """{"queue_running":[],"queue_pending":[]}"""))
+        idle.service.free("http://host.example")
+        assertEquals(listOf("GET /queue" to "", "POST /free" to """{"unload_models":true,"free_memory":true}"""), idle.requests)
+        // A server that will not say what is in its queue is asked all the same.
+        val silent = Server(mapOf("/free" to ""))
+        silent.service.free("http://host.example")
+        assertEquals(listOf("GET /queue", "POST /free"), silent.paths)
         Server(emptyMap()).service.free("http://host.example")
+    }
+
+    @Test
+    fun `the memory is left alone while other work is running or waiting`() = runBlocking {
+        listOf(waiting, running, """{"queue_running":[],"queue_pending":[[7,"other",{},{},[]]]}""").forEach { queue ->
+            val server = Server(mapOf("/free" to "", "/queue" to queue))
+            server.service.free("http://host.example")
+            assertEquals(listOf("GET /queue"), server.paths, queue)
+        }
     }
 
     @Test
@@ -174,6 +261,32 @@ class ImageServiceTests {
         val history = hearthJson.decodeFromString(ComfyHistoryDto.serializer(), """{"status":{"status_str":"error","messages":[["x"],"odd",["execution_error",{}]]}}""")
         assertNull(history.picture)
         assertNull(history.errorText)
+    }
+}
+
+/** How the picture server's queue is read: what is running, what waits, and how far back a job stands. */
+class ComfyQueueTests {
+    /** A queue as ComfyUI reports it: each job is a list of its place, its name, and details the app ignores. */
+    private val queue = hearthJson.decodeFromString(
+        ComfyQueueDto.serializer(),
+        """{"queue_running":[[4,"video",{"1":{"class_type":"KSampler"}},{},["9"]]],"queue_pending":[[6,"second",{},{},[]],[5,"first",{},{},[]]]}""",
+    )
+
+    @Test
+    fun `the queue is read with the waiting jobs soonest first`() {
+        assertEquals(listOf("video"), queue.runningIds)
+        assertEquals(listOf("first", "second"), queue.pendingIds)
+        assertFalse(queue.isEmpty)
+        assertTrue(hearthJson.decodeFromString(ComfyQueueDto.serializer(), """{"queue_running":[],"queue_pending":[]}""").isEmpty)
+    }
+
+    @Test
+    fun `a waiting job counts the one running and those before it`() {
+        assertEquals(1, queue.jobsAhead("first"))
+        assertEquals(2, queue.jobsAhead("second"))
+        // The job that is running, and one the server no longer holds, are not waiting.
+        assertNull(queue.jobsAhead("video"))
+        assertNull(queue.jobsAhead("gone"))
     }
 }
 

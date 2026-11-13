@@ -16,7 +16,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -39,6 +41,15 @@ sealed interface ImageJobDto {
     class Enlarge(val image: ByteArray, val megapixels: Double) : ImageJobDto
 }
 
+/** How a job stands while it is waited for. */
+sealed interface ImageProgressDto {
+    /** The server is busy with other work; this many jobs come first. */
+    data class Waiting(val ahead: Int) : ImageProgressDto
+
+    /** The server is working on this job now. */
+    data object Working : ImageProgressDto
+}
+
 /** What the picture server can do, judged by the files it holds. */
 data class ImageServerFilesDto(val engines: List<ImageEngineDto>, val canEdit: Boolean, val canEnlarge: Boolean)
 
@@ -59,18 +70,26 @@ sealed class ImageServiceError(message: String) : Exception(message) {
  *
  * ComfyUI takes a graph of nodes, runs it in its queue, and keeps the result until it is fetched. The server starts
  * itself on the first request, which can take a minute, and is asked to free its memory when the work is done.
+ *
+ * The queue is shared with whatever else uses the server, and one job runs at a time. So a job may wait its turn,
+ * which is reported and not counted against it, and only ever cancels itself.
  */
 class ImageService internal constructor(
     client: OkHttpClient,
     /** How often the server is asked whether the work is done. */
     private val pollIntervalMillis: Long,
-    /** The longest a picture is waited for, a cold start and a large model included. */
+    /** The longest a picture is worked on once its turn has come, a cold start and a large model included. */
     private val patienceMillis: Long,
+    /** The longest a picture waits for its turn behind other work. */
+    private val waitingPatienceMillis: Long,
 ) {
-    constructor() : this(HearthHttp.client, pollIntervalMillis = 1_000, patienceMillis = 420_000)
+    constructor() : this(HearthHttp.client, pollIntervalMillis = 1_000, patienceMillis = 420_000, waitingPatienceMillis = 1_800_000)
 
     /** For the short questions and answers. The first request wakes the server, which takes longer than an ordinary answer. */
     private val client = client.newBuilder().readTimeout(90, TimeUnit.SECONDS).build()
+
+    /** For asking after the queue, which is asked often and answers at once or not at all. */
+    private val queueClient = client.newBuilder().readTimeout(15, TimeUnit.SECONDS).build()
 
     /** For sending a picture up, which on a slow connection takes a while. */
     private val uploadClient = client.newBuilder().readTimeout(120, TimeUnit.SECONDS).writeTimeout(120, TimeUnit.SECONDS).build()
@@ -89,8 +108,12 @@ class ImageService internal constructor(
         )
     }
 
-    /** Runs the job and returns the picture as PNG data. Cancelling the caller takes the work off the server too. */
-    suspend fun render(baseUrl: String, job: ImageJobDto): ByteArray {
+    /**
+     * Runs the job and returns the picture as PNG data. Cancelling the caller takes this job, and only this job, off the server.
+     *
+     * [onProgress] is told whether the job is waiting its turn or being worked on, each time that is checked.
+     */
+    suspend fun render(baseUrl: String, job: ImageJobDto, onProgress: (ImageProgressDto) -> Unit = {}): ByteArray {
         val seed = Random.nextInt(0, Int.MAX_VALUE)
         val graph = when (job) {
             is ImageJobDto.Create -> ImageGraph.create(job.engine, job.prompt, job.width, job.height, seed)
@@ -99,7 +122,7 @@ class ImageService internal constructor(
         }
         val promptId = queue(graph, baseUrl)
         try {
-            val picture = waitForPicture(promptId, baseUrl)
+            val picture = waitForPicture(promptId, baseUrl, onProgress)
             val address = HearthHttp.url(baseUrl, "view").toHttpUrl().newBuilder()
                 .addQueryParameter("filename", picture.filename)
                 .addQueryParameter("subfolder", picture.subfolder)
@@ -107,13 +130,19 @@ class ImageService internal constructor(
                 .build()
             return client.bytes(Request.Builder().url(address).build())
         } catch (failure: CancellationException) {
-            withContext(NonCancellable) { interrupt(baseUrl) }
+            // A cancelled coroutine cannot make requests, and cancelling is exactly when this is reached.
+            withContext(NonCancellable) { cancel(promptId, baseUrl) }
             throw failure
         }
     }
 
-    /** Asks the server to unload its models and give back its memory. Failing to is not worth reporting. */
+    /**
+     * Asks the server to unload its models and give back its memory, unless other work is waiting for them.
+     * Failing to is not worth reporting.
+     */
     suspend fun free(baseUrl: String) {
+        // With work in the queue the models are about to be used; whoever goes last frees them.
+        if (queueState(baseUrl)?.isEmpty == false) return
         val body = """{"unload_models":true,"free_memory":true}""".toRequestBody(HearthHttp.jsonMediaType)
         try {
             client.bytes(Request.Builder().url(HearthHttp.url(baseUrl, "free")).post(body).build())
@@ -143,29 +172,65 @@ class ImageService internal constructor(
         return decoded(answer) { hearthJson.decodeFromString(ComfyUploadAnswerDto.serializer(), it) }.name
     }
 
-    /** Asks after the run until it has finished, failed, or taken too long. */
-    private suspend fun waitForPicture(promptId: String, baseUrl: String): ComfyPictureDto {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(patienceMillis)
+    /**
+     * Asks after the run until it has finished, failed, or taken too long. Time spent waiting behind other work
+     * is allowed for separately, so a picture queued behind a long job does not give up before its turn.
+     */
+    private suspend fun waitForPicture(promptId: String, baseUrl: String, onProgress: (ImageProgressDto) -> Unit): ComfyPictureDto {
         val histories = MapSerializer(String.serializer(), ComfyHistoryDto.serializer())
-        while (System.nanoTime() < deadline) {
+        val queuedAt = System.nanoTime()
+        var startedAt: Long? = null
+        while (true) {
             delay(pollIntervalMillis)
             val answer = client.bytes(Request.Builder().url(HearthHttp.url(baseUrl, "history/$promptId")).build())
             // Until the run is over the server has no record of it.
-            val history = decoded(answer) { hearthJson.decodeFromString(histories, it) }[promptId] ?: continue
-            history.picture?.let { return it }
-            history.errorText?.let { throw ImageServiceError.Failed(it.trim()) }
-            throw ImageServiceError.NoPicture()
+            val history = decoded(answer) { hearthJson.decodeFromString(histories, it) }[promptId]
+            if (history != null) {
+                history.picture?.let { return it }
+                history.errorText?.let { throw ImageServiceError.Failed(it.trim()) }
+                throw ImageServiceError.NoPicture()
+            }
+            // A queue that cannot be read is no reason to give up on the picture; it is asked after again next time.
+            val queue = queueState(baseUrl)
+            if (queue != null && promptId in queue.runningIds) {
+                startedAt = startedAt ?: System.nanoTime()
+                onProgress(ImageProgressDto.Working)
+            } else {
+                queue?.jobsAhead(promptId)?.let { onProgress(ImageProgressDto.Waiting(it)) }
+            }
+            val now = System.nanoTime()
+            val isOverdue = startedAt?.let { now - it > TimeUnit.MILLISECONDS.toNanos(patienceMillis) }
+                ?: (now - queuedAt > TimeUnit.MILLISECONDS.toNanos(waitingPatienceMillis))
+            if (isOverdue) {
+                cancel(promptId, baseUrl)
+                throw ImageServiceError.TimedOut()
+            }
         }
-        interrupt(baseUrl)
-        throw ImageServiceError.TimedOut()
     }
 
-    /** Stops the work the server is doing, as when the user gives up on a picture. */
-    private suspend fun interrupt(baseUrl: String) {
-        try {
-            client.bytes(Request.Builder().url(HearthHttp.url(baseUrl, "interrupt")).post(ByteArray(0).toRequestBody()).build())
-        } catch (failure: IOException) {
-            // The work then runs to its end on the server; its memory is still asked for back afterwards.
+    /** What the server is running and what is waiting behind it, or `null` if it would not say. */
+    private suspend fun queueState(baseUrl: String): ComfyQueueDto? = try {
+        val answer = queueClient.bytes(Request.Builder().url(HearthHttp.url(baseUrl, "queue")).build())
+        decoded(answer) { hearthJson.decodeFromString(ComfyQueueDto.serializer(), it) }
+    } catch (failure: IOException) {
+        null
+    }
+
+    /**
+     * Takes one job off the server: out of the queue if it is still waiting, and stopped if it is the one running.
+     * Work that belongs to anyone else is left alone.
+     */
+    private suspend fun cancel(promptId: String, baseUrl: String) {
+        val name = JsonPrimitive(promptId)
+        val remove = JsonObject(mapOf("delete" to JsonArray(listOf(name)))).toString().toRequestBody(HearthHttp.jsonMediaType)
+        // Naming the job makes the server stop only if that job is the one running.
+        val stop = JsonObject(mapOf("prompt_id" to name)).toString().toRequestBody(HearthHttp.jsonMediaType)
+        for ((path, body) in listOf("queue" to remove, "interrupt" to stop)) {
+            try {
+                client.bytes(Request.Builder().url(HearthHttp.url(baseUrl, path)).post(body).build())
+            } catch (failure: IOException) {
+                // The work then runs to its end on the server; its memory is still asked for back afterwards.
+            }
         }
     }
 

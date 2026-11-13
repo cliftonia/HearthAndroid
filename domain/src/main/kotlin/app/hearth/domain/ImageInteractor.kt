@@ -18,14 +18,16 @@ class ImageInteractor(private val provider: ImageDataProvider) {
      *
      * The chat server is asked to unload its models first, since both servers share one graphics card, and the
      * picture server is asked to free its memory afterwards, whether the picture was made, failed or was given up on.
+     *
+     * [onProgress] is told whether the picture is waiting behind other work or being made.
      */
-    suspend fun make(request: ImageRequest, settings: ServerSettings): ByteArray {
+    suspend fun make(request: ImageRequest, settings: ServerSettings, onProgress: (ImageProgress) -> Unit = {}): ByteArray {
         val baseUrl = settings.imageUrl ?: throw ImageError.ServerNotConfigured
         return remappingFailures {
             val model = model(request, settings, provider.fetchCapabilities(baseUrl))
             settings.ollamaUrl?.let { provider.unloadChatModels(it) }
             try {
-                provider.render(baseUrl, request, model)
+                provider.render(baseUrl, request, model, onProgress)
             } finally {
                 withContext(NonCancellable) { provider.free(baseUrl) }
             }

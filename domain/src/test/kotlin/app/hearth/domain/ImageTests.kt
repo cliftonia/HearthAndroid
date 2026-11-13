@@ -41,7 +41,7 @@ class ImageTests {
     fun `words that carry on from the last picture change that picture`() {
         val followUps = listOf(
             "Make it photo realistic", "now at night", "add a red hat", "Change the background to a beach", "can you turn it into a painting",
-            "Make it a snowy night",
+            "improve the photo again", "Improve photo", "make this picture casual", "brighter", "fix the hands", "more smiling", "zoom out a little",
         )
         followUps.forEach { text ->
             assertEquals(ImageRequest.Edit(photo, text), planner.request(text, emptyList(), previousPicture = photo), text)
@@ -51,7 +51,9 @@ class ImageTests {
     @Test
     fun `the last picture is enlarged when that is all that is asked, and left alone by a fresh description`() {
         assertEquals(ImageRequest.Enlarge(photo), planner.request("make it 4k", emptyList(), previousPicture = photo))
-        assertEquals(ImageRequest.Create("a dog on a beach", 1024, 1024), planner.request("a dog on a beach", emptyList(), previousPicture = photo))
+        listOf("a dog on a beach", "Draw a castle", "create a logo for a bakery", "another picture of a boat", "Make a poster of a ship").forEach { fresh ->
+            assertEquals(fresh, (planner.request(fresh, emptyList(), previousPicture = photo) as? ImageRequest.Create)?.prompt, fresh)
+        }
         // A photo attached now always wins over the last picture made.
         assertEquals(ImageRequest.Edit("Bw==", "make it blue"), planner.request("make it blue", listOf("Bw=="), previousPicture = photo))
         // With no picture yet, the same words can only describe a new one.
@@ -64,7 +66,9 @@ class ImageTests {
         val subject = ImageInteractor(
             ImageDataProvider(
                 fetchCapabilities = { ImageCapabilities(listOf(ImageModelKind.KREA2_TURBO, ImageModelKind.Z_IMAGE_TURBO), canEdit = true) },
-                render = { _, _, model ->
+                render = { _, _, model, onProgress ->
+                    onProgress(ImageProgress.Waiting(2))
+                    onProgress(ImageProgress.Working)
                     steps += "render $model"
                     byteArrayOf(9)
                 },
@@ -72,8 +76,11 @@ class ImageTests {
                 unloadChatModels = { steps += "unload $it" },
             ),
         )
-        val picture = subject.make(ImageRequest.Create("a fox", 1024, 1024), settings)
+        val progress = mutableListOf<ImageProgress>()
+        val picture = subject.make(ImageRequest.Create("a fox", 1024, 1024), settings) { progress += it }
         assertEquals(listOf<Byte>(9), picture.toList())
+        // The caller hears that the picture waited its turn and then was made.
+        assertEquals(listOf(ImageProgress.Waiting(2), ImageProgress.Working), progress)
         // With no model chosen, the first the server offers is used.
         assertEquals(listOf("unload https://ollama.example", "render KREA2_TURBO", "free http://pictures.example:8188"), steps)
         steps.clear()
@@ -89,7 +96,7 @@ class ImageTests {
         val subject = ImageInteractor(
             ImageDataProvider(
                 fetchCapabilities = { ImageCapabilities(listOf(ImageModelKind.Z_IMAGE_TURBO), canEdit = true) },
-                render = { _, _, _ -> throw ImageError.Failed("out of memory") },
+                render = { _, _, _, _ -> throw ImageError.Failed("out of memory") },
                 free = { steps += "free" },
             ),
         )
@@ -105,7 +112,7 @@ class ImageTests {
         fun subject(failure: Exception) = ImageInteractor(
             ImageDataProvider(
                 fetchCapabilities = { ImageCapabilities(listOf(ImageModelKind.Z_IMAGE_TURBO)) },
-                render = { _, _, _ -> throw failure },
+                render = { _, _, _, _ -> throw failure },
                 free = { steps += "free" },
             ),
         )
@@ -113,7 +120,7 @@ class ImageTests {
         assertEquals(true, runCatching { subject(CancellationException("stopped")).make(request, settings) }.exceptionOrNull() is CancellationException)
         assertEquals(ChatError.Unreachable, runCatching { subject(IOException("down")).make(request, settings) }.exceptionOrNull())
         assertEquals(listOf("free", "free"), steps)
-        val none = ImageInteractor(ImageDataProvider(fetchCapabilities = { ImageCapabilities() }, render = { _, _, _ -> byteArrayOf() }, free = { steps += "free" }))
+        val none = ImageInteractor(ImageDataProvider(fetchCapabilities = { ImageCapabilities() }, render = { _, _, _, _ -> byteArrayOf() }, free = { steps += "free" }))
         assertEquals(ImageError.NoModel, runCatching { none.make(request, settings) }.exceptionOrNull())
         // Nothing was started, so there is nothing to free.
         assertEquals(2, steps.size)

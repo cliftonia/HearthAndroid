@@ -72,6 +72,8 @@ data class MessageViewConfiguration(
     val searchingFor: String? = null,
     /** What the picture server is doing while this reply is on its way. */
     val pictureWork: PictureWorkKind? = null,
+    /** How many jobs the picture server has before this one, while the picture waits its turn. */
+    val pictureJobsAhead: Int? = null,
     val hasSearchFailed: Boolean = false,
     val memoryNotice: MemoryOutcome? = null,
     val canRetry: Boolean = false,
@@ -110,7 +112,7 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
             } else if (message.text.isNotEmpty()) {
                 MarkdownSection(message.text)
             } else if (configuration.isStreaming && pictureWork != null) {
-                Activity(pictureStatus(pictureWork))
+                Activity(pictureStatus(pictureWork, configuration.pictureJobsAhead))
             } else if (configuration.isStreaming && configuration.searchingFor == null && message.thinking.isEmpty()) {
                 Activity(stringResource(R.string.message_writing))
             }
@@ -174,15 +176,20 @@ private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, 
     }
 }
 
-/** What the picture server is doing, in the user's language. */
+/** What the picture server is doing, in the user's language: other work first while [jobsAhead] is known, then this picture. */
 @Composable
-private fun pictureStatus(work: PictureWorkKind): String = stringResource(
-    when (work) {
-        PictureWorkKind.CREATE -> R.string.picture_creating
-        PictureWorkKind.CHANGE -> R.string.picture_changing
-        PictureWorkKind.ENLARGE -> R.string.picture_enlarging
-    },
-)
+private fun pictureStatus(work: PictureWorkKind, jobsAhead: Int?): String =
+    if (jobsAhead != null) {
+        pluralStringResource(R.plurals.picture_waiting, jobsAhead, jobsAhead)
+    } else {
+        stringResource(
+            when (work) {
+                PictureWorkKind.CREATE -> R.string.picture_creating
+                PictureWorkKind.CHANGE -> R.string.picture_changing
+                PictureWorkKind.ENLARGE -> R.string.picture_enlarging
+            },
+        )
+    }
 
 /** What to say about a change to memory. A refusal is the model's business and is not shown. */
 @Composable

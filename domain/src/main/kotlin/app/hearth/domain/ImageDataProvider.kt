@@ -2,6 +2,7 @@ package app.hearth.domain
 
 import app.hearth.data.ImageEngineDto
 import app.hearth.data.ImageJobDto
+import app.hearth.data.ImageProgressDto
 import app.hearth.data.ImageService
 import app.hearth.data.ImageServiceError
 import app.hearth.data.OllamaService
@@ -12,8 +13,8 @@ import java.util.Base64
 class ImageDataProvider(
     /** What the picture server at the address can do. */
     val fetchCapabilities: suspend (String) -> ImageCapabilities,
-    /** Server, request and model in; the picture out, as PNG data. */
-    val render: suspend (String, ImageRequest, ImageModelKind) -> ByteArray,
+    /** Server, request and model in; the picture out, as PNG data. Progress is reported through the last, as it is learned. */
+    val render: suspend (String, ImageRequest, ImageModelKind, (ImageProgress) -> Unit) -> ByteArray,
     /** Tells the picture server to give back the memory it used. */
     val free: suspend (String) -> Unit = {},
     /** Tells the chat server at the address to unload its models, making room for a picture. */
@@ -31,9 +32,16 @@ class ImageDataProvider(
                 val files = service.fetchFiles(baseUrl)
                 ImageCapabilities(ImageModelKind.entries.filter { engine(it) in files.engines }, files.canEdit, files.canEnlarge)
             },
-            render = { baseUrl, request, model ->
+            render = { baseUrl, request, model, onProgress ->
                 try {
-                    service.render(baseUrl, job(request, model))
+                    service.render(baseUrl, job(request, model)) { progress ->
+                        onProgress(
+                            when (progress) {
+                                is ImageProgressDto.Waiting -> ImageProgress.Waiting(progress.ahead)
+                                ImageProgressDto.Working -> ImageProgress.Working
+                            },
+                        )
+                    }
                 } catch (failure: ImageServiceError) {
                     throw when (failure) {
                         is ImageServiceError.Failed -> ImageError.Failed(failure.detail)

@@ -6,6 +6,7 @@ import app.hearth.R
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ImageError
 import app.hearth.domain.ImageModelKind
+import app.hearth.domain.ImageProgress
 import app.hearth.domain.ImageRequest
 import app.hearth.domain.ImageRequestPlanner
 import app.hearth.domain.Message
@@ -95,6 +96,7 @@ internal suspend fun ChatPresenter.submitPicture(message: Message) {
             conversation = conversation.copy(title = title, messages = conversation.messages + message + reply, updatedAt = now()),
             isStreaming = true,
             pictureWork = kind,
+            pictureJobsAhead = null,
             searchingFor = null,
             hasSearchFailed = false,
             followUps = emptyList(),
@@ -105,7 +107,7 @@ internal suspend fun ChatPresenter.submitPicture(message: Message) {
     val startedAt = now()
     var finished: Message? = null
     try {
-        val picture = dependencies.image.make(request, dependencies.settingsStore.settings.value)
+        val picture = dependencies.image.make(request, dependencies.settingsStore.settings.value) { showPictureProgress(conversation.id, it) }
         val jpeg = dependencies.encodePicture(picture) ?: throw ImageError.Failed("")
         val seconds = ((now() - startedAt) / 1000.0).roundToInt().coerceAtLeast(1)
         finished = reply.copy(text = dependencies.pictureWords.caption(kind, seconds), images = listOf(jpeg))
@@ -120,13 +122,23 @@ internal suspend fun ChatPresenter.submitPicture(message: Message) {
     }
 }
 
+/** Notes that the picture is waiting its turn, or that its turn has come, while it is still on its way. */
+private fun ChatPresenter.showPictureProgress(id: ConversationId, progress: ImageProgress) {
+    val ahead = when (progress) {
+        is ImageProgress.Waiting -> progress.ahead
+        ImageProgress.Working -> null
+    }
+    // Another conversation may have been opened, or the picture ended, since this was learned.
+    state.update { if (it.conversation.id == id && it.pictureWork != null) it.copy(pictureJobsAhead = ahead) else it }
+}
+
 /** Ends the making of a picture: the reply takes the picture, or is dropped if none came, and the conversation is saved. */
 private suspend fun ChatPresenter.finishPicture(id: ConversationId, reply: Message, finished: Message?) {
     // Another conversation may have been opened while this picture was still being made.
     if (state.value.conversation.id != id) return
     state.update { current ->
         val messages = if (finished != null) current.conversation.replacing(finished).messages else current.conversation.messages.filter { it.id != reply.id }
-        current.copy(conversation = current.conversation.copy(messages = messages, updatedAt = now()), isStreaming = false, pictureWork = null)
+        current.copy(conversation = current.conversation.copy(messages = messages, updatedAt = now()), isStreaming = false, pictureWork = null, pictureJobsAhead = null)
     }
     save(state.value.conversation)
 }
