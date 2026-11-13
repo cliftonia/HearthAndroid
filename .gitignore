@@ -11,12 +11,3 @@ build/
 local.properties
 *.jks
 *.keystore
-
-# Local tooling state
-.claude/
-CLAUDE.md
-AGENTS.md
-GEMINI.md
-.cursor/
-.cursorrules
-.superpowers/
