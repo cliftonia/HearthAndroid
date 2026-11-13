@@ -16,8 +16,13 @@ class SettingsStore(defaults: ServerSettings, private val provider: SettingsData
     private val state = MutableStateFlow(
         provider.load()
             ?.let { runCatching { hearthJson.decodeFromString(ServerSettings.serializer(), it) }.getOrNull() }
-            // Settings saved before the user chose a model take the model the app was built to start with.
-            ?.let { saved -> if (saved.defaultModelId == null) saved.copy(defaultModelId = defaults.defaultModelId) else saved }
+            // Settings saved before the user chose a model, or before pictures existed, take what the app was built to start with.
+            ?.let { saved ->
+                saved.copy(
+                    defaultModelId = saved.defaultModelId ?: defaults.defaultModelId,
+                    imageAddress = saved.imageAddress.ifBlank { defaults.imageAddress },
+                )
+            }
             ?: defaults,
     )
     val settings: StateFlow<ServerSettings> = state.asStateFlow()

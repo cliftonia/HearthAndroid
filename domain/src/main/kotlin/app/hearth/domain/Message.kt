@@ -23,11 +23,18 @@ data class Message(
     val thinkingSeconds: Int? = null,
     /** The web pages the reply was written from, in the order they are cited. */
     val sources: List<SearchSource> = emptyList(),
-    /** Attached photos, each a JPEG in Base64, as the model server takes them. */
+    /** Attached photos, each a JPEG in Base64, as the model server takes them. On a reply: the picture the app made. */
     val images: List<String> = emptyList(),
     val documents: List<AttachedDocument> = emptyList(),
+    /** The other attempts at this reply, in the order they were made, without the one that is shown. */
+    val otherVersions: List<ReplyVersion> = emptyList(),
+    /** Where the shown attempt stands among them all, counting from zero. */
+    val versionIndex: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     /** Whether there is nothing in the message to send or show. */
     val isEmpty: Boolean get() = text.isEmpty() && images.isEmpty() && documents.isEmpty()
+
+    /** Whether this is a reply that carries a picture the app made. */
+    val isPicture: Boolean get() = role == MessageRole.ASSISTANT && images.isNotEmpty()
 }

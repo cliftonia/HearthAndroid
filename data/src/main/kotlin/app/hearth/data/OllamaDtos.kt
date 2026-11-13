@@ -23,6 +23,18 @@ data class OllamaModelDto(
     val capabilities: List<String>? = null,
 )
 
+/** The answer to `/api/ps`: the models the server has in memory right now. */
+@Serializable
+data class OllamaLoadedModelsDto(val models: List<OllamaLoadedModelDto> = emptyList())
+
+/** One model held in memory, by the name it is asked for. */
+@Serializable
+data class OllamaLoadedModelDto(val name: String)
+
+/** A request that loads nothing and keeps nothing: it tells the server to unload the named model at once. */
+@Serializable
+data class OllamaUnloadRequestDto(val model: String, @SerialName("keep_alive") val keepAlive: Int = 0)
+
 /** What a model was asked to look up or remember when it called a tool. */
 @Serializable
 data class OllamaToolArgumentsDto(

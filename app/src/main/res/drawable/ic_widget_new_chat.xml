@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A plus on a pine disc: the New Chat widget's symbol. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path android:fillColor="@color/widget_pine" android:pathData="M24,24m-24,0a24,24 0,1 1,48 0a24,24 0,1 1,-48 0" />
+    <path android:fillColor="@color/widget_on_pine" android:pathData="M22.5,14h3v8.5h8.5v3h-8.5v8.5h-3v-8.5h-8.5v-3h8.5z" />
+</vector>

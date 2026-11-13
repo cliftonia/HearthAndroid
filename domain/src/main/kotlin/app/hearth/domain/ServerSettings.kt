@@ -14,10 +14,15 @@ enum class Appearance { SYSTEM, LIGHT, DARK }
 /** Where the user's services live and how the app should behave. */
 @Serializable
 data class ServerSettings(
-    /** The chat, search and speech servers, each as the user typed it. */
+    /** The chat, search and speech servers, each as the user typed it. The picture server follows them. */
     val ollamaAddress: String = "",
     val searchAddress: String = "",
     val speechAddress: String = "",
+    /** Where pictures are made: a ComfyUI server. Blank means the app offers no pictures. */
+    val imageAddress: String = "",
+    /** The model new pictures are made with. With none chosen, the first the server offers is used. */
+    @Serializable(with = ChosenImageModelSerializer::class)
+    val imageModel: ImageModelKind? = null,
     /** The speech server's name for the voice that reads replies. */
     val voice: String = DEFAULT_VOICE,
     /** Whether every reply is read aloud as it is written. */
@@ -41,6 +46,7 @@ data class ServerSettings(
     val ollamaUrl: String? get() = normalised(ollamaAddress)
     val searchUrl: String? get() = normalised(searchAddress)
     val speechUrl: String? get() = normalised(speechAddress)
+    val imageUrl: String? get() = normalised(imageAddress)
 
     /** The host of the chat server, for display. */
     val ollamaHost: String? get() = ollamaUrl?.let { runCatching { URI(it).host }.getOrNull() }

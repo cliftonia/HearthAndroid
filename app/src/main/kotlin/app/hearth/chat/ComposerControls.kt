@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.DropdownMenu
@@ -35,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
@@ -71,9 +74,12 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
     }
 }
 
-/** The ways to add a photo or a file to the message being written. */
+/**
+ * The ways to add a photo or a file to the message being written, and, where there is a picture server, the
+ * switch that makes the next message ask for a picture.
+ */
 @Composable
-internal fun AttachMenu(canSee: Boolean, presenter: ChatPresenter, attachments: AttachmentLoader) {
+internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode: Boolean, presenter: ChatPresenter, attachments: AttachmentLoader) {
     val scope = rememberCoroutineScope()
     var isOpen by remember { mutableStateOf(false) }
     // Kept across the trip to the camera, during which Android may put the app away.
@@ -100,6 +106,17 @@ internal fun AttachMenu(canSee: Boolean, presenter: ChatPresenter, attachments: 
     Box {
         HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
         DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
+            if (canMakePictures) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.picture_mode)) },
+                    leadingIcon = { Icon(if (isPictureMode) Icons.Outlined.Check else Icons.Outlined.Brush, null, Modifier.size(HearthTheme.sizes.iconS)) },
+                    modifier = Modifier.semantics { selected = isPictureMode },
+                    onClick = {
+                        isOpen = false
+                        presenter.togglePictureModeAction()
+                    },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.composer_choose_file)) },
                 onClick = {
@@ -107,7 +124,7 @@ internal fun AttachMenu(canSee: Boolean, presenter: ChatPresenter, attachments: 
                     files.launch(ATTACHABLE_FILE_TYPES)
                 },
             )
-            // Photos are offered only to models that can look at them.
+            // Photos are offered only where they can be used: by a model that can look at them, or by the picture server.
             if (canSee) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.composer_take_photo)) },

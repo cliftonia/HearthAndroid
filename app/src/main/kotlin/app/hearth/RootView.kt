@@ -76,6 +76,7 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                     coordinator.settingsStore,
                     coordinator.modelStore,
                     coordinator.attachments,
+                    coordinator.pictures,
                     modifier,
                 )
                 Screen.SETTINGS -> SettingsScreen(coordinator.settings, authenticate, modifier)

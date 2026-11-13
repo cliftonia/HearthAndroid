@@ -51,6 +51,7 @@ fun SettingsScreen(
             InstructionsCard(settings, presenter)
             SearchCard(settings, presenter)
             VoiceCard(settings, presenter)
+            PictureCard(settings, presenter)
             MemoryCard(settings, memories, presenter)
             PrivacyCard(settings, presenter, authenticate)
             ThemeCard(settings, presenter)

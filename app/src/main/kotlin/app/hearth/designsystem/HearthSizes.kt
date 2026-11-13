@@ -53,6 +53,9 @@ class HearthSizes {
     /** A photo in a sent message. */
     val thumbnailL: Dp = 96.dp
 
+    /** The most room, each way, a picture the app made takes in a reply. */
+    val pictureMaxSide: Dp = 420.dp
+
     /** The dot that shows whether the server can be reached. */
     val statusDot: Dp = 8.dp
 

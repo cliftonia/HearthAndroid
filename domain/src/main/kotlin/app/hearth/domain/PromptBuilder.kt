@@ -32,7 +32,8 @@ class PromptBuilder(
         if (offersMemory) system += "\n\n" + MEMORY_GUIDANCE
         val turns = history.filterNot { it.isEmpty }.map { message ->
             val role = if (message.role == MessageRole.USER) PromptRole.USER else PromptRole.ASSISTANT
-            PromptMessage(role = role, text = text(message), images = message.images)
+            // A picture the app made is not sent back to the chat model; only what the user showed it is.
+            PromptMessage(role = role, text = text(message), images = if (message.role == MessageRole.USER) message.images else emptyList())
         }
         return listOf(PromptMessage(PromptRole.SYSTEM, system)) + turns
     }

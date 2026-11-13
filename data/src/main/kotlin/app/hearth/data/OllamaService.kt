@@ -29,6 +29,27 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
         }
     }
 
+    /**
+     * Asks the server to let go of every model it has loaded, so its memory is free for other work.
+     * A model that was unloaded is loaded again the next time it is spoken to.
+     */
+    suspend fun unloadModels(baseUrl: String) = withContext(Dispatchers.IO) {
+        val quick = client.newBuilder().readTimeout(30, TimeUnit.SECONDS).build()
+        val loaded = quick.newCall(Request.Builder().url(HearthHttp.url(baseUrl, "api/ps")).build()).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw HttpError.Status(response.code, body.take(500))
+            runCatching { hearthJson.decodeFromString(OllamaLoadedModelsDto.serializer(), body) }.getOrNull()
+                ?: throw HttpError.Status(response.code, body.take(500))
+        }
+        for (model in loaded.models) {
+            val body = hearthJson.encodeToString(OllamaUnloadRequestDto.serializer(), OllamaUnloadRequestDto(model.name))
+            val request = Request.Builder().url(HearthHttp.url(baseUrl, "api/generate")).post(body.toRequestBody(HearthHttp.jsonMediaType)).build()
+            quick.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw HttpError.Status(response.code, "")
+            }
+        }
+    }
+
     /** A single, non-streamed reply. */
     suspend fun chat(baseUrl: String, request: OllamaChatRequestDto): OllamaChatChunkDto = withContext(Dispatchers.IO) {
         client.newCall(chatRequest(baseUrl, request)).execute().use { response ->

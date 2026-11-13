@@ -2,6 +2,8 @@ package app.hearth.settings
 
 import android.util.Log
 import app.hearth.domain.ChatError
+import app.hearth.domain.ImageCapabilities
+import app.hearth.domain.ImageInteractor
 import app.hearth.domain.Memory
 import app.hearth.domain.MemoryId
 import app.hearth.domain.MemoryRequest
@@ -16,6 +18,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,7 +48,8 @@ sealed interface ConnectionTest {
 enum class VoicePreviewKind { IDLE, PLAYING, FAILED }
 
 /**
- * Changes the settings, tests the connection, plays a sample of the voice and tends the memories.
+ * Changes the settings, tests the connection, plays a sample of the voice, asks what the picture server can do
+ * and tends the memories.
  *
  * It has no view model of its own to assemble: the settings and memories are the stores' flows, passed
  * straight through, beside a few small flows for what only this screen knows.
@@ -56,11 +60,14 @@ class SettingsPresenter(
     private val modelStore: ModelStore,
     private val memoryStore: MemoryStore,
     private val speech: SpeechInteractor,
+    private val image: ImageInteractor,
 ) {
     private val testState = MutableStateFlow<ConnectionTest?>(null)
     private val voiceState = MutableStateFlow<List<String>>(emptyList())
     private val previewState = MutableStateFlow(VoicePreviewKind.IDLE)
     private var previewJob: Job? = null
+    private val pictureState = MutableStateFlow(ImageCapabilities())
+    private var pictureJob: Job? = null
 
     /** The voices the speech server offers; empty until asked for, or when it cannot be reached. */
     val voices: StateFlow<List<String>> = voiceState.asStateFlow()
@@ -68,6 +75,9 @@ class SettingsPresenter(
     val memories: StateFlow<List<Memory>> = memoryStore.memories
     val connectionTest: StateFlow<ConnectionTest?> = testState.asStateFlow()
     val voicePreview: StateFlow<VoicePreviewKind> = previewState.asStateFlow()
+
+    /** What the picture server can do; nothing until asked for, or when it cannot be reached. */
+    val pictureCapabilities: StateFlow<ImageCapabilities> = pictureState.asStateFlow()
     var delegate: SettingsPresenterDelegate? = null
 
     /**
@@ -110,6 +120,24 @@ class SettingsPresenter(
                 throw failure
             } catch (failure: Exception) {
                 emptyList()
+            }
+        }
+    }
+
+    /**
+     * Asks the picture server what it has. It is asked a moment after the address stops changing, since the
+     * question wakes the server and an address half typed is not worth waking anything for.
+     */
+    fun loadPictureCapabilitiesAction() {
+        pictureJob?.cancel()
+        pictureJob = scope.launch {
+            delay(ADDRESS_SETTLE_MILLIS)
+            pictureState.value = try {
+                image.capabilities(settingsStore.settings.value)
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: Exception) {
+                ImageCapabilities()
             }
         }
     }
@@ -176,5 +204,8 @@ class SettingsPresenter(
 
     private companion object {
         const val TAG = "SettingsPresenter"
+
+        /** How long an address must stand unchanged before its server is asked anything. */
+        const val ADDRESS_SETTLE_MILLIS = 600L
     }
 }

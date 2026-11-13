@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The widgets' colours by night. They match HearthColors. -->
+<resources>
+    <color name="widget_paper">#121715</color>
+    <color name="widget_ink">#E9EEEA</color>
+    <color name="widget_mute">#8B9691</color>
+    <color name="widget_pine">#6FC2A8</color>
+    <color name="widget_on_pine">#0E1211</color>
+</resources>

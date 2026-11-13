@@ -13,6 +13,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeOff
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.Text
@@ -50,7 +51,13 @@ fun ComposerFooter(
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     val model = viewModel.selectedModel
-    val placeholder = model?.let { stringResource(R.string.composer_placeholder_model, it.displayName) } ?: stringResource(R.string.composer_placeholder)
+    val isPictureMode = viewModel.isPictureMode
+    val placeholder = when {
+        isPictureMode && viewModel.pendingImages.isEmpty() -> stringResource(R.string.picture_placeholder)
+        isPictureMode -> stringResource(R.string.picture_change_placeholder)
+        model != null -> stringResource(R.string.composer_placeholder_model, model.displayName)
+        else -> stringResource(R.string.composer_placeholder)
+    }
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
     // At rest the composer is a single row. It opens out, showing its options, while a message is being written.
@@ -92,8 +99,17 @@ fun ComposerFooter(
                 },
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AttachMenu(canSee = model?.canSee == true, presenter = presenter, attachments = attachments)
-                if (isExpanded) {
+                AttachMenu(
+                    // A photo can be shown to a model that sees, or handed to the picture server to change or enlarge.
+                    canSee = model?.canSee == true || isPictureMode,
+                    canMakePictures = settings.imageUrl != null,
+                    isPictureMode = isPictureMode,
+                    presenter = presenter,
+                    attachments = attachments,
+                )
+                // Shows that the next message asks for a picture; tapping it goes back to chatting.
+                if (isPictureMode) ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
+                if (isExpanded && !isPictureMode) {
                     if (model?.canThink == true) ThinkingMenu(settings.thinkingLevel, presenter::thinkingLevelAction)
                     // A model that can call tools searches when it sees fit; any other must be told to.
                     if (model != null && !model.canUseTools && settings.searchUrl != null) {

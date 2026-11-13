@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -27,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,7 +39,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -55,6 +60,9 @@ import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
 import app.hearth.domain.SearchSource
+import app.hearth.integrations.PictureLibrary
+import app.hearth.domain.shownVersionIndex
+import app.hearth.domain.versionCount
 import app.hearth.shared.share
 
 /** What is happening to the reply still being written, and what may be done with a finished one. */
@@ -62,6 +70,8 @@ data class MessageViewConfiguration(
     val message: Message,
     val isStreaming: Boolean = false,
     val searchingFor: String? = null,
+    /** What the picture server is doing while this reply is on its way. */
+    val pictureWork: PictureWorkKind? = null,
     val hasSearchFailed: Boolean = false,
     val memoryNotice: MemoryOutcome? = null,
     val canRetry: Boolean = false,
@@ -73,15 +83,16 @@ data class MessageViewConfiguration(
     val canEdit: Boolean = false,
 )
 
-/** What the reader may do with a message. */
-class MessageActions(val onRetry: () -> Unit, val onSpeak: () -> Unit, val onEdit: () -> Unit)
+/** What the reader may do with a message. [onVersion] shows the version of a reply at the given place. */
+class MessageActions(val onRetry: () -> Unit, val onSpeak: () -> Unit, val onEdit: () -> Unit, val onVersion: (Int) -> Unit)
 
 /**
  * One message of the conversation. The user's is a bubble at the right; a reply runs the full width, with its
- * thinking, sources and notices above and below the text.
+ * thinking, sources and notices above and below the text. A reply that is a picture shows the picture, with a note
+ * on how it was made in place of the text.
  */
 @Composable
-fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActions, modifier: Modifier = Modifier) {
+fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActions, pictures: PictureLibrary, modifier: Modifier = Modifier) {
     val message = configuration.message
     if (message.role == MessageRole.USER) {
         UserMessage(message, configuration.canEdit, actions.onEdit, modifier)
@@ -90,8 +101,16 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
             if (message.sources.isNotEmpty()) SourceRow(message.sources)
-            if (message.text.isNotEmpty()) {
+            val picture = message.images.firstOrNull()
+            val pictureWork = configuration.pictureWork
+            if (picture != null) {
+                PictureSection(picture, pictures)
+                // Under a picture the text is only a note on how it was made.
+                if (message.text.isNotEmpty()) Text(message.text, color = HearthTheme.colors.mute, style = HearthTheme.type.footnote)
+            } else if (message.text.isNotEmpty()) {
                 MarkdownSection(message.text)
+            } else if (configuration.isStreaming && pictureWork != null) {
+                Activity(pictureStatus(pictureWork))
             } else if (configuration.isStreaming && configuration.searchingFor == null && message.thinking.isEmpty()) {
                 Activity(stringResource(R.string.message_writing))
             }
@@ -154,6 +173,16 @@ private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, 
         }
     }
 }
+
+/** What the picture server is doing, in the user's language. */
+@Composable
+private fun pictureStatus(work: PictureWorkKind): String = stringResource(
+    when (work) {
+        PictureWorkKind.CREATE -> R.string.picture_creating
+        PictureWorkKind.CHANGE -> R.string.picture_changing
+        PictureWorkKind.ENLARGE -> R.string.picture_enlarging
+    },
+)
 
 /** What to say about a change to memory. A refusal is the model's business and is not shown. */
 @Composable
@@ -260,28 +289,63 @@ private fun SourceRow(sources: List<SearchSource>) {
     }
 }
 
-/** What may be done with a finished reply: hear it, copy it, share it, ask for it again. */
+/** What may be done with a finished reply: hear it, copy it, share it, ask for it again, and look back at earlier versions. */
 @Composable
 private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions) {
+    val canRetry = configuration.canRetry
+    val onRetry = actions.onRetry
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        // A picture has its own ways to be kept, and its note is not worth copying or reading out.
+        if (!configuration.message.isPicture) TextActions(configuration, actions.onSpeak)
+        if (canRetry) HearthIconButton(Icons.Outlined.Refresh, stringResource(R.string.message_retry), tint = HearthTheme.colors.mute, onClick = onRetry)
+        if (configuration.message.versionCount > 1) VersionStepper(configuration.message, actions.onVersion)
+    }
+}
+
+/** Read aloud, copy and share, for a reply made of words. */
+@Composable
+private fun TextActions(configuration: MessageViewConfiguration, onSpeak: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val text = configuration.message.text
-    val canRetry = configuration.canRetry
-    val onRetry = actions.onRetry
-    Row {
-        if (configuration.canSpeak) {
-            val isSpeaking = configuration.isSpeaking
-            HearthIconButton(
-                if (isSpeaking) Icons.Outlined.StopCircle else Icons.AutoMirrored.Outlined.VolumeUp,
-                stringResource(if (isSpeaking) R.string.message_stop_speaking else R.string.message_speak),
-                tint = if (isSpeaking) HearthTheme.colors.pine else HearthTheme.colors.mute,
-                onClick = actions.onSpeak,
-            )
-        }
-        HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy), tint = HearthTheme.colors.mute) {
-            clipboard.setText(AnnotatedString(text))
-        }
-        HearthIconButton(Icons.Outlined.Share, stringResource(R.string.message_share), tint = HearthTheme.colors.mute) { share(context, text) }
-        if (canRetry) HearthIconButton(Icons.Outlined.Refresh, stringResource(R.string.message_retry), tint = HearthTheme.colors.mute, onClick = onRetry)
+    if (configuration.canSpeak) {
+        val isSpeaking = configuration.isSpeaking
+        HearthIconButton(
+            if (isSpeaking) Icons.Outlined.StopCircle else Icons.AutoMirrored.Outlined.VolumeUp,
+            stringResource(if (isSpeaking) R.string.message_stop_speaking else R.string.message_speak),
+            tint = if (isSpeaking) HearthTheme.colors.pine else HearthTheme.colors.mute,
+            onClick = onSpeak,
+        )
+    }
+    HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy), tint = HearthTheme.colors.mute) {
+        clipboard.setText(AnnotatedString(text))
+    }
+    HearthIconButton(Icons.Outlined.Share, stringResource(R.string.message_share), tint = HearthTheme.colors.mute) { share(context, text) }
+}
+
+/** Steps back and forth through the versions of a reply, with the place of the one shown between the arrows. */
+@Composable
+private fun VersionStepper(message: Message, onVersion: (Int) -> Unit) {
+    val colors = HearthTheme.colors
+    val index = message.shownVersionIndex
+    val count = message.versionCount
+    val position = stringResource(R.string.message_version_position, index + 1, count)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        VersionArrow(Icons.Outlined.ChevronLeft, stringResource(R.string.message_previous_version), isEnabled = index > 0) { onVersion(index - 1) }
+        Text(
+            stringResource(R.string.message_version_counter, index + 1, count),
+            color = colors.mute,
+            style = HearthTheme.type.footnote,
+            modifier = Modifier.semantics { contentDescription = position },
+        )
+        VersionArrow(Icons.Outlined.ChevronRight, stringResource(R.string.message_next_version), isEnabled = index < count - 1) { onVersion(index + 1) }
+    }
+}
+
+/** One arrow of the stepper, faded where there is no version that way. */
+@Composable
+private fun VersionArrow(icon: ImageVector, label: String, isEnabled: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = isEnabled) {
+        Icon(icon, label, tint = HearthTheme.colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconL).alpha(if (isEnabled) 1f else 0.35f))
     }
 }

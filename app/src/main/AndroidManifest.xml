@@ -4,6 +4,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Asked for only when the user first dictates or starts a voice conversation. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Only Android 9 asks for this to save a picture to the phone's Pictures; later versions need no leave. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 
     <!-- Lets the app find the phone's speech recogniser. -->
     <queries>
@@ -31,8 +35,50 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Puts Hearth in other apps' share sheets, for words, links, pictures and files whose text can be read. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/xml" />
+            </intent-filter>
         </activity>
-        <!-- Lends the camera one file to write a photo into, and nothing else. -->
+        <!-- The home screen widgets: each a tile that opens the app to do one thing. -->
+        <receiver
+            android:name=".widget.NewChatWidget"
+            android:exported="true"
+            android:label="@string/widget_new_chat_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_new_chat_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.VoiceWidget"
+            android:exported="true"
+            android:label="@string/widget_voice_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_voice_info" />
+        </receiver>
+        <!-- Lends the camera one file to write a photo into, and another app one picture the user chose to share. Nothing else. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

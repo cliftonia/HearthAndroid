@@ -23,6 +23,13 @@ fun ChatPresenter.addDocumentsAction(documents: List<AttachedDocument>, unreadab
     )
 }
 
+/** Puts what was shared from another app into the message being written: words after the draft, photos and files beside it. */
+fun ChatPresenter.receiveSharedAction(text: String, images: List<String>, documents: List<AttachedDocument>, unreadableCount: Int) {
+    state.update { it.copy(draft = listOf(it.draft, text.trim()).filter { part -> part.isNotEmpty() }.joinToString("\n")) }
+    addImagesAction(images)
+    addDocumentsAction(documents, unreadableCount)
+}
+
 fun ChatPresenter.removeDocumentAction(id: String) = state.update {
     it.copy(pendingDocuments = it.pendingDocuments.filter { document -> document.id != id })
 }

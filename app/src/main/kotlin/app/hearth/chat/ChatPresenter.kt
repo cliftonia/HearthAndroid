@@ -8,8 +8,10 @@ import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ConversationStore
 import app.hearth.domain.DictationProvider
+import app.hearth.domain.ImageInteractor
 import app.hearth.domain.MemoryStore
 import app.hearth.domain.Message
+import app.hearth.domain.MessageId
 import app.hearth.domain.MessageRole
 import app.hearth.domain.ModelStore
 import app.hearth.domain.ReplyStyle
@@ -17,6 +19,7 @@ import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechInteractor
 import app.hearth.domain.ThinkingLevel
+import app.hearth.domain.showingVersion
 import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
@@ -38,7 +41,7 @@ interface ChatPresenterDelegate {
 /**
  * Runs the conversation on screen: sends messages, streams replies into the view model and saves what arrives.
  *
- * The actions for attachments, editing, dictation and reading aloud, and the making of a reply itself, are
+ * The actions for attachments, editing, dictation, pictures and reading aloud, and the making of a reply itself, are
  * extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
  */
 class ChatPresenter(
@@ -51,7 +54,11 @@ class ChatPresenter(
     class Dependencies(
         val chat: ChatInteractor,
         val speech: SpeechInteractor,
+        val image: ImageInteractor,
         val dictation: DictationProvider,
+        val pictureWords: PictureWords,
+        /** Squeezes a finished picture into a JPEG in Base64 for keeping. `null` if it is no picture. */
+        val encodePicture: suspend (ByteArray) -> String?,
         val settingsStore: SettingsStore,
         val modelStore: ModelStore,
         val conversationStore: ConversationStore,
@@ -118,7 +125,7 @@ class ChatPresenter(
         stopDictation()
         discardEditedMessages()
         state.update { it.copy(draft = "", pendingImages = emptyList(), pendingDocuments = emptyList()) }
-        turnJob = scope.launch { submit(message) }
+        turnJob = scope.launch { if (current.isPictureMode) submitPicture(message) else submit(message) }
     }
 
     /** Sends one of the suggested questions as the next message. */
@@ -161,18 +168,35 @@ class ChatPresenter(
         }
     }
 
-    /** Throws away the last reply, if there is one, and answers the user's last message again. */
+    /** Asks for another reply to the same message. The last reply is kept behind the new one as an earlier version. */
     fun regenerateAction() {
         val current = state.value
-        val model = current.selectedModel ?: return
         if (current.isStreaming) return
-        val messages = current.conversation.messages.let { if (it.lastOrNull()?.role == MessageRole.ASSISTANT) it.dropLast(1) else it }
-        if (messages.lastOrNull()?.role != MessageRole.USER) return
+        val previous = current.conversation.messages.lastOrNull()?.takeIf { it.role == MessageRole.ASSISTANT }
+        val messages = if (previous != null) current.conversation.messages.dropLast(1) else current.conversation.messages
+        val asked = messages.lastOrNull()?.takeIf { it.role == MessageRole.USER } ?: return
+        // A picture is asked for again from the picture server, not from the chat model.
+        if (previous?.isPicture == true || (previous == null && current.isPictureMode)) {
+            state.update { it.copy(conversation = it.conversation.copy(messages = messages.dropLast(1))) }
+            turnJob = scope.launch { submitPicture(asked) }
+            return
+        }
+        val model = current.selectedModel ?: return
         state.update { it.copy(conversation = it.conversation.copy(messages = messages)) }
         turnJob = scope.launch {
-            reply(model, ReplyStyle.CHAT, null)
+            reply(model, ReplyStyle.CHAT, previous)
             suggestFollowUps(model)
         }
+    }
+
+    /** Shows another version of a reply that was asked for more than once. */
+    fun selectVersionAction(index: Int, id: MessageId) {
+        val current = state.value
+        val message = current.conversation.messages.firstOrNull { it.id == id }
+        if (current.isStreaming || message == null) return
+        stopSpeaking()
+        state.update { it.copy(followUps = emptyList(), conversation = it.conversation.replacing(message.showingVersion(index))) }
+        scope.launch { save(state.value.conversation) }
     }
 
     /** Starts afresh: anything half written is cleared along with the conversation. */

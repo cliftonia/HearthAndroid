@@ -26,6 +26,7 @@ android {
         buildConfigField("String", "OLLAMA_ADDRESS", quoted("hearth.ollamaAddress"))
         buildConfigField("String", "SEARCH_ADDRESS", quoted("hearth.searchAddress"))
         buildConfigField("String", "SPEECH_ADDRESS", quoted("hearth.speechAddress"))
+        buildConfigField("String", "IMAGE_ADDRESS", quoted("hearth.imageAddress"))
         buildConfigField("String", "DEFAULT_MODEL", quoted("hearth.defaultModel"))
     }
 

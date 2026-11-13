@@ -3,6 +3,7 @@ package app.hearth.chat
 import app.hearth.domain.AttachedDocument
 import app.hearth.domain.ChatModel
 import app.hearth.domain.Conversation
+import app.hearth.domain.ImageModelKind
 import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.MessageId
 import app.hearth.shared.ErrorViewConfiguration
@@ -27,11 +28,17 @@ data class ChatViewModel(
     /** The latest change the model made to its memory, shown under its reply. */
     val memoryNotice: MemoryOutcome? = null,
     val isDictating: Boolean = false,
+    /** Whether what is sent asks for a picture, not for a reply from the chat model. */
+    val isPictureMode: Boolean = false,
+    /** The picture models the server offers, for the menu at the top while pictures are being made. Empty until it answers. */
+    val pictureModels: List<ImageModelKind> = emptyList(),
+    /** What the picture server is doing right now, while a picture is on its way. */
+    val pictureWork: PictureWorkKind? = null,
     /** The reply being read aloud. */
     val speakingMessageId: MessageId? = null,
     val error: ErrorViewConfiguration? = null,
 ) {
-    /** Whether there is a model to send to and something to send. */
+    /** Whether there is something to send and somewhere to send it: a chat model, or the picture server, which needs none. */
     val canSend: Boolean
-        get() = selectedModel != null && (draft.isNotBlank() || pendingImages.isNotEmpty() || pendingDocuments.isNotEmpty())
+        get() = (selectedModel != null || isPictureMode) && (draft.isNotBlank() || pendingImages.isNotEmpty() || pendingDocuments.isNotEmpty())
 }

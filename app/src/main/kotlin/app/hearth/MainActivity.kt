@@ -2,6 +2,7 @@ package app.hearth
 
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.SystemBarStyle
@@ -15,6 +16,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -26,7 +28,8 @@ import app.hearth.lock.LockScreen
 
 /**
  * The app's one window. It draws the lock or the screens, and does what only an activity can: asks for a
- * fingerprint, publishes the home screen shortcut, takes the shortcut's intent and keeps the window private.
+ * fingerprint, publishes the home screen shortcut, takes the intents of shortcuts, widgets and other apps' share
+ * sheets, and keeps the window private.
  *
  * It holds no state of its own. Everything lives in the [AppCoordinator], which outlives it.
  */
@@ -76,9 +79,31 @@ class MainActivity : FragmentActivity() {
         if (!isChangingConfigurations) coordinator.lock.backgroundedAction()
     }
 
-    /** Opens the voice conversation when the app was started from its shortcut. */
+    /**
+     * Does what the app was opened for: a voice conversation or a fresh chat from a shortcut or a widget, or
+     * taking in what another app shared.
+     */
     private fun handle(intent: Intent?) {
-        if (intent?.action == ACTION_VOICE) coordinator.startVoice(isFromOutside = true)
+        when (intent?.action) {
+            ACTION_VOICE -> coordinator.startVoice(isFromOutside = true)
+            ACTION_NEW_CHAT -> coordinator.startNewChat()
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> receiveShare(intent)
+        }
+    }
+
+    /**
+     * Hands what was shared to the chat. An intent brought back from the recent apps list is one already taken
+     * in, so it is left alone.
+     */
+    private fun receiveShare(intent: Intent) {
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString().orEmpty()
+        val streams = if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
+            IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+        } else {
+            listOfNotNull(IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
+        }
+        coordinator.receiveShared(text, streams.map(Uri::toString))
     }
 
     /** Offers "Start voice conversation" when the app's icon is held down. */
@@ -110,11 +135,14 @@ class MainActivity : FragmentActivity() {
         BiometricPrompt(this, ContextCompat.getMainExecutor(this), callback).authenticate(prompt)
     }
 
-    private companion object {
-        /** The action of the intent the voice shortcut sends. */
+    companion object {
+        /** The action of the intent the voice shortcut and the voice widget send. */
         const val ACTION_VOICE = "app.hearth.action.VOICE"
 
+        /** The action of the intent that opens the app on a fresh chat, as the New Chat widget does. */
+        const val ACTION_NEW_CHAT = "app.hearth.action.NEW_CHAT"
+
         /** The name the launcher knows the shortcut by; changing it would orphan one already pinned. */
-        const val VOICE_SHORTCUT_ID = "voice"
+        private const val VOICE_SHORTCUT_ID = "voice"
     }
 }

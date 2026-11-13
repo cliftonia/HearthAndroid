@@ -30,6 +30,10 @@
     <string name="message_copy">Copy</string>
     <string name="message_share">Share</string>
     <string name="message_retry">Try again</string>
+    <string name="message_previous_version">Previous version</string>
+    <string name="message_next_version">Next version</string>
+    <string name="message_version_counter" translatable="false">%1$d/%2$d</string>
+    <string name="message_version_position">Version %1$d of %2$d</string>
     <string name="message_thinking">Thinking…</string>
     <string name="message_thought_briefly">Thought briefly</string>
     <plurals name="message_thought">
@@ -139,6 +143,53 @@
     <string name="error_dictation_denied">Allow microphone access in the phone\'s Settings to dictate.</string>
     <string name="error_dictation_unavailable">Dictation is not available right now.</string>
 
+    <string name="picture_title">Picture</string>
+    <string name="picture_section">Pictures</string>
+    <string name="picture_models">Picture models</string>
+    <string name="picture_model_picker">Choose picture model</string>
+    <string name="picture_mode">Make a picture</string>
+    <string name="picture_placeholder">Describe a picture</string>
+    <string name="picture_change_placeholder">Say what to change, or send to enlarge</string>
+    <string name="picture_creating">Making your picture…</string>
+    <string name="picture_changing">Changing your picture…</string>
+    <string name="picture_enlarging">Enlarging your picture…</string>
+    <plurals name="picture_created">
+        <item quantity="one">Made in %1$d second</item>
+        <item quantity="other">Made in %1$d seconds</item>
+    </plurals>
+    <plurals name="picture_changed">
+        <item quantity="one">Changed in %1$d second</item>
+        <item quantity="other">Changed in %1$d seconds</item>
+    </plurals>
+    <plurals name="picture_enlarged">
+        <item quantity="one">Enlarged in %1$d second</item>
+        <item quantity="other">Enlarged in %1$d seconds</item>
+    </plurals>
+    <string name="picture_save">Save</string>
+    <string name="picture_saved">Saved to Pictures</string>
+    <string name="picture_save_failed">The picture could not be saved.</string>
+    <string name="picture_model">Model</string>
+    <string name="picture_model_automatic">Automatic</string>
+    <string name="picture_model_name_z_image" translatable="false">Z-Image Turbo</string>
+    <string name="picture_model_name_krea" translatable="false">Krea 2 Turbo</string>
+    <string name="picture_model_name_juggernaut" translatable="false">Juggernaut XL</string>
+    <string name="picture_model_z_image">Z-Image Turbo · fast, all-round</string>
+    <string name="picture_model_krea">Krea 2 Turbo · most photographic, slower</string>
+    <string name="picture_model_juggernaut">Juggernaut XL · painterly</string>
+    <string name="picture_can_change">Can change a picture you show it</string>
+    <string name="picture_can_enlarge">Can enlarge a picture</string>
+    <string name="picture_no_models">Add a picture server address above to make pictures.</string>
+    <string name="picture_footer">To make a picture, tap + in a chat and choose Make a picture. Attach a photo to change it or enlarge it. The picture server is asked to free its memory after every picture.</string>
+    <string name="picture_ability_there">Available</string>
+    <string name="picture_ability_missing">Not available</string>
+    <string name="settings_image">Picture server (ComfyUI)</string>
+    <string name="error_picture_not_configured">Add a picture server address in Settings to make pictures.</string>
+    <string name="error_picture_no_model">The picture server has none of the models Hearth can use.</string>
+    <string name="error_picture_cannot_change">The picture server is not set up to change pictures.</string>
+    <string name="error_picture_cannot_enlarge">The picture server is not set up to enlarge pictures.</string>
+    <string name="error_picture_failed">The picture could not be made.</string>
+    <string name="error_picture_timed_out">The picture took too long and was stopped.</string>
+
     <string name="settings_speech">Speech address (Kokoro)</string>
     <string name="settings_voice">Voice</string>
     <string name="settings_voice_name">Voice name</string>
@@ -166,4 +217,11 @@
     <string name="voice_hint">Speak when you are ready.</string>
     <string name="voice_muted_hint">Unmute to carry on.</string>
     <string name="voice_permission_denied">Allow microphone access in the phone\'s Settings to talk.</string>
+
+    <string name="widget_new_chat_name">New Chat</string>
+    <string name="widget_new_chat_description">Start a new chat in Hearth.</string>
+    <string name="widget_new_chat_title">New chat</string>
+    <string name="widget_voice_name">Voice Conversation</string>
+    <string name="widget_voice_description">Start talking to Hearth.</string>
+    <string name="widget_voice_title">Talk</string>
 </resources>

@@ -11,6 +11,8 @@ import app.hearth.domain.MessageRole
 import app.hearth.domain.ReplyStyle
 import app.hearth.domain.SearchMode
 import app.hearth.domain.SpokenReplyFeed
+import app.hearth.domain.droppingShownVersion
+import app.hearth.domain.startingNewVersion
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
@@ -40,7 +42,7 @@ internal suspend fun ChatPresenter.submit(message: Message, style: ReplyStyle = 
             ),
         )
     }
-    reply(model, style, onDelta)
+    reply(model, style, onDelta = onDelta)
     if (isFirstMessage) nameConversation(conversation.id, text, model)
     if (style == ReplyStyle.CHAT) suggestFollowUps(model)
 }
@@ -48,13 +50,14 @@ internal suspend fun ChatPresenter.submit(message: Message, style: ReplyStyle = 
 /**
  * Streams one reply into the conversation, piece by piece, reading it aloud as it comes if that is asked for.
  *
- * [onDelta] receives each piece of the reply's text, for a voice conversation to speak.
+ * [previous] is the reply this one is another attempt at, whose versions it keeps behind it. [onDelta] receives
+ * each piece of the reply's text, for a voice conversation to speak.
  */
-internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, onDelta: ((String) -> Unit)?) {
+internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, previous: Message? = null, onDelta: ((String) -> Unit)? = null) {
     val settings = dependencies.settingsStore.settings.value
     val conversation = state.value.conversation
     val canRemember = settings.allowsMemory(conversation)
-    var reply = Message(role = MessageRole.ASSISTANT, text = "", createdAt = now())
+    var reply = previous?.startingNewVersion(now()) ?: Message(role = MessageRole.ASSISTANT, text = "", createdAt = now())
     var thinkingSince: Long? = null
     state.update {
         it.copy(
@@ -121,20 +124,28 @@ internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, on
     }
 }
 
-/** Ends a reply: one that came to nothing is dropped, and the conversation is saved. */
+/**
+ * Ends a reply: one that came to nothing is dropped, and the conversation is saved. If it was another attempt at
+ * an earlier reply, that earlier reply is shown again.
+ */
 private suspend fun ChatPresenter.finish(id: ConversationId, reply: Message) {
     // Another conversation may have been opened while this one was still replying.
     if (state.value.conversation.id != id) return
     state.update { current ->
         val isBlank = reply.text.isEmpty() && reply.thinking.isEmpty()
-        val messages = if (isBlank) current.conversation.messages.filter { it.id != reply.id } else current.conversation.messages
+        val earlier = reply.droppingShownVersion()
+        val messages = when {
+            !isBlank -> current.conversation.messages
+            earlier != null -> current.conversation.replacing(earlier).messages
+            else -> current.conversation.messages.filter { it.id != reply.id }
+        }
         current.copy(conversation = current.conversation.copy(messages = messages, updatedAt = now()), isStreaming = false, searchingFor = null)
     }
     save(state.value.conversation)
 }
 
 /** Writes the conversation to disk, telling the user if it could not be kept. */
-private suspend fun ChatPresenter.save(conversation: Conversation) {
+internal suspend fun ChatPresenter.save(conversation: Conversation) {
     try {
         dependencies.conversationStore.save(conversation)
     } catch (failure: IOException) {

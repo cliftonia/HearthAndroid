@@ -1,5 +1,6 @@
 package app.hearth.integrations
 
+import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -18,7 +19,7 @@ import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Reads the photos and files the user picks. Nothing leaves the phone here; the text or picture goes only to the user's own server. */
+/** Reads the photos and files the user picks or shares from another app. Nothing leaves the phone here; the text or picture goes only to the user's own server. */
 class AttachmentLoader(private val context: Context) {
 
     /** The files that could be read, and how many could not. */
@@ -33,6 +34,34 @@ class AttachmentLoader(private val context: Context) {
     suspend fun documents(addresses: List<String>): Documents = withContext(Dispatchers.IO) {
         val read = addresses.map { address -> runCatching { document(Uri.parse(address)) }.getOrNull() }
         Documents(read.filterNotNull(), read.count { it == null })
+    }
+
+    /** What another app shared, sorted into photos and files, with how many of either could not be read. */
+    data class Shared(val images: List<String>, val documents: List<AttachedDocument>, val unreadableCount: Int)
+
+    /**
+     * Reads what another app shared: pictures scaled down as photos are, anything else for its text.
+     *
+     * Only addresses lent by another app are read. One that points at a file by its path, or at this app's own
+     * files, is counted as unreadable, so that no app can have Hearth read its private files into a message.
+     */
+    suspend fun shared(addresses: List<String>): Shared = withContext(Dispatchers.IO) {
+        val images = mutableListOf<String>()
+        val documents = mutableListOf<AttachedDocument>()
+        var unreadableCount = 0
+        for (address in addresses.take(MAXIMUM_SHARED_ITEMS)) {
+            val uri = Uri.parse(address)
+            val isLent = uri.scheme == ContentResolver.SCHEME_CONTENT && uri.authority?.startsWith(context.packageName) != true
+            val isPicture = isLent && context.contentResolver.getType(uri)?.startsWith("image/") == true
+            val image = if (isPicture) runCatching { jpegBase64(uri) }.getOrNull() else null
+            val document = if (isLent && !isPicture) runCatching { document(uri) }.getOrNull() else null
+            when {
+                image != null -> images += image
+                document != null -> documents += document
+                else -> unreadableCount += 1
+            }
+        }
+        Shared(images, documents, unreadableCount + (addresses.size - MAXIMUM_SHARED_ITEMS).coerceAtLeast(0))
     }
 
     /** A fresh place in the app's cache for the camera to write one photo into. */
@@ -96,6 +125,9 @@ class AttachmentLoader(private val context: Context) {
 
         /** The most that is read of a text file. */
         private const val MAXIMUM_TEXT_BYTES = 2_000_000
+
+        /** The most photos and files taken in from one share. */
+        private const val MAXIMUM_SHARED_ITEMS = 10
 
         /** How hard a photo is squeezed, out of 100. */
         private const val JPEG_QUALITY = 82

@@ -32,8 +32,10 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ModelStore
 import app.hearth.domain.SettingsStore
 import app.hearth.integrations.AttachmentLoader
+import app.hearth.integrations.PictureLibrary
 import app.hearth.shared.ErrorViewConfiguration
 import app.hearth.shared.errorMessage
+import app.hearth.shared.errorTitle
 
 /** The conversation: its header, its messages or what stands in for them, any error, and the composer. */
 @Composable
@@ -42,6 +44,7 @@ fun ChatScreen(
     settingsStore: SettingsStore,
     modelStore: ModelStore,
     attachments: AttachmentLoader,
+    pictures: PictureLibrary,
     modifier: Modifier = Modifier,
 ) {
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
@@ -54,7 +57,7 @@ fun ChatScreen(
             when {
                 settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
                 viewModel.conversation.messages.isEmpty() -> EmptyState(viewModel.conversation.isPrivate)
-                else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null)
+                else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null, pictures = pictures)
             }
         },
         banner = { viewModel.error?.let { ErrorBanner(it, presenter::retryAction, presenter::dismissErrorAction) } },
@@ -176,7 +179,7 @@ private fun ErrorBanner(error: ErrorViewConfiguration, onRetry: () -> Unit, onDi
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(vertical = spacing.l)) {
-            Text(stringResource(R.string.error_title), color = colors.danger, style = HearthTheme.type.calloutStrong)
+            Text(errorTitle(error), color = colors.danger, style = HearthTheme.type.calloutStrong)
             Text(errorMessage(error), color = colors.ink, style = HearthTheme.type.calloutTight, maxLines = 4, overflow = TextOverflow.Ellipsis)
         }
         if (error.canRetry) {

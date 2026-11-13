@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Lock as LockFilled
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Lock
@@ -39,9 +40,12 @@ import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ChatModel
+import app.hearth.domain.ImageModelKind
 import app.hearth.domain.ServerSettings
+import app.hearth.shared.shortName
+import app.hearth.shared.title
 
-/** The top of the chat: the way to the chat list, the model in use, and the private chat button. */
+/** The top of the chat: the way to the chat list, the model in use for chat or for pictures, and the private chat button. */
 @Composable
 internal fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter) {
     Row(
@@ -50,7 +54,12 @@ internal fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, setti
     ) {
         HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), onClick = presenter::drawerAction)
         Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            ModelPicker(viewModel.selectedModel, models, presenter::selectModelAction)
+            // While pictures are being made the chat model takes no part, so the picture models are offered in its place.
+            if (viewModel.isPictureMode) {
+                PictureModelPicker(viewModel.selectedPictureModel(settings), viewModel.pictureModels, presenter::selectPictureModelAction)
+            } else {
+                ModelPicker(viewModel.selectedModel, models, presenter::selectModelAction)
+            }
         }
         val canChange = viewModel.conversation.messages.isEmpty() && settings.isMemoryEnabled && settings.ollamaUrl != null
         PrivateToggle(viewModel.conversation.isPrivate, canChange, presenter::togglePrivateAction)
@@ -123,6 +132,45 @@ private fun ModelPicker(selected: ChatModel?, models: List<ChatModel>, onSelect:
                         )
                     }
                 }
+        }
+    }
+}
+
+/** The model pictures are made with, in the same place; tapping it lists the picture models the server has. */
+@Composable
+private fun PictureModelPicker(selected: ImageModelKind?, models: List<ImageModelKind>, onSelect: (ImageModelKind) -> Unit) {
+    var isOpen by remember { mutableStateOf(false) }
+    val colors = HearthTheme.colors
+    Box {
+        val openLabel = stringResource(R.string.picture_model_picker)
+        TextButton(onClick = { isOpen = true }, modifier = Modifier.semantics { onClick(label = openLabel, action = null) }) {
+            Icon(Icons.Filled.Brush, null, tint = colors.pine, modifier = Modifier.padding(end = HearthTheme.spacing.s).size(HearthTheme.sizes.iconXs))
+            Text(
+                selected?.shortName() ?: stringResource(R.string.picture_section),
+                color = colors.ink,
+                style = HearthTheme.type.controlTitle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = HearthTheme.sizes.modelNameMaxWidth),
+            )
+            Icon(Icons.Outlined.ExpandMore, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconS))
+        }
+        DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
+            Text(
+                stringResource(R.string.picture_models),
+                color = colors.mute,
+                style = HearthTheme.type.caption,
+                modifier = Modifier.padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.s).semantics { heading() },
+            )
+            models.forEach { model ->
+                DropdownMenuItem(
+                    text = { Text(model.title(), fontWeight = if (model == selected) FontWeight.SemiBold else null) },
+                    onClick = {
+                        isOpen = false
+                        onSelect(model)
+                    },
+                )
+            }
         }
     }
 }

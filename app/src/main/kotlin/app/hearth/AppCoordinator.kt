@@ -2,6 +2,7 @@ package app.hearth
 
 import app.hearth.chat.ChatPresenter
 import app.hearth.chat.ChatPresenterDelegate
+import app.hearth.chat.receiveSharedAction
 import app.hearth.chat.stopDictation
 import app.hearth.chat.stopSpeaking
 import app.hearth.domain.ConversationId
@@ -36,7 +37,8 @@ class AppCoordinator(
 ) : ChatPresenterDelegate, DrawerPresenterDelegate, SettingsPresenterDelegate, VoicePresenterDelegate {
     private val screenState = MutableStateFlow(Screen.CHAT)
     private val drawerState = MutableStateFlow(false)
-    private val sideListState = MutableStateFlow(true)
+    private val sideList = dependencies.sideList
+    private val sideListState = MutableStateFlow(!sideList.isHidden())
 
     /** Whether the window is wide enough for the chat list to sit beside the chat. Only the root view can tell. */
     private var isWide = false
@@ -45,11 +47,15 @@ class AppCoordinator(
     /** Whether the chat list should be open as a drawer. It has no meaning on a wide screen, where the list sits beside the chat. */
     val isDrawerOpen: StateFlow<Boolean> = drawerState.asStateFlow()
 
-    /** Whether the chat list is shown beside the chat on a wide screen. It is there until the user puts it away. */
+    /**
+     * Whether the chat list is shown beside the chat on a wide screen. It is there until the user puts it away,
+     * and the choice is remembered from one launch to the next.
+     */
     val isSideListShown: StateFlow<Boolean> = sideListState.asStateFlow()
     val settingsStore = dependencies.settingsStore
     val modelStore = dependencies.modelStore
     val attachments = dependencies.attachments
+    val pictures = dependencies.pictures
 
     val lock = LockPresenter(isLockEnabled = { settingsStore.settings.value.isLockEnabled }, onLock = ::quieten)
 
@@ -58,7 +64,10 @@ class AppCoordinator(
         ChatPresenter.Dependencies(
             chat = dependencies.chat,
             speech = dependencies.speech,
+            image = dependencies.image,
             dictation = dependencies.dictation,
+            pictureWords = dependencies.pictureWords,
+            encodePicture = dependencies.pictures::jpegBase64,
             settingsStore = dependencies.settingsStore,
             modelStore = dependencies.modelStore,
             conversationStore = dependencies.conversationStore,
@@ -67,7 +76,14 @@ class AppCoordinator(
         ),
     )
     val drawer = DrawerPresenter(scope, dependencies.conversationStore)
-    val settings = SettingsPresenter(scope, dependencies.settingsStore, dependencies.modelStore, dependencies.memoryStore, dependencies.speech)
+    val settings = SettingsPresenter(
+        scope,
+        dependencies.settingsStore,
+        dependencies.modelStore,
+        dependencies.memoryStore,
+        dependencies.speech,
+        dependencies.image,
+    )
     val voice = VoicePresenter(
         scope,
         VoicePresenter.Dependencies(
@@ -111,6 +127,32 @@ class AppCoordinator(
         screenState.value = Screen.VOICE
     }
 
+    /** Opens the app on a fresh chat, as its widget asks. */
+    fun startNewChat() {
+        showChat()
+        chat.newChatAction()
+    }
+
+    /**
+     * Takes in what another app shared: words and links as they are, photos and files by their addresses. It all
+     * lands in the composer of the open chat, and nothing is sent until the user sends it.
+     */
+    fun receiveShared(text: String, addresses: List<String>) {
+        if (text.isEmpty() && addresses.isEmpty()) return
+        showChat()
+        scope.launch {
+            val shared = attachments.shared(addresses)
+            chat.receiveSharedAction(text, shared.images, shared.documents, shared.unreadableCount)
+        }
+    }
+
+    /** Brings the chat to the front, putting away whatever was over it. */
+    private fun showChat() {
+        if (screenState.value == Screen.VOICE) scope.launch { voice.halt() }
+        drawerState.value = false
+        screenState.value = Screen.CHAT
+    }
+
     /** Nothing is heard or said while the app is locked: anyone could be holding the phone. */
     private fun quieten() {
         chat.stopSpeaking()
@@ -123,7 +165,12 @@ class AppCoordinator(
 
     override fun chatPresenterDidRequestDrawer() {
         // Beside the chat the list is put away and brought back by the same button; as a drawer it only opens.
-        if (isWide) sideListState.value = !sideListState.value else drawerState.value = true
+        if (isWide) {
+            sideListState.value = !sideListState.value
+            sideList.setHidden(!sideListState.value)
+        } else {
+            drawerState.value = true
+        }
     }
 
     override fun chatPresenterDidRequestSettings() {

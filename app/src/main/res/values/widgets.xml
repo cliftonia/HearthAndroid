@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  How the home screen widgets look. A widget is drawn by the launcher, which cannot read the app's design
+  system, so its colours and measures are repeated here. The colours match HearthColors.
+-->
+<resources>
+    <color name="widget_paper">#F3F5F1</color>
+    <color name="widget_ink">#18211E</color>
+    <color name="widget_mute">#6C7772</color>
+    <color name="widget_pine">#2C6B5A</color>
+    <color name="widget_on_pine">#FFFFFF</color>
+
+    <dimen name="widget_padding">16dp</dimen>
+    <dimen name="widget_corner">22dp</dimen>
+    <dimen name="widget_mark">40dp</dimen>
+    <dimen name="widget_title_size">17sp</dimen>
+    <dimen name="widget_caption_size">12sp</dimen>
+    <!-- The least room a widget needs: about two cells of a home screen each way. -->
+    <dimen name="widget_min_side">110dp</dimen>
+</resources>

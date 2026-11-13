@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
@@ -30,13 +31,14 @@ import androidx.compose.ui.unit.dp
 import app.hearth.R
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.MessageRole
+import app.hearth.integrations.PictureLibrary
 
 /** The last thing in the list, with nothing to show: somewhere to scroll to that is always past the reply. */
 private val EndAnchorHeight = 1.dp
 
 /** The messages of the conversation, oldest first, with the suggested questions after the last. */
 @Composable
-internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, canSpeak: Boolean) {
+internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, canSpeak: Boolean, pictures: PictureLibrary) {
     val messages = viewModel.conversation.messages
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
@@ -45,8 +47,15 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) focusManager.clearFocus() else isFollowing = !listState.canScrollForward
     }
-    LaunchedEffect(messages.size, messages.lastOrNull()?.text?.length, messages.lastOrNull()?.thinking?.length, viewModel.followUps.size) {
+    val last = messages.lastOrNull()
+    LaunchedEffect(messages.size, last?.text?.length, last?.thinking?.length, last?.images?.size, viewModel.followUps.size) {
         if (isFollowing) listState.scrollToItem(messages.size + 1)
+    }
+    // A picture takes its place a moment after its reply arrives, and the list follows that as well.
+    LaunchedEffect(listState, viewModel.conversation.id) {
+        snapshotFlow { listState.canScrollForward && !listState.isScrollInProgress }.collect { hasGrown ->
+            if (hasGrown && isFollowing) listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+        }
     }
     LazyColumn(
         state = listState,
@@ -62,6 +71,7 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
                     message = message,
                     isStreaming = isReplying,
                     searchingFor = if (isReplying) viewModel.searchingFor else null,
+                    pictureWork = if (isReplying) viewModel.pictureWork else null,
                     hasSearchFailed = isLast && viewModel.hasSearchFailed,
                     memoryNotice = if (isLast) viewModel.memoryNotice else null,
                     canRetry = isLast && !viewModel.isStreaming,
@@ -73,7 +83,9 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
                     onRetry = presenter::regenerateAction,
                     onSpeak = { presenter.speakAction(message.id) },
                     onEdit = { presenter.editAction(message.id) },
+                    onVersion = { index -> presenter.selectVersionAction(index, message.id) },
                 ),
+                pictures = pictures,
             )
         }
         item(key = "followUps") { FollowUps(viewModel.followUps, presenter::followUpAction) }
