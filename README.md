@@ -5,6 +5,13 @@ offers, chat with streamed replies, search the web through your own SearXNG, and
 replies spoken by your own Kokoro voice, and have pictures made by your own ComfyUI. Nothing goes through anyone else's cloud, and your
 conversations stay on the device.
 
+<p align="center">
+  <img src="docs/chat.png" alt="A reply about Kotlin coroutines with suggested follow-up questions" width="24%">
+  <img src="docs/picture.png" alt="A picture of a lighthouse at sunset, made from a description, with Save and Share" width="24%">
+  <img src="docs/picture-change.png" alt="The same lighthouse changed to a snowy winter night by a follow-up message" width="24%">
+  <img src="docs/drawer.png" alt="The drawer of conversations, with search, Settings and New chat" width="24%">
+</p>
+
 This is the Android sibling of [Hearth for iPhone and iPad](https://github.com/cliftonia/Hearth). The
 two share a design and a feature list, not code.
 
