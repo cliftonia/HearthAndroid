@@ -104,6 +104,7 @@ button or a menu item.
 | `touchTarget` | 48 | The least a finger needs; the height of the floating buttons |
 | `markS` `markM` `markL` | 28 56 64 | The app's mark |
 | `thumbnailS` `thumbnailL` | 64 96 | A photo in the composer; in a sent message |
+| `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
 | `modelNameMaxWidth`, `chipLabelMaxWidth`, `tableColumn` | 220, 180, 150 | Set widths |
@@ -119,6 +120,11 @@ button or a menu item.
 
 There are no elevation tokens because there is no elevation. Nothing in the app casts a shadow: one surface is
 told from another by colour (`card` on `paper`) and, where that is not enough, by a `hairline` border in `line`.
+
+### Widgets
+
+A home screen widget is drawn by the launcher from XML, which cannot read `HearthTheme`. Its colours and
+measures are repeated in `res/values/widgets.xml` (and `values-night`), and must be kept in step with the tokens.
 
 ## Components
 

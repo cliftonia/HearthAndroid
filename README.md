@@ -2,7 +2,7 @@
 
 A native Android chat app for your own [Ollama](https://ollama.com) server. Pick any model the server
 offers, chat with streamed replies, search the web through your own SearXNG, and talk hands-free with
-replies spoken by your own Kokoro voice. Nothing goes through anyone else's cloud, and your
+replies spoken by your own Kokoro voice, and have pictures made by your own ComfyUI. Nothing goes through anyone else's cloud, and your
 conversations stay on the device.
 
 This is the Android sibling of [Hearth for iPhone and iPad](https://github.com/cliftonia/Hearth). The
@@ -10,7 +10,8 @@ two share a design and a feature list, not code.
 
 - **Platform**: Android 9+, Kotlin, Jetpack Compose
 - **Talks to**: Ollama for chat, [SearXNG](https://github.com/searxng/searxng) for web search and
-  [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) for speech; the last two are optional
+  [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) for speech and
+  [ComfyUI](https://github.com/comfyanonymous/ComfyUI) for pictures; all but the first are optional
 
 ## What it does
 
@@ -22,9 +23,14 @@ two share a design and a feature list, not code.
   a **private chat** uses none and adds none
 - **Voice**: dictation, replies read aloud as they are written, and a hands-free voice conversation
 - **Attachments**: photos for models that can see, PDFs and text files for any model
-- **Edit and resend**, suggested follow-up questions, custom instructions
+- **Pictures**: make one from a description, change or enlarge a photo, and carry on from the last picture
+  with words such as "make it a snowy night"; save or share what is made
+- **Share to Hearth** from other apps: words, links, pictures, PDFs and text files land in the composer
+- **Edit and resend**, **Try again** with the earlier replies kept to step back through, suggested follow-up
+  questions, custom instructions
 - **History**: pin, rename, share as Markdown, delete, search
 - **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
+- **Home screen widgets** for a new chat and for a voice conversation
 
 ## Finding your way round
 

@@ -26,30 +26,31 @@ properties are functions.
 
 ```
 app/src/main/kotlin/app/hearth/
-├── MainActivity.kt          The one window: lock or screens, fingerprint prompt, shortcut
+├── MainActivity.kt          The one window: lock or screens, fingerprint prompt, shortcut, what other apps share
 ├── HearthApplication.kt     Holds the coordinator for the life of the process
 ├── AppCoordinator.kt        Owns the presenters; decides which screen shows
 ├── AppDependencies.kt       Builds the stores, interactors and providers, once
 ├── RootView.kt              Drawer or two columns, back button, which screen is drawn
-├── chat/                    The conversation: presenter, view model, screen, composer, messages
+├── chat/                    The conversation: presenter, view model, screen, composer, messages, pictures
 ├── drawer/                  The chat list: presenter, sections, rows, floating buttons
 ├── settings/                Settings: presenter, screen, one file per card
 ├── voice/                   The voice conversation: presenter, view model, screen
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes and shared components
 ├── shared/                  The little that more than one feature needs and is not styling
-└── integrations/            Wrappers round the platform: speech recogniser, media player, files
+├── widget/                  The home screen widgets
+└── integrations/            Wrappers round the platform: speech recogniser, media player, files, saved pictures
 
 domain/src/main/kotlin/app/hearth/domain/
-├── Conversation.kt, Message.kt, Memory.kt, ChatModel.kt, ServerSettings.kt, …     Models, one concept a file
-├── ChatInteractor.kt, SpeechInteractor.kt                                          Business logic
+├── Conversation.kt, Message.kt, ReplyVersion.kt, ImageModel.kt, ServerSettings.kt, …   Models, one concept a file
+├── ChatInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt                      Business logic
 ├── ConversationStore.kt, MemoryStore.kt, ModelStore.kt, SettingsStore.kt          Shared state
-├── ChatDataProvider.kt, SearchDataProvider.kt, DictationProvider.kt, …            The seams to the outside
-└── PromptBuilder.kt, MarkdownTransformer.kt, SentenceChunker.kt, …                 Pure text work
+├── ChatDataProvider.kt, SearchDataProvider.kt, ImageDataProvider.kt, …            The seams to the outside
+└── PromptBuilder.kt, MarkdownTransformer.kt, ImageRequestPlanner.kt, …             Pure text work
 
 data/src/main/kotlin/app/hearth/data/
-├── OllamaService.kt, SearchService.kt, SpeechService.kt, PageService.kt           One service per server
-├── OllamaDtos.kt, OllamaTools.kt                                                    What goes over the wire
+├── OllamaService.kt, SearchService.kt, SpeechService.kt, ImageService.kt, …       One service per server
+├── OllamaDtos.kt, OllamaTools.kt, ComfyDtos.kt, ImageGraph.kt                      What goes over the wire
 └── FileStoreService.kt, HearthHttp.kt, HearthJson.kt, PageAddressPolicy.kt         Plumbing
 ```
 
@@ -99,13 +100,13 @@ The coordinator lives in `HearthApplication`, not the activity, and runs on its 
 what lets a reply keep streaming while the phone is rotated or the app is in the background.
 
 **Large presenters are split by concern.** `ChatPresenter` keeps its core in one file and its other actions as
-extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterAttachments.kt`,
-`ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`). The state they share is
+extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`,
+`ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`). The state they share is
 `internal` for that reason.
 
 ## Below the presenters
 
-**Interactors** (`ChatInteractor`, `SpeechInteractor`) are concrete classes that carry out a piece of business
+**Interactors** (`ChatInteractor`, `SpeechInteractor`, `ImageInteractor`) are concrete classes that carry out a piece of business
 logic from the providers they are given. They hold no screen state.
 
 **Stores** (`ConversationStore`, `MemoryStore`, `ModelStore`, `SettingsStore`) hold what more than one screen
@@ -125,8 +126,8 @@ A test builds one from lambdas; nothing is mocked. Two providers, `AudioPlayback
 `DictationProvider`, are declared in `domain` but have their `live()` in `app/integrations`, because playing
 sound and listening are the phone's business.
 
-**Errors.** Services throw what the transport throws. The domain remaps those to `ChatError` or `SpeechError`
-where the meaning matters. A presenter catches at the action, logs the kind of failure (never its content),
+**Errors.** Services throw what the transport throws. The domain remaps those to `ChatError`, `SpeechError` or
+`ImageError` where the meaning matters. A presenter catches at the action, logs the kind of failure (never its content),
 and puts an `ErrorViewConfiguration` in its state for the screen to word.
 
 ## Adding a screen
@@ -149,6 +150,11 @@ and puts an `ErrorViewConfiguration` in its state for the screen to word.
 ./gradlew assembleDebug testDebugUnitTest lintDebug
 ```
 
-The app is launched through `app.hearth.MainActivity`. That name, the intent action
-`app.hearth.action.VOICE` and the shortcut id `voice` are known to launchers outside the app, so they stay
+The app is launched through `app.hearth.MainActivity`. That name, the intent actions
+`app.hearth.action.VOICE` and `app.hearth.action.NEW_CHAT`, the shortcut id `voice` and the widget classes
+`app.hearth.widget.NewChatWidget` and `VoiceWidget` are known to launchers outside the app, so they stay
 put even when code around them moves.
+
+**The picture server shares one graphics card with the chat server.** `ImageInteractor` therefore asks the chat
+server to unload its models before every picture and the picture server to free its memory after it, also when
+the picture fails or is given up on. Keep both when changing it.
