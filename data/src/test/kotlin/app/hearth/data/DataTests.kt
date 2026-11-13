@@ -1,10 +1,19 @@
 package app.hearth.data
 
+import java.io.IOException
 import java.net.InetAddress
+import java.nio.file.Files
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Test
 
 class PageAddressPolicyTests {
@@ -98,5 +107,70 @@ class OllamaDtoTests {
         val tags = hearthJson.decodeFromString(OllamaTagsDto.serializer(), """{"models":[{"name":"a:latest","details":{"parameter_size":"7B"}}]}""")
         assertEquals("7B", tags.models.single().details?.parameterSize)
         assertNull(tags.models.single().capabilities)
+    }
+}
+
+class OllamaServiceTests {
+
+    /** A service whose server always gives this answer, without a network. */
+    private fun service(body: String, code: Int = 200) = OllamaService(
+        OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(code)
+                .message("")
+                .body(body.toResponseBody("text/plain".toMediaType()))
+                .build()
+        }.build(),
+    )
+
+    @Test
+    fun `the models of a proper answer are listed`() = runBlocking {
+        val models = service("""{"models":[{"name":"a:latest"},{"name":"b:latest"}]}""").fetchModels("http://host.example")
+        assertEquals(listOf("a:latest", "b:latest"), models.map { it.name })
+    }
+
+    @Test
+    fun `an answer that is not a list of models is a failure of the server`() = runBlocking {
+        val answers = listOf("<html><body>Welcome</body></html>", "", "[1,2,3]", """{"models":"none"}""", """{"models":[{"nam""")
+        answers.forEach { answer ->
+            val failure = assertFailsWith<HttpError.Status>(answer) { service(answer).fetchModels("http://host.example") }
+            assertEquals(200, failure.code)
+            assertEquals(answer, failure.body)
+        }
+    }
+
+    @Test
+    fun `a refusal is reported with its status`() = runBlocking {
+        val failure = assertFailsWith<HttpError.Status> { service("not found", code = 404).fetchModels("http://host.example") }
+        assertEquals(404, failure.code)
+        assertTrue(failure is IOException)
+    }
+}
+
+class FileStoreServiceTests {
+
+    @Test
+    fun `a file set aside keeps its text and is no longer loaded`() = runBlocking {
+        val directory = Files.createTempDirectory("hearth").toFile()
+        try {
+            val store = FileStoreService(directory)
+            assertNull(store.load("a.json"))
+            assertFalse(store.setAside("a.json"))
+            store.save("first", "a.json")
+            store.save("other", "b.json")
+            assertEquals("first", store.load("a.json"))
+            assertTrue(store.setAside("a.json"))
+            assertNull(store.load("a.json"))
+            assertEquals(listOf("other"), store.loadAll())
+            assertEquals("first", directory.resolve("a.json.corrupt").readText())
+            // A second damaged file takes the place of the first copy.
+            store.save("second", "a.json")
+            assertTrue(store.setAside("a.json"))
+            assertEquals("second", directory.resolve("a.json.corrupt").readText())
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 }

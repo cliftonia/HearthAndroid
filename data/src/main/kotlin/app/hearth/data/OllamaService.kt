@@ -23,7 +23,9 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
         client.newBuilder().readTimeout(15, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw HttpError.Status(response.code, body.take(500))
-            hearthJson.decodeFromString(OllamaTagsDto.serializer(), body).models
+            // An answer that is not Ollama's, such as another service's page at that address, is the server's failure.
+            val tags = runCatching { hearthJson.decodeFromString(OllamaTagsDto.serializer(), body) }.getOrNull()
+            tags?.models ?: throw HttpError.Status(response.code, body.take(500))
         }
     }
 

@@ -1,10 +1,13 @@
 package app.hearth.domain
 
+import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -127,6 +130,62 @@ class StoreTests {
         val failure = runCatching { failing.refresh(ServerSettings(ollamaAddress = "host.example")) }.exceptionOrNull()
         assertEquals(ChatError.Unreachable, failure)
         assertEquals(ServerReachability.UNREACHABLE, failing.reachability.value)
+    }
+
+    @Test
+    fun `an answer that cannot be read ends as a chat error and cancelling passes through`() = runTest {
+        val settings = ServerSettings(ollamaAddress = "host.example")
+        val unreadable = ModelStore { throw IllegalArgumentException("Unexpected JSON token") }
+        val failure = runCatching { unreadable.refresh(settings) }.exceptionOrNull()
+        assertEquals(ChatError.Server("Unexpected JSON token"), failure)
+        assertEquals(ServerReachability.UNREACHABLE, unreadable.reachability.value)
+        assertTrue(unreadable.models.value.isEmpty())
+        val cancelled = ModelStore { throw CancellationException("stopped") }
+        assertTrue(runCatching { cancelled.refresh(settings) }.exceptionOrNull() is CancellationException)
+        assertEquals(ServerReachability.UNKNOWN, cancelled.reachability.value)
+    }
+
+    @Test
+    fun `a damaged memory file is set aside and the app starts with none`() = runTest {
+        val directory = Files.createTempDirectory("hearth").toFile()
+        try {
+            val file = File(directory, "Memory/memories.json")
+            val provider = MemoryDataProvider.live(directory)
+            provider.save(listOf(Memory(MemoryId("m1"), "Likes tea", false, 1, 1)))
+            assertEquals("Likes tea", provider.load().single().text)
+            // Cut short, as by a full disk; then not JSON at all; then JSON of another shape.
+            listOf(file.readText().dropLast(9), "", "\u0000\u0000", """{"memories":[]}""").forEach { damaged ->
+                file.writeText(damaged)
+                val store = MemoryStore(provider)
+                store.load()
+                assertTrue(store.memories.value.isEmpty(), damaged)
+                assertFalse(file.exists(), damaged)
+                assertEquals(damaged, File(directory, "Memory/memories.json.corrupt").readText())
+            }
+            // What is saved next leaves the copy alone, and the copy is not read back as memories.
+            val store = MemoryStore(provider)
+            assertTrue(store.apply(MemoryRequest.Save("Likes coffee"), isFromUser = true) is MemoryOutcome.Saved)
+            assertEquals("Likes coffee", provider.load().single().text)
+            assertEquals("""{"memories":[]}""", File(directory, "Memory/memories.json.corrupt").readText())
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a damaged conversation file is skipped and the others are kept`() = runTest {
+        val directory = Files.createTempDirectory("hearth").toFile()
+        try {
+            val provider = ConversationDataProvider.live(directory)
+            val kept = Conversation(title = "kept")
+            provider.save(kept)
+            File(directory, "Conversations/damaged.json").writeText("{\"title\":\"cut sho")
+            val store = ConversationStore(provider)
+            store.load()
+            assertEquals(listOf("kept"), store.conversations.value.map { it.title })
+        } finally {
+            directory.deleteRecursively()
+        }
     }
 
     @Test

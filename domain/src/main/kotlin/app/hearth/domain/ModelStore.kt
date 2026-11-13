@@ -22,8 +22,9 @@ class ModelStore(private val fetchModels: suspend (String) -> List<ChatModel>) {
     /**
      * Asks the server for its models afresh, local ones first and each group by name.
      *
-     * Throws a [ChatError] when no address is set or the server cannot be asked. The models known from an
-     * earlier asking are kept when the server cannot be reached, and cleared when there is no address.
+     * Throws a [ChatError], and nothing else, when no address is set, the server cannot be asked or its answer
+     * cannot be read. The models known from an earlier asking are kept when the server cannot be reached, and
+     * cleared when there is no address.
      */
     suspend fun refresh(settings: ServerSettings) {
         val baseUrl = settings.ollamaUrl
@@ -38,7 +39,8 @@ class ModelStore(private val fetchModels: suspend (String) -> List<ChatModel>) {
         } catch (failure: Exception) {
             if (failure is CancellationException) throw failure
             reachabilityState.value = ServerReachability.UNREACHABLE
-            throw remapping(failure)
+            // Whatever went wrong, callers are promised a ChatError: one with no meaning of its own is the server's.
+            throw remapping(failure) as? ChatError ?: ChatError.Server(failure.message ?: failure.javaClass.simpleName)
         }
     }
 
