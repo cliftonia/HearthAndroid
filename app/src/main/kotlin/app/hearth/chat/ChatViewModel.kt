@@ -28,6 +28,12 @@ data class ChatViewModel(
     /** The latest change the model made to its memory, shown under its reply. */
     val memoryNotice: MemoryOutcome? = null,
     val isDictating: Boolean = false,
+    /** The press on the resting composer that is being talked into, if one is. */
+    val holdToTalk: HoldToTalk = HoldToTalk(),
+    /** How loud the voice being recorded is, from 0 to 1, while the composer is held. */
+    val voiceLevel: Double = 0.0,
+    /** Counts the times words spoken into a held composer have been put in the draft, so the screen can take up the keyboard each time. */
+    val dictatedDraftCount: Int = 0,
     /** Whether what is sent asks for a picture, not for a reply from the chat model. */
     val isPictureMode: Boolean = false,
     /** The picture models the server offers, for the sheet where one is chosen while pictures are being made. Empty until it answers. */

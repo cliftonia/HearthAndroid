@@ -2,6 +2,7 @@ package app.hearth.settings
 
 import android.util.Log
 import app.hearth.domain.ChatError
+import app.hearth.domain.EraseInteractor
 import app.hearth.domain.ImageCapabilities
 import app.hearth.domain.ImageInteractor
 import app.hearth.domain.Memory
@@ -9,6 +10,8 @@ import app.hearth.domain.MemoryId
 import app.hearth.domain.MemoryRequest
 import app.hearth.domain.MemoryStore
 import app.hearth.domain.ModelStore
+import app.hearth.domain.NotificationProvider
+import app.hearth.domain.ProfileStore
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechInteractor
@@ -28,7 +31,16 @@ import kotlinx.coroutines.launch
 interface SettingsPresenterDelegate {
     /** The user is done; the addresses may have changed. */
     fun settingsPresenterDidFinish()
+
+    /** Everything on the device has been erased; the app is to start afresh, as on first launch. */
+    fun settingsPresenterDidErase()
 }
+
+/** The pages of the settings: the list of them all, and the two it leads to. */
+enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS }
+
+/** What went wrong on the profile page, for the page to put into words. */
+enum class ProfileErrorKind { PHOTO_FAILED, ERASE_FAILED }
 
 /** How the last test of the connection went. */
 sealed interface ConnectionTest {
@@ -53,15 +65,35 @@ enum class VoicePreviewKind { IDLE, PLAYING, FAILED }
  *
  * It has no view model of its own to assemble: the settings and memories are the stores' flows, passed
  * straight through, beside a few small flows for what only this screen knows.
+ *
+ * The profile page and the notifications page have their actions in the files beside this one
+ * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`), which is why some of its state is
+ * `internal` and not `private`.
  */
-class SettingsPresenter(
-    private val scope: CoroutineScope,
-    private val settingsStore: SettingsStore,
-    private val modelStore: ModelStore,
-    private val memoryStore: MemoryStore,
-    private val speech: SpeechInteractor,
-    private val image: ImageInteractor,
-) {
+class SettingsPresenter(internal val scope: CoroutineScope, internal val dependencies: Dependencies) {
+    /** What the settings are run with. */
+    class Dependencies(
+        val settingsStore: SettingsStore,
+        val modelStore: ModelStore,
+        val memoryStore: MemoryStore,
+        val profileStore: ProfileStore,
+        val speech: SpeechInteractor,
+        val image: ImageInteractor,
+        val eraser: EraseInteractor,
+        val notifications: NotificationProvider,
+        /** Stops whatever the chat is doing and returns once it has stopped, ahead of everything being erased. */
+        val quietChat: suspend () -> Unit,
+    )
+
+    private val settingsStore = dependencies.settingsStore
+    private val modelStore = dependencies.modelStore
+    private val memoryStore = dependencies.memoryStore
+    private val speech = dependencies.speech
+    private val image = dependencies.image
+    internal val pageState = MutableStateFlow(SettingsPageKind.MAIN)
+    internal val profileErrorState = MutableStateFlow<ProfileErrorKind?>(null)
+    internal val erasingState = MutableStateFlow(false)
+    internal val notificationsAllowedState = MutableStateFlow<Boolean?>(null)
     private val testState = MutableStateFlow<ConnectionTest?>(null)
     private val voiceState = MutableStateFlow<List<String>>(emptyList())
     private val previewState = MutableStateFlow(VoicePreviewKind.IDLE)
@@ -78,7 +110,38 @@ class SettingsPresenter(
 
     /** What the picture server can do; nothing until asked for, or when it cannot be reached. */
     val pictureCapabilities: StateFlow<ImageCapabilities> = pictureState.asStateFlow()
+
+    /** Which page of the settings is showing. */
+    val page: StateFlow<SettingsPageKind> = pageState.asStateFlow()
+
+    /** The profile photo as JPEG data; `null` when none has been chosen. */
+    val photo: StateFlow<ByteArray?> = dependencies.profileStore.photo
+
+    /** What last went wrong on the profile page, until something is tried again. */
+    val profileError: StateFlow<ProfileErrorKind?> = profileErrorState.asStateFlow()
+
+    /** Whether everything is being erased at this moment, so that it cannot be asked for twice. */
+    val isErasing: StateFlow<Boolean> = erasingState.asStateFlow()
+
+    /** Whether the phone lets the app post notifications; `null` until it has been asked. */
+    val notificationsAllowed: StateFlow<Boolean?> = notificationsAllowedState.asStateFlow()
     var delegate: SettingsPresenterDelegate? = null
+
+    /** Opens the profile page. */
+    fun profileAction() {
+        profileErrorState.value = null
+        pageState.value = SettingsPageKind.PROFILE
+    }
+
+    /** Opens the notifications page. */
+    fun notificationsAction() {
+        pageState.value = SettingsPageKind.NOTIFICATIONS
+    }
+
+    /** Goes back: from a page to the list of settings, and from the list out of the settings. */
+    fun backAction() {
+        if (pageState.value == SettingsPageKind.MAIN) doneAction() else pageState.value = SettingsPageKind.MAIN
+    }
 
     /**
      * Every change is kept at once; there is nothing to save or discard on the way out.
@@ -176,6 +239,20 @@ class SettingsPresenter(
         }
     }
 
+    /** Forgets what the servers said, once everything has been erased and they may no longer be the user's. */
+    internal fun forgetServerAnswers() {
+        pictureJob?.cancel()
+        testState.value = null
+        voiceState.value = emptyList()
+        pictureState.value = ImageCapabilities()
+    }
+
+    /** Silences the sample and returns once the speaker has been let go of. */
+    internal suspend fun stopVoicePreviewAndWait() {
+        stopVoicePreviewAction()
+        previewJob?.join()
+    }
+
     /** Remembers something the user wrote by hand. The store refuses what is empty or already there. */
     fun addMemoryAction(text: String) {
         scope.launch { memoryStore.apply(MemoryRequest.Save(text), isFromUser = true) }
@@ -198,11 +275,12 @@ class SettingsPresenter(
 
     /** Leaves the settings, silencing any sample on the way out. */
     fun doneAction() {
+        pageState.value = SettingsPageKind.MAIN
         stopVoicePreviewAction()
         delegate?.settingsPresenterDidFinish()
     }
 
-    private companion object {
+    internal companion object {
         const val TAG = "SettingsPresenter"
 
         /** How long an address must stand unchanged before its server is asked anything. */

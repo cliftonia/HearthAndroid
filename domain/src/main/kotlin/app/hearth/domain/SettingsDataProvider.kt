@@ -7,6 +7,8 @@ class SettingsDataProvider(
     /** The saved text, or `null` when nothing has been saved yet. */
     val load: () -> String?,
     val save: (String) -> Unit,
+    /** Removes the saved text, so that the next launch finds none. */
+    val clear: () -> Unit = {},
 ) {
     companion object {
         /** Settings kept as one JSON file, on the device only. */
@@ -18,6 +20,7 @@ class SettingsDataProvider(
                     directory.mkdirs()
                     file.writeText(text)
                 },
+                clear = { file.delete() },
             )
         }
     }

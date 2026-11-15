@@ -27,13 +27,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.chat.ChatScreen
 import app.hearth.designsystem.HearthTheme
 import app.hearth.drawer.DrawerContent
+import app.hearth.project.ProjectSheet
+import app.hearth.projectpicker.ProjectPickerSheet
 import app.hearth.settings.SettingsScreen
 import app.hearth.voice.VoiceScreen
 
 /**
  * Lays out whichever screen the coordinator says is showing, with the chat list as a drawer on a phone and
  * as a column of its own on anything wide, where the chat's menu button puts it away and brings it back.
- * Also decides what the back button does.
+ * Also decides what the back button does, and raises the project sheets over it all.
  *
  * [authenticate] asks the phone to confirm who is holding it, and reports whether it did.
  */
@@ -43,6 +45,7 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
     val isDrawerOpen by coordinator.isDrawerOpen.collectAsStateWithLifecycle()
     val isSideListShown by coordinator.isSideListShown.collectAsStateWithLifecycle()
     val chat by coordinator.chat.viewModel.collectAsStateWithLifecycle()
+    val projectSheet by coordinator.projectSheet.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val focusManager = LocalFocusManager.current
 
@@ -60,7 +63,7 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
         when {
             isDrawerOpen -> coordinator.drawerChanged(false)
             screen == Screen.VOICE -> coordinator.voice.endAction()
-            else -> coordinator.settings.doneAction()
+            else -> coordinator.settings.backAction()
         }
     }
 
@@ -79,7 +82,7 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                     coordinator.pictures,
                     modifier,
                 )
-                Screen.SETTINGS -> SettingsScreen(coordinator.settings, authenticate, modifier)
+                Screen.SETTINGS -> SettingsScreen(coordinator.settings, coordinator.profilePhotos, authenticate, modifier)
                 Screen.VOICE -> VoiceScreen(coordinator.voice, modifier)
             }
         }
@@ -108,5 +111,11 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                 },
             ) { content(insets) }
         }
+    }
+    // The project sheets rise over whatever is showing, the chat list included.
+    when (projectSheet) {
+        ProjectSheetKind.EDITOR -> ProjectSheet(coordinator.project, coordinator.attachments)
+        ProjectSheetKind.PICKER -> ProjectPickerSheet(coordinator.projectPicker)
+        null -> Unit
     }
 }

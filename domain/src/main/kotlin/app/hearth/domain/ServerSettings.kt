@@ -23,6 +23,14 @@ data class ServerSettings(
     /** The model new pictures are made with. With none chosen, the first the server offers is used. */
     @Serializable(with = ChosenImageModelSerializer::class)
     val imageModel: ImageModelKind? = null,
+    /** The user's name in full, as they would sign it, kept as it was typed. Blank when they have not given one. */
+    val fullName: String = "",
+    /**
+     * What the user likes to be called, for the greeting on an empty chat and for the model, kept as it was typed.
+     * Blank leaves the app to use the first word of the full name, then to look among the memories, and to greet
+     * without a name if it finds none.
+     */
+    val nickname: String = "",
     /** The speech server's name for the voice that reads replies. */
     val voice: String = DEFAULT_VOICE,
     /** Whether every reply is read aloud as it is written. */
@@ -41,6 +49,10 @@ data class ServerSettings(
     val isPageReadingEnabled: Boolean = true,
     /** Whether lasting facts about the user are remembered and carried into every conversation. */
     val isMemoryEnabled: Boolean = true,
+    /** Whether the phone taps back when something is done: a message sent, a reply finished, a switch thrown. */
+    val isHapticsEnabled: Boolean = true,
+    /** Whether a notification is posted when a reply or a picture finishes while the app is not on screen. */
+    val isReplyNotificationsEnabled: Boolean = false,
 ) {
     /** Each address made ready to connect to. `null` while nothing usable has been typed. */
     val ollamaUrl: String? get() = normalised(ollamaAddress)
@@ -50,6 +62,9 @@ data class ServerSettings(
 
     /** The host of the chat server, for display. */
     val ollamaHost: String? get() = ollamaUrl?.let { runCatching { URI(it).host }.getOrNull() }
+
+    /** Who the user is, as far as they have said, with the names tidied into names. */
+    val profile: UserProfile get() = UserProfile(fullName, nickname)
 
     /** Whether a conversation may read and write memory: memory must be on, and the conversation not private. */
     fun allowsMemory(conversation: Conversation): Boolean = isMemoryEnabled && !conversation.isPrivate

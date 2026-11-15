@@ -54,6 +54,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import app.hearth.R
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.MemoryOutcome
@@ -159,6 +161,7 @@ private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, 
                         onClick = {
                             isMenuOpen = false
                             clipboard.setText(AnnotatedString(message.text))
+                            Haptics.play(HapticKind.SUCCESS)
                         },
                     )
                     if (canEdit) {
@@ -326,6 +329,7 @@ private fun TextActions(configuration: MessageViewConfiguration, onSpeak: () -> 
     }
     HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy), tint = HearthTheme.colors.mute) {
         clipboard.setText(AnnotatedString(text))
+        Haptics.play(HapticKind.SUCCESS)
     }
     HearthIconButton(Icons.Outlined.Share, stringResource(R.string.message_share), tint = HearthTheme.colors.mute) { share(context, text) }
 }
@@ -338,14 +342,20 @@ private fun VersionStepper(message: Message, onVersion: (Int) -> Unit) {
     val count = message.versionCount
     val position = stringResource(R.string.message_version_position, index + 1, count)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        VersionArrow(Icons.Outlined.ChevronLeft, stringResource(R.string.message_previous_version), isEnabled = index > 0) { onVersion(index - 1) }
+        VersionArrow(Icons.Outlined.ChevronLeft, stringResource(R.string.message_previous_version), isEnabled = index > 0) {
+            Haptics.play(HapticKind.SELECTION)
+            onVersion(index - 1)
+        }
         Text(
             stringResource(R.string.message_version_counter, index + 1, count),
             color = colors.mute,
             style = HearthTheme.type.footnote,
             modifier = Modifier.semantics { contentDescription = position },
         )
-        VersionArrow(Icons.Outlined.ChevronRight, stringResource(R.string.message_next_version), isEnabled = index < count - 1) { onVersion(index + 1) }
+        VersionArrow(Icons.Outlined.ChevronRight, stringResource(R.string.message_next_version), isEnabled = index < count - 1) {
+            Haptics.play(HapticKind.SELECTION)
+            onVersion(index + 1)
+        }
     }
 }
 

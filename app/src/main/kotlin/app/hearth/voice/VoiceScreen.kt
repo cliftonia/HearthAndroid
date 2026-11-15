@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
+import app.hearth.designsystem.HapticEffect
+import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.HearthRoundButton
 import app.hearth.designsystem.HearthTheme
 
@@ -70,6 +72,8 @@ private const val CAPTION_MAXIMUM_LINES = 6
 @Composable
 fun VoiceScreen(presenter: VoicePresenter, modifier: Modifier = Modifier) {
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
+    // Each turn of the conversation is felt: listening, thinking, speaking.
+    HapticEffect(HapticKind.LIGHT, viewModel.state)
     val context = LocalContext.current
     val colors = HearthTheme.colors
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), presenter::startAction)

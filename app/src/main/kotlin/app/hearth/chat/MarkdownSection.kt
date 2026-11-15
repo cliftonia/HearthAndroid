@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import app.hearth.R
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthColors
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
@@ -123,6 +125,7 @@ private fun CodeBlock(block: MarkdownBlock.Code) {
             Text(block.language ?: stringResource(R.string.message_code), color = colors.mute, style = HearthTheme.type.caption, modifier = Modifier.weight(1f))
             HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy_code), tint = colors.mute) {
                 clipboard.setText(AnnotatedString(block.text))
+                Haptics.play(HapticKind.SUCCESS)
             }
         }
         Text(

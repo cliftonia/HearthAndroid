@@ -10,9 +10,10 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Like every store, it is changed from the main thread only; its state is read anywhere through the flow.
  *
- * @param defaults What the app was built to start with, used until the user has saved settings of their own.
+ * @param defaults What the app was built to start with, used until the user has saved settings of their own, and
+ *   gone back to when everything is erased.
  */
-class SettingsStore(defaults: ServerSettings, private val provider: SettingsDataProvider) {
+class SettingsStore(private val defaults: ServerSettings, private val provider: SettingsDataProvider) {
     private val state = MutableStateFlow(
         provider.load()
             ?.let { runCatching { hearthJson.decodeFromString(ServerSettings.serializer(), it) }.getOrNull() }
@@ -31,5 +32,11 @@ class SettingsStore(defaults: ServerSettings, private val provider: SettingsData
     fun update(settings: ServerSettings) {
         state.value = settings
         provider.save(hearthJson.encodeToString(ServerSettings.serializer(), settings))
+    }
+
+    /** Forgets everything the user has saved and goes back to what the app starts with, as on first launch. */
+    fun reset() {
+        provider.clear()
+        state.value = defaults
     }
 }

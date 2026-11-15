@@ -35,6 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.core.content.ContextCompat
 import app.hearth.R
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthTheme
 import app.hearth.integrations.PictureLibrary
 import app.hearth.shared.sharePicture
@@ -53,7 +55,9 @@ internal fun PictureSection(picture: String, pictures: PictureLibrary, modifier:
 
     fun save() {
         scope.launch {
-            val message = if (pictures.save(picture)) R.string.picture_saved else R.string.picture_save_failed
+            val isSaved = pictures.save(picture)
+            if (isSaved) Haptics.play(HapticKind.SUCCESS)
+            val message = if (isSaved) R.string.picture_saved else R.string.picture_save_failed
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }

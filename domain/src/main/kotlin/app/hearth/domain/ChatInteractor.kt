@@ -49,6 +49,8 @@ class ChatInteractor(
         /** Whether the conversation is private; the model is then told that nothing here will be remembered. */
         val isPrivate: Boolean = false,
         val style: ReplyStyle = ReplyStyle.CHAT,
+        /** The project the conversation belongs to, if any; its instructions and reference files go into the turn. */
+        val project: Project? = null,
     )
 
     /** How far a turn has got: what has been said to the model, what has been found, and what allowance is used. */
@@ -68,10 +70,13 @@ class ChatInteractor(
         val isAutomatic = turn.searchMode == SearchMode.AUTOMATIC && searchUrl != null && turn.model.canUseTools
         // Memory is written only from what the user types. A file, a photo (which may hold text) or a web search
         // anywhere in the conversation stays in front of the model for the rest of it, so memory is allowed
-        // only while the conversation holds nothing but plain typed text and replies to it.
-        val carriesOutsideText = turn.history.any { it.sources.isNotEmpty() || it.documents.isNotEmpty() || it.images.isNotEmpty() }
+        // only while the conversation holds nothing but plain typed text and replies to it. A project's reference
+        // files are in front of the model in the same way, so a project that has any closes memory too; a project
+        // with instructions alone does not, since the user typed those.
+        val carriesOutsideText = turn.history.any { it.sources.isNotEmpty() || it.documents.isNotEmpty() || it.images.isNotEmpty() } ||
+            turn.project?.documents?.isNotEmpty() == true
         val canRemember = turn.remember != null && turn.model.canUseTools && !carriesOutsideText
-        val builder = PromptBuilder(turn.settings.customInstructions, turn.memories, turn.isPrivate)
+        val builder = PromptBuilder(turn.settings.customInstructions, turn.memories, turn.isPrivate, turn.project, profile = turn.settings.profile)
         val upfront = mutableListOf<SearchSource>()
         if (turn.searchMode == SearchMode.ALWAYS && searchUrl != null) {
             builder.searchQuery(turn.history)?.let { query ->

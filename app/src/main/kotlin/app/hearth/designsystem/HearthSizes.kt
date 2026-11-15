@@ -47,6 +47,10 @@ class HearthSizes {
     /** The app's mark on the lock screen. */
     val markL: Dp = 64.dp
 
+    /** The user's avatar in a row of the settings, and at the head of the profile page. */
+    val avatarS: Dp = 44.dp
+    val avatarL: Dp = 96.dp
+
     /** A photo waiting in the composer. */
     val thumbnailS: Dp = 64.dp
 

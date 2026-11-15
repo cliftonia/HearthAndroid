@@ -22,8 +22,10 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hearth.designsystem.HapticsHost
 import app.hearth.designsystem.HearthTheme
 import app.hearth.designsystem.isDark
+import app.hearth.domain.ConversationId
 import app.hearth.lock.LockScreen
 
 /**
@@ -44,6 +46,8 @@ class MainActivity : FragmentActivity() {
             val settings by coordinator.settingsStore.settings.collectAsStateWithLifecycle()
             val isLocked by coordinator.lock.isLocked.collectAsStateWithLifecycle()
             val isDark = settings.appearance.isDark()
+            // Every haptic in the app asks this one switch, and is played through this window.
+            HapticsHost(settings.isHapticsEnabled)
             // The clock and battery icons must stay readable over whichever theme the user chose.
             DisposableEffect(isDark) {
                 val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDark }
@@ -73,10 +77,18 @@ class MainActivity : FragmentActivity() {
         handle(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        coordinator.foregroundChanged(isOnScreen = true)
+    }
+
     override fun onStop() {
         super.onStop()
         // Turning the phone round is not leaving the app.
-        if (!isChangingConfigurations) coordinator.lock.backgroundedAction()
+        if (!isChangingConfigurations) {
+            coordinator.foregroundChanged(isOnScreen = false)
+            coordinator.lock.backgroundedAction()
+        }
     }
 
     /**
@@ -87,8 +99,19 @@ class MainActivity : FragmentActivity() {
         when (intent?.action) {
             ACTION_VOICE -> coordinator.startVoice(isFromOutside = true)
             ACTION_NEW_CHAT -> coordinator.startNewChat()
+            ACTION_OPEN_CHAT -> openNotifiedChat(intent)
             Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> receiveShare(intent)
         }
+    }
+
+    /**
+     * Opens the chat a tapped notification was about. An intent brought back from the recent apps list is one
+     * already followed, so it is left alone.
+     */
+    private fun openNotifiedChat(intent: Intent) {
+        if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val id = intent.getStringExtra(EXTRA_CONVERSATION_ID)?.takeIf { it.isNotEmpty() } ?: return
+        coordinator.openConversation(ConversationId(id))
     }
 
     /**
@@ -141,6 +164,12 @@ class MainActivity : FragmentActivity() {
 
         /** The action of the intent that opens the app on a fresh chat, as the New Chat widget does. */
         const val ACTION_NEW_CHAT = "app.hearth.action.NEW_CHAT"
+
+        /** The action of the intent a reply notification sends when it is tapped, with [EXTRA_CONVERSATION_ID]. */
+        const val ACTION_OPEN_CHAT = "app.hearth.action.OPEN_CHAT"
+
+        /** Carries the identifier of the chat a notification was about. */
+        const val EXTRA_CONVERSATION_ID = "app.hearth.extra.CONVERSATION_ID"
 
         /** The name the launcher knows the shortcut by; changing it would orphan one already pinned. */
         private const val VOICE_SHORTCUT_ID = "voice"

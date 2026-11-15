@@ -28,15 +28,25 @@ two share a design and a feature list, not code.
   it finds and cites its sources; for other models a toggle searches before the reply
 - **Memory**: lasting facts you tell a model are kept on the device and carried into every conversation;
   a **private chat** uses none and adds none
-- **Voice**: dictation, replies read aloud as they are written, and a hands-free voice conversation
+- **Voice**: dictation by the microphone button or by holding the composer down, replies read aloud as they are
+  written, and a hands-free voice conversation
 - **Attachments**: photos for models that can see, PDFs and text files for any model
 - **Pictures**: make one from a description, change or enlarge a photo, and carry on from the last picture
   with words such as "make it a snowy night"; save or share what is made
 - **Share to Hearth** from other apps: words, links, pictures, PDFs and text files land in the composer
 - **Edit and resend**, **Try again** with the earlier replies kept to step back through, suggested follow-up
-  questions, custom instructions
+  questions
+- **Profile**: your name and what you like to be called, a photo, and standing instructions for every conversation.
+  A new chat greets you by name, a little differently each time, and the model is told who it is talking to
+- **Notifications**: told on the phone itself when a reply or a picture finishes while Hearth is not on screen;
+  a private chat's notification says only that a reply is ready
+- **Haptics**: a light tap when a message is sent, a reply finishes or something is switched, with one switch
+  that silences them all
+- **Projects**: gather chats round a subject, with instructions and reference files (PDFs and text files)
+  that every chat in the project is given
 - **History**: pin, rename, share as Markdown, delete, search
 - **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
+- **Erase all data on this device**: there are no accounts, so one button removes everything the app holds
 - **Home screen widgets** for a new chat and for a voice conversation
 
 ## Finding your way round
@@ -44,14 +54,27 @@ two share a design and a feature list, not code.
 - **The composer** is a single row at rest. Tap it and it opens out, showing the options for the reply you are
   about to ask for: the model, web search, and whether replies are read aloud. Which of these appear depends on
   the model and on the servers you have set. Tap the model's name to choose another, and how hard it should think.
+- **Hold the composer** while it is at rest and empty to talk to it: it listens for as long as you hold, shows how
+  loud it hears you, and when you let go your words are in the message field for you to read, change and send.
+  Nothing is sent by itself. Sliding your finger off, or leaving the app, stops it too.
 - **The top of a chat** holds the private chat button until the first message is sent. From then on it holds a
-  new chat button and a menu to pin, share, rename or delete the chat.
+  new chat button and a menu to pin, share, rename or delete the chat, or to add it to a project. A chat in a
+  project shows the project's name beneath.
 - **The chat list** slides in from the left. Its **Settings** and **New chat** buttons float at the bottom; the
-  dot on Settings is green while your server can be reached.
+  dot on Settings is green while your server can be reached. Hold a chat, or tap its dots, to pin, rename,
+  share or delete it, or to add it to a project.
+- **Projects** are listed at the top of the chat list, above **New project**. Tap one to see only its chats;
+  **New chat** then starts a chat in that project, the button beside its name opens its settings, and **All chats**
+  leads back. Deleting a project keeps its chats.
 - **Private chat** is the padlock at the top right of a chat that has not yet begun. Once the chat has begun,
   the padlock only shows that it is private.
-- **Settings** hold the server addresses, the voice and its **Hear this voice** button, your memories, the lock
-  and the theme. Changes are kept as you make them.
+- **Settings** begin with your **Profile**, a page of its own: your photo, names and instructions, whether
+  follow-up questions are suggested, and **Erase all data on this device**. Below it come the server addresses,
+  web search, **Test connection**, the voice and its **Hear this voice** button, pictures, your memories,
+  **Notifications** (a page with a switch for replies), the lock, haptics and the theme. Changes are kept as you
+  make them.
+- **Notifications** ask the phone for leave only when you turn the **Replies** switch on. If the phone refuses,
+  the switch stays on and the page shows where leave is given. Tapping a notification opens its chat.
 
 ## How it is built
 
@@ -59,8 +82,8 @@ Three Gradle modules, each seeing only the one below it:
 
 | Module | Holds | Depends on |
 |---|---|---|
-| `app` | Coordinator, presenters, Compose screens, the design system, the phone's own services (speech, files, biometrics) | `domain` |
-| `domain` | Models, the chat and speech interactors, stores, the prompt and text transformers | `data` |
+| `app` | Coordinator, presenters, Compose screens, the design system, the phone's own services (speech, files, biometrics, notifications) | `domain` |
+| `domain` | Models, the chat, speech, picture, project and erase interactors, stores, the prompt and text transformers, the greeting and notification planners | `data` |
 | `data` | HTTP services and DTOs for Ollama, SearXNG, Kokoro and web pages | nothing |
 
 Presenters own their state as a `StateFlow` and tell the coordinator what the user asked for through a
@@ -80,7 +103,13 @@ Inside `app` each screen has a package of its own, holding its presenter beside 
   afresh for every search, marked as material to weigh, not instructions.
 - **A web page cannot plant a memory.** Memory closes for the whole conversation once it holds a web
   source, a file or a photo, and a model cannot change memories the user wrote.
+- **Nor can a project's file.** Reference files reach the model inside a fence of the same kind, marked as
+  material and not instructions, and a project that has any closes memory for its chats.
 - **Only web links open.** Links from a model or a search result with any other scheme lead nowhere.
+- **A name stays a name.** The name in your profile reaches the model on one line, in quotation marks it cannot
+  close, so it cannot pass itself off as instructions.
+- **A private chat stays private on the lock screen.** Its notification carries neither its title nor a word of
+  the reply.
 
 ## Building
 
@@ -94,7 +123,9 @@ runs with no addresses built in and asks for them in Settings.
 
 ## Status
 
-The data and domain modules are covered by unit tests. The presenters and screens are not yet, and
-there is no lint or CI configuration. Differences from the iPhone app: dictation stops when you pause
-(Android's recogniser takes one utterance at a time), and there is no background keep-alive, so a
-reply continues only while Android leaves the app running.
+The data and domain modules are covered by unit tests, as are the grouping of the chat list, holding the composer
+to talk, what the chat announces when a reply finishes, and what the settings do when everything is erased. The
+other presenters and the screens are not yet, and there is no lint or CI configuration. Differences from the
+iPhone app: dictation stops when you pause (Android's recogniser takes one utterance at a time), so a held
+composer stops listening at the first pause as well; and there is no background keep-alive, so a reply
+continues, and its notification is posted, only while Android leaves the app running.

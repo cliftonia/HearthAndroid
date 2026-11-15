@@ -118,7 +118,10 @@ internal suspend fun ChatPresenter.submitPicture(message: Message) {
         Log.e(ChatPresenter.TAG, "Making a picture failed: ${failure.javaClass.simpleName}")
         state.update { it.copy(error = ErrorViewConfiguration.from(failure)) }
     } finally {
-        withContext(NonCancellable) { finishPicture(conversation.id, reply, finished) }
+        withContext(NonCancellable) {
+            finishPicture(conversation.id, reply, finished)
+            announceReplyFinished(reply.id)
+        }
     }
 }
 

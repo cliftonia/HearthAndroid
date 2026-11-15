@@ -10,9 +10,11 @@ import android.speech.SpeechRecognizer
 import app.hearth.domain.DictationProvider
 import app.hearth.domain.DictationUpdate
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -21,10 +23,16 @@ import kotlinx.coroutines.withContext
  * Listens through the phone's own speech recogniser, on the device itself where the phone can.
  *
  * The recogniser takes one utterance at a time: the flow ends when the speaker pauses.
+ *
+ * A stop that is asked for before the recogniser has been made is remembered, and the recogniser is then never
+ * set listening: whoever asked to listen has already gone.
  */
 fun DictationProvider.Companion.live(context: Context): DictationProvider {
     // The recogniser in use, so that stopping can reach it from another coroutine.
     val current = AtomicReference<SpeechRecognizer?>(null)
+    // Whether a stop was asked for since listening was last asked for, while there was no recogniser yet to tell.
+    val isStopRequested = AtomicBoolean(false)
+    val level = MutableStateFlow(0.0)
 
     fun recognizer(): SpeechRecognizer =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
@@ -35,6 +43,7 @@ fun DictationProvider.Companion.live(context: Context): DictationProvider {
 
     return DictationProvider(
         start = {
+            isStopRequested.set(false)
             callbackFlow {
                 if (!SpeechRecognizer.isRecognitionAvailable(context)) throw IOException("No speech recogniser on this phone")
                 val recognizer = recognizer()
@@ -62,7 +71,10 @@ fun DictationProvider.Companion.live(context: Context): DictationProvider {
 
                     override fun onReadyForSpeech(params: Bundle?) = Unit
                     override fun onBeginningOfSpeech() = Unit
-                    override fun onRmsChanged(rmsdB: Float) = Unit
+                    override fun onRmsChanged(rmsdB: Float) {
+                        level.value = VoiceLevelMeter.level(rmsdB)
+                    }
+
                     override fun onBufferReceived(buffer: ByteArray?) = Unit
                     override fun onEndOfSpeech() = Unit
                     override fun onEvent(eventType: Int, params: Bundle?) = Unit
@@ -71,9 +83,10 @@ fun DictationProvider.Companion.live(context: Context): DictationProvider {
                     .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
                     .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                recognizer.startListening(intent)
+                if (isStopRequested.get()) close() else recognizer.startListening(intent)
                 awaitClose {
                     current.compareAndSet(recognizer, null)
+                    level.value = 0.0
                     runCatching {
                         recognizer.cancel()
                         recognizer.destroy()
@@ -82,6 +95,12 @@ fun DictationProvider.Companion.live(context: Context): DictationProvider {
             }.flowOn(Dispatchers.Main)
         },
         // Asks the recogniser to finish with what it has; the last words then arrive as the final update.
-        stop = { withContext(Dispatchers.Main) { current.get()?.let { runCatching { it.stopListening() } } } },
+        stop = {
+            withContext(Dispatchers.Main) {
+                val recognizer = current.get()
+                if (recognizer == null) isStopRequested.set(true) else runCatching { recognizer.stopListening() }
+            }
+        },
+        levels = { level },
     )
 }

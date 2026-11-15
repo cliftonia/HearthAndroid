@@ -15,7 +15,7 @@ several tokens differ by a point or two on purpose, and each was kept as it was 
 The exceptions are few and named:
 
 - A measure that belongs to one drawing and nothing else may be a private constant beside it, with a comment.
-  The ember on the voice screen is the example.
+  The ember on the voice screen and the dots in the held composer are the examples.
 - Proportions (`weight(1f)`, a scale of `0.86f`, the stops of a gradient) are not tokens.
 - Material's own components (buttons, menus, fields, switches, dialogs) are used as they come. They take their
   colours from `HearthTheme`, which fills in the Material colour scheme.
@@ -63,6 +63,7 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `callout`, `calloutSnug`, `calloutTight`, `calloutStrong` | 14 | Status lines; thinking; error text; error title |
 | `footnote`, `footnoteStrong`, `footnoteSnug` | 13 | Group titles and chips; the name on a chip that is a button; multi-line notices |
 | `caption`, `captionSnug` | 12 | Headings in lists and menus; the note under a card |
+| `avatar`, `avatarLarge` | 17, 34 / 40 | The initials on the user's avatar: in a row; at the head of the profile page |
 | `control` | 14 | Text inside Material's buttons and menu items |
 
 Where no leading is given, the style keeps Material's body leading of 24. `Snug` and `Tight` set the lines
@@ -104,6 +105,7 @@ menu item.
 | `controlXs` `controlS` `controlM` `controlL` `controlXl` | 24 32 36 40 64 | Round controls, from the remove-photo button to the voice buttons |
 | `touchTarget` | 48 | The least a finger needs; the height of the floating buttons |
 | `markS` `markM` `markL` | 28 56 64 | The app's mark |
+| `avatarS` `avatarL` | 44 96 | The user's avatar: in a row of the settings; at the head of the profile page |
 | `thumbnailS` `thumbnailL` | 64 96 | A photo in the composer; in a sent message |
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
@@ -140,8 +142,24 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthIcons` | The symbols the app draws itself, because Material's set has none like them: `NewChat` |
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
-| `HearthCard(title, footer) { … }` | A titled group of controls on a card, with a note beneath |
-| `HearthSwitchRow(label, isOn) { … }` | A label and a switch that act as one control |
+| `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
+| `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, with a line beneath the label on what it does, where given |
+| `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
+| `HearthSheetHeader(title) { … }` | The title of a sheet that offers a choice, with the button that closes it |
+
+### Haptics
+
+How the app feels under the finger is kept beside how it looks, and for the same reason: so that it is the same
+everywhere.
+
+| | What it is |
+|---|---|
+| `Haptics.play(kind)` | Plays one tap, unless haptics are switched off in Settings. Every haptic in the app goes through it |
+| `HapticEffect(kind, trigger, condition)` | Plays a tap each time a value changes, when the condition holds for the change |
+| `HapticsHost(isEnabled)` | Placed once by the window: gives `Haptics` a view to play through and keeps it in step with the switch |
+| `HapticKind` | `LIGHT` sent, pinned or switched; `SOFT` something finished by itself; `SELECTION` a choice moved; `SUCCESS` done and now there; `WARNING` something is destroyed; `ERROR` something went wrong |
+
+A haptic marks a moment, never a stretch of time: one as a reply finishes, none while it streams.
 
 Things that look like components but are used by one feature stay with it: the composer's toggles, the
 drawer's New chat and Settings buttons, the chips for sources and files.
@@ -149,5 +167,7 @@ drawer's New chat and Settings buttons, the chips for sources and files.
 ## Accessibility
 
 - Every button has a label. A symbol that only decorates has `null` for its description.
-- Group titles are marked as headings; a row that is a switch is one switch to a screen reader.
+- Group titles are marked as headings; a row that is a switch is one switch to a screen reader, and a row that
+  leads to a page is one button.
+- What only decorates is hidden from a screen reader: the avatar beside a name, the dots that swell with a voice.
 - Text sizes are in `sp` and follow the phone's font size.

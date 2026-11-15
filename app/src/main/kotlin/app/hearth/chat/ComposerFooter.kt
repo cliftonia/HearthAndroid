@@ -1,5 +1,25 @@
 package app.hearth.chat
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import app.hearth.designsystem.HapticEffect
+import app.hearth.designsystem.HapticKind
+import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -19,7 +39,12 @@ import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +66,9 @@ import app.hearth.domain.ServerSettings
 import app.hearth.integrations.AttachmentLoader
 import app.hearth.shared.shortName
 
+/** How much larger the composer stands while a finger rests on it. */
+private const val HELD_SCALE = 1.06f
+
 /** Where a message is written, with the controls that shape the reply. */
 @Composable
 fun ComposerFooter(
@@ -55,27 +83,64 @@ fun ComposerFooter(
     val spacing = HearthTheme.spacing
     val model = viewModel.selectedModel
     val isPictureMode = viewModel.isPictureMode
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+    val requestMicrophone = rememberMicrophoneRequest()
+    var isFocused by remember { mutableStateOf(false) }
+    var isModelSheetOpen by remember { mutableStateOf(false) }
+    // At rest the composer is a single row. It opens out, showing its options, while a message is being written,
+    // and stays so while a model is being chosen for it.
+    val isExpanded = isFocused || viewModel.draft.isNotEmpty() || isModelSheetOpen
+    // Whether the composer is being held down to talk, so the recording row shows in place of its own; and whether
+    // it is listening yet, since leave may still be being asked while it is merely held.
+    val isHeld = viewModel.holdToTalk.isActive
+    val isRecordingHeld = viewModel.holdToTalk.isRecording
+    val field = rememberDraftField(viewModel.draft, presenter::draftAction)
     val placeholder = when {
         // With a picture already made, what is typed is taken to be about it unless it plainly starts another.
         isPictureMode && viewModel.pendingImages.isEmpty() && viewModel.conversation.messages.any { it.isPicture } ->
             stringResource(R.string.picture_follow_up_placeholder)
         isPictureMode && viewModel.pendingImages.isEmpty() -> stringResource(R.string.picture_placeholder)
         isPictureMode -> stringResource(R.string.picture_change_placeholder)
+        // At rest the composer says what can be done with it; once opened it says who is being written to.
+        !isExpanded -> stringResource(R.string.composer_placeholder_resting)
         model != null -> stringResource(R.string.composer_placeholder_model, model.displayName)
         else -> stringResource(R.string.composer_placeholder)
     }
-    val focusManager = LocalFocusManager.current
-    var isFocused by remember { mutableStateOf(false) }
-    var isModelSheetOpen by remember { mutableStateOf(false) }
-    // At rest the composer is a single row. It opens out, showing its options, while a message is being written,
-    // and stays so while a model is being chosen for it.
-    val isExpanded = isFocused || viewModel.draft.isNotEmpty() || isModelSheetOpen
     // A different conversation starts with the composer at rest.
     LaunchedEffect(viewModel.conversation.id) { focusManager.clearFocus() }
+    // Words dictated by holding are there to be read and sent, so the composer opens out with the keyboard.
+    var shownDictatedCount by remember { mutableIntStateOf(viewModel.dictatedDraftCount) }
+    LaunchedEffect(viewModel.dictatedDraftCount) {
+        if (viewModel.dictatedDraftCount != shownDictatedCount) {
+            shownDictatedCount = viewModel.dictatedDraftCount
+            // The cursor goes after what was said, ready for more to be typed.
+            field.moveCursorToEnd()
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
+    // An alert asking for the microphone, or the app being left, may swallow the lift of the finger.
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { presenter.holdToTalkEndedAction() }
+    HapticEffect(HapticKind.LIGHT, isPictureMode)
+    HapticEffect(HapticKind.LIGHT, isRecordingHeld) { _, isRecording -> isRecording }
+    HapticEffect(HapticKind.SOFT, isRecordingHeld) { wasRecording, _ -> wasRecording }
+    // The moment a finger rests on it the composer grows a little, and stays so for as long as it is held.
+    var isPressed by remember { mutableStateOf(false) }
+    val heldScale by animateFloatAsState(
+        if (isPressed || isHeld) HELD_SCALE else 1f,
+        spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessHigh),
+        label = "heldScale",
+    )
     Column(
         modifier
             .fillMaxWidth()
             .padding(horizontal = spacing.xl, vertical = spacing.m)
+            .graphicsLayer {
+                scaleX = heldScale
+                scaleY = heldScale
+            }
             .background(colors.card, HearthTheme.shapes.composer)
             .border(HearthTheme.strokes.hairline, colors.line, HearthTheme.shapes.composer)
             .padding(start = spacing.m, end = spacing.m, top = if (isExpanded) spacing.xl else spacing.s, bottom = spacing.s),
@@ -87,65 +152,89 @@ fun ComposerFooter(
             }
         }
         PendingAttachments(viewModel, presenter, Modifier.padding(start = spacing.m, bottom = spacing.m))
-        ComposerLayout(isCompact = !isExpanded) {
-            BasicTextField(
-                value = viewModel.draft,
-                onValueChange = presenter::draftAction,
-                textStyle = HearthTheme.type.input.copy(color = colors.ink),
-                cursorBrush = SolidColor(colors.pine),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                modifier = Modifier
-                    .heightIn(min = HearthTheme.sizes.fieldMinHeight, max = HearthTheme.sizes.fieldMaxHeight)
-                    .padding(horizontal = spacing.m)
-                    .onFocusChanged { isFocused = it.isFocused }
-                    .semantics { contentDescription = placeholder },
-                decorationBox = { field ->
-                    Box {
-                        if (viewModel.draft.isEmpty()) Text(placeholder, color = colors.mute, style = HearthTheme.type.inputHint, maxLines = 1)
-                        field()
-                    }
-                },
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AttachMenu(
-                    // A photo can be shown to a model that sees, or handed to the picture server to change or enlarge.
-                    canSee = model?.canSee == true || isPictureMode,
-                    canMakePictures = settings.imageUrl != null,
-                    isPictureMode = isPictureMode,
-                    presenter = presenter,
-                    attachments = attachments,
-                )
-                // Shows that the next message asks for a picture; tapping it goes back to chatting.
-                if (isPictureMode) ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
-                if (isExpanded) {
-                    val pictureModel = viewModel.selectedPictureModel(settings)
-                    ModelChip(
-                        name = when {
-                            !isPictureMode -> model?.displayName ?: stringResource(R.string.chat_no_model)
-                            else -> pictureModel?.shortName() ?: stringResource(R.string.picture_section)
+        // The recording row lies over the composer's own row, which stays in place so the field keeps its identity.
+        Box {
+            // While held, the composer's own row can be neither seen nor read out, and the row over it takes its touches.
+            val concealed = if (isHeld) Modifier.alpha(0f).clearAndSetSemantics { } else Modifier
+            ComposerLayout(isCompact = !isExpanded, modifier = concealed) {
+                Box(propagateMinConstraints = true) {
+                    BasicTextField(
+                        value = field.value,
+                        onValueChange = field.onChange,
+                        textStyle = HearthTheme.type.input.copy(color = colors.ink),
+                        cursorBrush = SolidColor(colors.pine),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier
+                            .heightIn(min = HearthTheme.sizes.fieldMinHeight, max = HearthTheme.sizes.fieldMaxHeight)
+                            .padding(horizontal = spacing.m)
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { isFocused = it.isFocused }
+                            .semantics { contentDescription = placeholder },
+                        decorationBox = { innerField ->
+                            Box {
+                                if (viewModel.draft.isEmpty()) Text(placeholder, color = colors.mute, style = HearthTheme.type.inputHint, maxLines = 1)
+                                innerField()
+                            }
                         },
-                        // How hard to think is shown beside the model and chosen with it.
-                        effort = if (!isPictureMode && model?.canThink == true) settings.thinkingLevel.title() else "",
-                        label = stringResource(if (isPictureMode) R.string.picture_model_picker else R.string.chat_model_picker),
-                        modifier = Modifier.weight(1f, fill = false).padding(horizontal = spacing.xs),
-                    ) { isModelSheetOpen = true }
+                    )
+                    // Lies over the resting field: a tap gives the field the keyboard as before, and a hold starts
+                    // recording. Once the composer has opened out, touches go straight to the field.
+                    if (!isExpanded) {
+                        Box(
+                            Modifier.matchParentSize().holdToTalkTouch(
+                                onTap = {
+                                    focusRequester.requestFocus()
+                                    keyboard?.show()
+                                },
+                                onPressChanged = { isPressed = it },
+                                onHoldBegan = { presenter.holdToTalkBeganAction(requestMicrophone) },
+                                onHoldEnded = presenter::holdToTalkEndedAction,
+                            ),
+                        )
+                    }
                 }
-                if (isExpanded && !isPictureMode) {
-                    // A model that can call tools searches when it sees fit; any other must be told to.
-                    if (model != null && !model.canUseTools && settings.searchUrl != null) {
-                        val label = stringResource(R.string.composer_search)
-                        ComposerToggle(Icons.Outlined.Language, label, viewModel.isSearchForced, presenter::toggleSearchAction)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AttachMenu(
+                        // A photo can be shown to a model that sees, or handed to the picture server to change or enlarge.
+                        canSee = model?.canSee == true || isPictureMode,
+                        canMakePictures = settings.imageUrl != null,
+                        isPictureMode = isPictureMode,
+                        presenter = presenter,
+                        attachments = attachments,
+                    )
+                    // Shows that the next message asks for a picture; tapping it goes back to chatting.
+                    if (isPictureMode) ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
+                    if (isExpanded) {
+                        val pictureModel = viewModel.selectedPictureModel(settings)
+                        ModelChip(
+                            name = when {
+                                !isPictureMode -> model?.displayName ?: stringResource(R.string.chat_no_model)
+                                else -> pictureModel?.shortName() ?: stringResource(R.string.picture_section)
+                            },
+                            // How hard to think is shown beside the model and chosen with it.
+                            effort = if (!isPictureMode && model?.canThink == true) settings.thinkingLevel.title() else "",
+                            label = stringResource(if (isPictureMode) R.string.picture_model_picker else R.string.chat_model_picker),
+                            modifier = Modifier.weight(1f, fill = false).padding(horizontal = spacing.xs),
+                        ) { isModelSheetOpen = true }
                     }
-                    if (settings.speechUrl != null) {
-                        val icon = if (settings.isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff
-                        ComposerToggle(icon, stringResource(R.string.composer_read_replies), settings.isAutoReadEnabled, presenter::toggleAutoReadAction)
+                    if (isExpanded && !isPictureMode) {
+                        // A model that can call tools searches when it sees fit; any other must be told to.
+                        if (model != null && !model.canUseTools && settings.searchUrl != null) {
+                            val label = stringResource(R.string.composer_search)
+                            ComposerToggle(Icons.Outlined.Language, label, viewModel.isSearchForced, presenter::toggleSearchAction)
+                        }
+                        if (settings.speechUrl != null) {
+                            val icon = if (settings.isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff
+                            ComposerToggle(icon, stringResource(R.string.composer_read_replies), settings.isAutoReadEnabled, presenter::toggleAutoReadAction)
+                        }
                     }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DictationButton(viewModel.isDictating, presenter)
+                    SendButton(viewModel, canTalk = settings.speechUrl != null, presenter = presenter)
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                DictationButton(viewModel.isDictating, presenter)
-                SendButton(viewModel, canTalk = settings.speechUrl != null, presenter = presenter)
-            }
+            if (isHeld) HoldToTalkRow(viewModel.voiceLevel, presenter::holdToTalkEndedAction, Modifier.matchParentSize())
         }
     }
     if (isModelSheetOpen) ModelPickerSheet(viewModel, models, settings, presenter) { isModelSheetOpen = false }
@@ -165,8 +254,8 @@ fun ComposerFooter(
  * which it scrolls.
  */
 @Composable
-private fun ComposerLayout(isCompact: Boolean, content: @Composable () -> Unit) {
-    Layout(content, Modifier.fillMaxWidth()) { measurables, constraints ->
+private fun ComposerLayout(isCompact: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier.fillMaxWidth()) { measurables, constraints ->
         val width = constraints.maxWidth
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val trailing = measurables[2].measure(loose)
@@ -185,6 +274,68 @@ private fun ComposerLayout(isCompact: Boolean, content: @Composable () -> Unit) 
             field.placeRelative(if (isOneRow) leading.width else 0, if (isOneRow) (height - field.height) / 2 else 0)
             leading.placeRelative(0, controlsTop + (controlsHeight - leading.height) / 2)
             trailing.placeRelative(width - trailing.width, controlsTop + (controlsHeight - trailing.height) / 2)
+        }
+    }
+}
+
+/** The composer's text as the field holds it, with the place of the cursor, and the ways to change either. */
+private class DraftField(val value: TextFieldValue, val onChange: (TextFieldValue) -> Unit, val moveCursorToEnd: () -> Unit)
+
+/**
+ * Keeps the field in step with the draft, as a field given plain text keeps itself: the words are always the
+ * draft's, and the place of the cursor is the field's own. Holding the cursor here is what lets it be put after
+ * words that did not come from the keyboard.
+ */
+@Composable
+private fun rememberDraftField(draft: String, onChange: (String) -> Unit): DraftField {
+    var held by remember { mutableStateOf(TextFieldValue(draft)) }
+    val shown = held.copy(text = draft)
+    SideEffect {
+        if (shown.selection != held.selection || shown.composition != held.composition) held = shown
+    }
+    // What the keyboard last gave, so that moving the cursor alone is not reported as a change of words.
+    var lastText by remember(draft) { mutableStateOf(draft) }
+    return DraftField(
+        value = shown,
+        onChange = { changed ->
+            held = changed
+            val hasNewWords = lastText != changed.text
+            lastText = changed.text
+            if (hasNewWords) onChange(changed.text)
+        },
+        moveCursorToEnd = { held = TextFieldValue(draft, TextRange(draft.length)) },
+    )
+}
+
+/**
+ * A way to ask for leave to use the microphone that waits for the answer: at once when leave was given before,
+ * otherwise once the user has answered the phone's question. If the screen goes before they answer, the wait is
+ * given up.
+ */
+@Composable
+private fun rememberMicrophoneRequest(): suspend () -> Boolean {
+    val context = LocalContext.current
+    val waiting = remember { mutableListOf<CompletableDeferred<Boolean>>() }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        waiting.forEach { it.complete(isGranted) }
+        waiting.clear()
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            waiting.forEach { it.cancel() }
+            waiting.clear()
+        }
+    }
+    return remember(context, permission) {
+        suspend {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                true
+            } else {
+                val answer = CompletableDeferred<Boolean>()
+                waiting += answer
+                permission.launch(Manifest.permission.RECORD_AUDIO)
+                answer.await()
+            }
         }
     }
 }

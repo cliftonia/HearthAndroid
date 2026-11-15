@@ -12,6 +12,12 @@ class PromptBuilder(
     private val memories: List<Memory> = emptyList(),
     /** Whether the conversation is private, with no memory to read or write. */
     private val isPrivate: Boolean = false,
+    /** The project the conversation belongs to, whose instructions and reference files it is given. */
+    private val project: Project? = null,
+    /** The marker that opens and closes each quoted reference file. */
+    private val projectFence: String = makeFence("FILE"),
+    /** The user's name and what they like to be called, as given in Settings. */
+    private val profile: UserProfile = UserProfile(),
 ) {
     private val instructions = instructions.trim()
 
@@ -82,7 +88,29 @@ class PromptBuilder(
         return "$listing\n\n$caution Cite the results you use as [1], [2]. $ending"
     }
 
-    /** What the model is told before the conversation: the date, how to reply, and what it knows of the user. */
+    /**
+     * Who the model is talking to, in one line; `null` when the user has given no name.
+     *
+     * The name is a setting, not a memory, so a private conversation is told it too. It is quoted as a name and
+     * kept to one line, so that it cannot pass itself off as anything else.
+     */
+    private val profileLine: String?
+        get() {
+            val fullName = profile.fullName.replace("\"", "'")
+            val nickname = profile.nickname.replace("\"", "'")
+            return when {
+                fullName.isNotEmpty() && nickname.isNotEmpty() && fullName != nickname ->
+                    "The user's name is \"$fullName\", and they like to be called \"$nickname\"."
+                fullName.isNotEmpty() -> "The user's name is \"$fullName\"."
+                nickname.isNotEmpty() -> "The user likes to be called \"$nickname\"."
+                else -> null
+            }
+        }
+
+    /**
+     * What the model is told before the conversation: the date, how to reply, who the user is, the user's instructions, the
+     * project's instructions and files, and what it knows of the user.
+     */
     private fun systemText(sources: List<SearchSource>, now: Long, style: ReplyStyle): String {
         val today = SimpleDateFormat("EEEE d MMMM yyyy", Locale.ENGLISH).format(Date(now))
         val parts = mutableListOf(
@@ -93,9 +121,11 @@ class PromptBuilder(
                     "Use no Markdown, lists, code or symbols."
             },
         )
+        profileLine?.let { parts += it }
         if (instructions.isNotEmpty()) {
             parts += "The user has given these standing instructions. Follow them:\n$instructions"
         }
+        if (project != null) parts += projectParts(project, projectFence)
         if (isPrivate) {
             parts += "This is a private conversation. You have no memory of earlier conversations here and cannot save anything " +
                 "for later ones. If the user asks you to remember something, tell them plainly that this chat is private " +
@@ -122,8 +152,11 @@ class PromptBuilder(
         /** The most text taken from one attached file, so a long document cannot crowd out the conversation. */
         const val MAXIMUM_DOCUMENT_LENGTH = 60_000
 
-        /** A marker no web page can predict. */
-        fun makeFence(): String = "WEB-" + UUID.randomUUID().toString().replace("-", "").take(16)
+        /** The most text taken from a project's reference files altogether, so that they cannot crowd out the conversation. */
+        const val MAXIMUM_PROJECT_DOCUMENTS_LENGTH = 60_000
+
+        /** A marker that no web page, and no file, can predict. */
+        fun makeFence(prefix: String = "WEB"): String = "$prefix-" + UUID.randomUUID().toString().replace("-", "").take(16)
 
         /** Added to the system message when the model may search the web. */
         internal const val SEARCH_GUIDANCE =

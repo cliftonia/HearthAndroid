@@ -173,4 +173,24 @@ class FileStoreServiceTests {
             directory.deleteRecursively()
         }
     }
+
+    @Test
+    fun `bytes are kept and read back, and deleting everything leaves nothing behind`() = runBlocking {
+        val directory = Files.createTempDirectory("hearth").toFile()
+        try {
+            val store = FileStoreService(directory)
+            assertNull(store.loadBytes("photo.jpg"))
+            store.saveBytes(byteArrayOf(1, 2, 3), "photo.jpg")
+            store.saveBytes(byteArrayOf(9), "photo.jpg")
+            assertEquals(listOf<Byte>(9), store.loadBytes("photo.jpg")?.toList())
+            store.save("damaged", "a.json")
+            assertTrue(store.setAside("a.json"))
+            store.deleteAll()
+            assertTrue(directory.listFiles().orEmpty().isEmpty())
+            // Nothing to delete is not a failure.
+            store.deleteAll()
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
 }

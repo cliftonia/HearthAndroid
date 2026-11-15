@@ -1,6 +1,8 @@
 package app.hearth.chat
 
 import android.util.Log
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.domain.ChatError
 import app.hearth.domain.ChatInteractor
 import app.hearth.domain.ChatModel
@@ -14,6 +16,9 @@ import app.hearth.domain.Message
 import app.hearth.domain.MessageId
 import app.hearth.domain.MessageRole
 import app.hearth.domain.ModelStore
+import app.hearth.domain.NotificationProvider
+import app.hearth.domain.ProjectId
+import app.hearth.domain.ProjectStore
 import app.hearth.domain.ReplyStyle
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
@@ -36,13 +41,16 @@ interface ChatPresenterDelegate {
     fun chatPresenterDidRequestDrawer()
     fun chatPresenterDidRequestSettings()
     fun chatPresenterDidRequestVoice()
+
+    /** A project is to be chosen for the chat. */
+    fun chatPresenterDidRequestProject(id: ConversationId)
 }
 
 /**
  * Runs the conversation on screen: sends messages, streams replies into the view model and saves what arrives.
  *
- * The actions for attachments, editing, dictation, pictures, reading aloud and the chat's menu, and the making of a
- * reply itself, are extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
+ * The actions for attachments, editing, dictation, pictures, reading aloud, notifications and the chat's menu, and the
+ * making of a reply itself, are extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
  */
 class ChatPresenter(
     internal val scope: CoroutineScope,
@@ -56,15 +64,22 @@ class ChatPresenter(
         val speech: SpeechInteractor,
         val image: ImageInteractor,
         val dictation: DictationProvider,
+        val notifications: NotificationProvider,
         val pictureWords: PictureWords,
+        val noticeWords: ReplyNoticeWords,
         /** Squeezes a finished picture into a JPEG in Base64 for keeping. `null` if it is no picture. */
         val encodePicture: suspend (ByteArray) -> String?,
         val settingsStore: SettingsStore,
         val modelStore: ModelStore,
         val conversationStore: ConversationStore,
         val memoryStore: MemoryStore,
+        val projectStore: ProjectStore,
         /** Whether the app is locked, in which case nothing is read aloud. */
         val isLocked: () -> Boolean,
+        /** Whether the app is in front of the user at this moment. */
+        val isOnScreen: () -> Boolean,
+        /** Plays a haptic, if haptics are wanted. A test may hand in its own. */
+        val haptic: (HapticKind) -> Unit = Haptics::play,
     )
 
     internal val state = MutableStateFlow(ChatViewModel())
@@ -82,10 +97,11 @@ class ChatPresenter(
 
     // Loading
 
-    /** Reads the saved conversations and memories, then asks the server for its models. */
+    /** Reads the saved conversations, projects and memories, then asks the server for its models. */
     suspend fun loadAction() {
         try {
             dependencies.conversationStore.load()
+            dependencies.projectStore.load()
             dependencies.memoryStore.load()
         } catch (failure: IOException) {
             Log.e(TAG, "Loading saved data failed: ${failure.javaClass.simpleName}")
@@ -199,9 +215,13 @@ class ChatPresenter(
         scope.launch { save(state.value.conversation) }
     }
 
-    /** Starts afresh: anything half written is cleared along with the conversation. */
-    fun newChatAction() {
-        show(Conversation(modelId = state.value.selectedModel?.id))
+    /**
+     * Starts afresh: anything half written is cleared along with the conversation.
+     *
+     * [projectId] is the project the new chat belongs to; `null` for an ordinary chat.
+     */
+    fun newChatAction(projectId: ProjectId? = null) {
+        show(Conversation(modelId = state.value.selectedModel?.id, projectId = projectId))
         state.update { it.copy(draft = "") }
     }
 

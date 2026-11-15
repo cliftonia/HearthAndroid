@@ -1,6 +1,7 @@
 package app.hearth.data
 
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,6 +18,22 @@ class FileStoreService(private val directory: File) {
             File(directory, name).writeText(text)
             temporary.delete()
         }
+    }
+
+    /** Writes the bytes under the name, replacing whatever was there. */
+    suspend fun saveBytes(bytes: ByteArray, name: String) = withContext(Dispatchers.IO) {
+        directory.mkdirs()
+        val temporary = File(directory, "$name.tmp")
+        temporary.writeBytes(bytes)
+        if (!temporary.renameTo(File(directory, name))) {
+            File(directory, name).writeBytes(bytes)
+            temporary.delete()
+        }
+    }
+
+    /** The bytes of the file of that name, or `null` if there is none. */
+    suspend fun loadBytes(name: String): ByteArray? = withContext(Dispatchers.IO) {
+        File(directory, name).takeIf { it.isFile }?.readBytes()
     }
 
     /** The text of every file in the directory, in no particular order. Files that were set aside are left out. */
@@ -44,6 +61,17 @@ class FileStoreService(private val directory: File) {
     /** Removes the file of that name; nothing happens if there is none. */
     suspend fun delete(name: String) = withContext(Dispatchers.IO) {
         File(directory, name).delete()
+        Unit
+    }
+
+    /**
+     * Removes every file in the directory, those set aside and half written included. Nothing happens if there
+     * are none; a file that will not go is a failure.
+     */
+    suspend fun deleteAll() = withContext(Dispatchers.IO) {
+        directory.listFiles()?.forEach { file ->
+            if (!file.deleteRecursively()) throw IOException("A file could not be removed")
+        }
         Unit
     }
 

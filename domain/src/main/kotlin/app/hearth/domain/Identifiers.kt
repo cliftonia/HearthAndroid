@@ -28,6 +28,16 @@ value class ConversationId(val raw: String) {
     }
 }
 
+/** Tells one project from another; it is also the name of the file the project is kept in. */
+@Serializable
+@JvmInline
+value class ProjectId(val raw: String) {
+    companion object {
+        /** An identifier no other project has. */
+        fun new(): ProjectId = ProjectId(UUID.randomUUID().toString())
+    }
+}
+
 /** A short handle such as `m3`, easy for a small model to quote back. */
 @Serializable
 @JvmInline

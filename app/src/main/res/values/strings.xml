@@ -18,13 +18,42 @@
     <string name="chat_cloud_models">Cloud</string>
     <string name="chat_private">Private chat</string>
     <string name="chat_private_note">This chat uses no memories and adds none.</string>
-    <string name="chat_empty_title">What shall we talk about?</string>
     <string name="chat_connect_title">Connect to your server</string>
     <string name="chat_connect_message">Add the address of your Ollama server to begin.</string>
     <string name="chat_open_settings">Open Settings</string>
     <string name="chat_follow_ups">Suggested questions</string>
 
+    <string name="greet_lets_talk">Let\'s talk.</string>
+    <string name="greet_on_your_mind">What\'s on your mind?</string>
+    <string name="greet_morning">Morning.</string>
+    <string name="greet_afternoon">Afternoon.</string>
+    <string name="greet_evening">Evening.</string>
+    <string name="greet_night">Up late?</string>
+    <string name="greet_sunday">Happy Sunday.</string>
+    <string name="greet_monday">Happy Monday.</string>
+    <string name="greet_tuesday">Happy Tuesday.</string>
+    <string name="greet_wednesday">Happy Wednesday.</string>
+    <string name="greet_thursday">Happy Thursday.</string>
+    <string name="greet_friday">Happy Friday.</string>
+    <string name="greet_saturday">Happy Saturday.</string>
+    <string name="greet_lets_talk_named">Let\'s talk, %1$s.</string>
+    <string name="greet_good_to_see_you_named">Good to see you, %1$s.</string>
+    <string name="greet_on_your_mind_named">What\'s on your mind, %1$s?</string>
+    <string name="greet_morning_named">Morning, %1$s.</string>
+    <string name="greet_afternoon_named">Afternoon, %1$s.</string>
+    <string name="greet_evening_named">Evening, %1$s.</string>
+    <string name="greet_night_named">Up late, %1$s?</string>
+    <string name="greet_sunday_named">Happy Sunday, %1$s.</string>
+    <string name="greet_monday_named">Happy Monday, %1$s.</string>
+    <string name="greet_tuesday_named">Happy Tuesday, %1$s.</string>
+    <string name="greet_wednesday_named">Happy Wednesday, %1$s.</string>
+    <string name="greet_thursday_named">Happy Thursday, %1$s.</string>
+    <string name="greet_friday_named">Happy Friday, %1$s.</string>
+    <string name="greet_saturday_named">Happy Saturday, %1$s.</string>
+
     <string name="composer_placeholder">Message</string>
+    <string name="composer_placeholder_resting">Type or hold to talk</string>
+    <string name="composer_release_to_stop">Release to stop</string>
     <string name="composer_placeholder_model">Message %1$s</string>
     <string name="composer_thinking_off">Off</string>
     <string name="composer_thinking_light">Light</string>
@@ -90,15 +119,43 @@
         <item quantity="other">Connected · %1$d models</item>
     </plurals>
 
+    <string name="project_title">Projects</string>
+    <string name="project_new">New project</string>
+    <string name="project_new_ellipsis">New project…</string>
+    <string name="project_edit">Edit project</string>
+    <string name="project_all_chats">All chats</string>
+    <string name="project_new_chat">New chat in project</string>
+    <string name="project_settings">Project settings</string>
+    <string name="project_no_chats">No chats in this project yet</string>
+    <string name="project_in_project">In a project</string>
+    <string name="project_chat_in">In project %1$s</string>
+    <string name="project_add">Add to project</string>
+    <string name="project_add_ellipsis">Add to project…</string>
+    <string name="project_move">Move to project</string>
+    <string name="project_remove">Remove from project</string>
+    <string name="project_none">No projects yet</string>
+    <string name="project_name">Name</string>
+    <string name="project_name_placeholder">What the project is about</string>
+    <string name="project_instructions">Instructions</string>
+    <string name="project_instructions_placeholder">How should chats in this project be answered?</string>
+    <string name="project_instructions_footer">Given to the model at the start of every chat in this project, along with your own instructions in your profile.</string>
+    <string name="project_files">Reference files</string>
+    <string name="project_add_files">Add files</string>
+    <string name="project_no_files">No files yet</string>
+    <string name="project_files_footer">PDFs and text files. Every chat in this project can draw on what they say.</string>
+    <string name="project_delete">Delete project</string>
+    <string name="project_delete_question">Delete this project? Its chats are kept.</string>
+    <string name="error_project_save_failed">The project could not be saved. It is as it was.</string>
+    <string name="common_done">Done</string>
+    <string name="common_ok">OK</string>
+
     <string name="settings_back">Back</string>
     <string name="settings_cancel">Cancel</string>
     <string name="settings_servers">Servers</string>
     <string name="settings_ollama">Ollama address</string>
     <string name="settings_search">Search address (SearXNG)</string>
     <string name="settings_servers_footer">Search and speech are optional. An address without a scheme is taken to be HTTPS.</string>
-    <string name="settings_instructions">Custom instructions</string>
     <string name="settings_instructions_placeholder">For example: answer briefly. I live in Brisbane.</string>
-    <string name="settings_instructions_footer">Instructions are given to the model at the start of every conversation. Suggestions cost one extra short request per reply.</string>
     <string name="settings_follow_ups">Suggest follow-up questions</string>
     <string name="settings_read_pages">Read the pages a search finds</string>
     <string name="settings_read_pages_footer">Gives the model the text of the top results, not just a snippet. Your phone fetches those pages itself, so the sites see your phone\'s address rather than your server\'s.</string>
@@ -113,6 +170,39 @@
         <item quantity="one">Connected. %1$d model found.</item>
         <item quantity="other">Connected. %1$d models found.</item>
     </plurals>
+
+    <string name="profile_title">Profile</string>
+    <string name="profile_no_name">Add your name</string>
+    <string name="profile_edit_photo">Edit photo</string>
+    <string name="profile_choose_photo">Choose from library</string>
+    <string name="profile_remove_photo">Remove photo</string>
+    <string name="profile_photo_failed">The photo could not be saved.</string>
+    <string name="profile_full_name">Full name</string>
+    <string name="profile_nickname">Nickname</string>
+    <string name="profile_names_footer">Hearth calls you by your nickname.</string>
+    <string name="profile_instructions">Instructions</string>
+    <string name="profile_instructions_footer">Instructions apply to every conversation.</string>
+    <string name="profile_follow_ups_footer">Suggestions cost one extra short request per reply.</string>
+    <string name="profile_erase_all">Erase all data on this device</string>
+    <string name="profile_erase_all_footer">Hearth has no accounts. Everything it knows about you is kept on this device, and this removes it.</string>
+    <string name="profile_erase_all_question">Erase all data on this device?</string>
+    <string name="profile_erase_all_message">Your chats, projects, memories, profile and saved settings will be erased, server addresses included. Hearth will be as it was when first opened. This cannot be undone.</string>
+    <string name="profile_erase_all_confirm">Erase everything</string>
+    <string name="profile_erase_all_failed">Not everything could be erased. Try again.</string>
+
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_replies">Replies</string>
+    <string name="notifications_replies_detail">When a reply or a picture finishes while Hearth is not on screen.</string>
+    <string name="notifications_footer">Notifications are made on this device; nothing is sent through a server. A private chat\'s notification says only that a reply is ready.</string>
+    <string name="notifications_denied">Notifications are turned off for Hearth in the phone\'s Settings.</string>
+    <string name="notifications_open_settings">Open the phone\'s Settings</string>
+    <string name="notifications_on">On</string>
+    <string name="notifications_off">Off</string>
+    <string name="notifications_reply_ready">A reply is ready.</string>
+    <string name="notifications_picture_ready">Your picture is ready</string>
+
+    <string name="haptics_title">Haptics</string>
+    <string name="haptics_footer">A light tap when a message is sent, a reply finishes or something is switched. It follows the phone\'s own touch feedback setting, and a device with nothing to tap with gives none.</string>
 
     <string name="memory_title">Memory</string>
     <string name="memory_toggle">Remember things about me</string>

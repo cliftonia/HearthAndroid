@@ -13,6 +13,8 @@ data class Conversation(
     val isPinned: Boolean = false,
     /** A private conversation is given no memories and writes none. */
     val isPrivate: Boolean = false,
+    /** The project the conversation belongs to; `null` when it is in none. One saved before projects existed is in none. */
+    val projectId: ProjectId? = null,
     val createdAt: Long = System.currentTimeMillis(),
     /** When a reply last finished here; the chat list is ordered and grouped by it. */
     val updatedAt: Long = System.currentTimeMillis(),

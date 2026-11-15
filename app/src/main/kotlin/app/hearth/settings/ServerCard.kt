@@ -20,15 +20,22 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.shared.errorMessage
 
-/** The addresses of the chat, search, speech and picture servers, and a button that tries the first of them. */
+/** The addresses of the chat, search, speech and picture servers. */
 @Composable
-internal fun ServerCard(settings: ServerSettings, test: ConnectionTest?, presenter: SettingsPresenter) {
-    val colors = HearthTheme.colors
+internal fun ServerCard(settings: ServerSettings, presenter: SettingsPresenter) {
     HearthCard(stringResource(R.string.settings_servers), stringResource(R.string.settings_servers_footer)) {
         AddressField(stringResource(R.string.settings_ollama), settings.ollamaAddress) { text -> presenter.updateAction { it.copy(ollamaAddress = text) } }
         AddressField(stringResource(R.string.settings_search), settings.searchAddress) { text -> presenter.updateAction { it.copy(searchAddress = text) } }
         AddressField(stringResource(R.string.settings_speech), settings.speechAddress) { text -> presenter.updateAction { it.copy(speechAddress = text) } }
         AddressField(stringResource(R.string.settings_image), settings.imageAddress) { text -> presenter.updateAction { it.copy(imageAddress = text) } }
+    }
+}
+
+/** A button that tries the chat server's address, and how the last try went. */
+@Composable
+internal fun ConnectionCard(test: ConnectionTest?, presenter: SettingsPresenter) {
+    val colors = HearthTheme.colors
+    HearthCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xl)) {
             OutlinedButton(onClick = presenter::testConnectionAction, enabled = test != ConnectionTest.Checking) {
                 Text(stringResource(R.string.settings_test))

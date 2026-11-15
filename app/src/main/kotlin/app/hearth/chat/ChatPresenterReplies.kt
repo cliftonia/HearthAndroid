@@ -79,6 +79,7 @@ internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, pr
         remember = if (canRemember) { request -> dependencies.memoryStore.apply(request, isFromUser = false) } else null,
         isPrivate = conversation.isPrivate,
         style = style,
+        project = chatProject,
     )
     stopSpeaking()
     val narration: SpokenReplyFeed? = if (style == ReplyStyle.CHAT) beginNarration(reply.id) else null
@@ -120,7 +121,10 @@ internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, pr
     } finally {
         narration?.finish()
         // Whatever ended the reply, what arrived is kept and written down, even when the turn was cancelled.
-        withContext(NonCancellable) { finish(conversation.id, reply) }
+        withContext(NonCancellable) {
+            finish(conversation.id, reply)
+            announceReplyFinished(reply.id)
+        }
     }
 }
 

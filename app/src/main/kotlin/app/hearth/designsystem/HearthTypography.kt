@@ -88,6 +88,10 @@ class HearthTypography {
     /** As [caption], for the note beneath a group of settings. */
     val captionSnug = Plain.copy(fontSize = 12.sp, lineHeight = 17.sp)
 
+    /** The initials on the user's avatar in a row, and on the large one at the head of the profile page. */
+    val avatar = Plain.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+    val avatarLarge = Plain.copy(fontSize = 34.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold)
+
     /** The label of a text button, as Material sets it. */
     val control = Control
 

@@ -56,6 +56,11 @@ android {
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
+
+    testOptions {
+        // A presenter logs what went wrong; on the JVM, where there is no log to write to, that does nothing.
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {

@@ -4,6 +4,9 @@ import android.util.Log
 import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ConversationStore
+import app.hearth.domain.Project
+import app.hearth.domain.ProjectId
+import app.hearth.domain.ProjectStore
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,22 +23,41 @@ interface DrawerPresenterDelegate {
 
     /** The conversation has a new title in the store; the chat must show it if it is open. */
     fun drawerPresenterDidRename(id: ConversationId, title: String)
-    fun drawerPresenterDidRequestNewChat()
+
+    /** A new chat is wanted: in the given project, or in none. */
+    fun drawerPresenterDidRequestNewChat(projectId: ProjectId?)
     fun drawerPresenterDidRequestSettings()
+    fun drawerPresenterDidRequestNewProject()
+    fun drawerPresenterDidRequestEditing(projectId: ProjectId)
+
+    /** A project is to be chosen for the chat. */
+    fun drawerPresenterDidRequestProject(id: ConversationId)
 }
 
 /**
- * Lists the saved conversations and changes them: pin, rename, delete.
+ * Lists the projects and the saved conversations, and changes the conversations: pin, rename, file, delete.
  *
- * Opening one, starting a new one and going to the settings are the coordinator's to do, so they are
- * passed to the delegate.
+ * Opening one, starting a new one, the project sheets and going to the settings are the coordinator's to do,
+ * so they are passed to the delegate.
  */
-class DrawerPresenter(private val scope: CoroutineScope, private val conversationStore: ConversationStore) {
+class DrawerPresenter(
+    private val scope: CoroutineScope,
+    private val conversationStore: ConversationStore,
+    private val projectStore: ProjectStore,
+) {
     private val queryState = MutableStateFlow("")
+    private val selectedProjectState = MutableStateFlow<ProjectId?>(null)
 
     /** What is typed in the search field. The view filters the list by it. */
     val query: StateFlow<String> = queryState.asStateFlow()
     val conversations: StateFlow<List<Conversation>> = conversationStore.conversations
+    val projects: StateFlow<List<Project>> = projectStore.projects
+
+    /**
+     * The project whose chats alone are listed; `null` lists every chat. The view treats one whose project has
+     * since been deleted as `null` too.
+     */
+    val selectedProjectId: StateFlow<ProjectId?> = selectedProjectState.asStateFlow()
     var delegate: DrawerPresenterDelegate? = null
 
     fun queryAction(text: String) {
@@ -44,7 +66,8 @@ class DrawerPresenter(private val scope: CoroutineScope, private val conversatio
 
     fun selectAction(id: ConversationId) = delegate?.drawerPresenterDidSelect(id) ?: Unit
 
-    fun newChatAction() = delegate?.drawerPresenterDidRequestNewChat() ?: Unit
+    /** Starts a chat. While a project's chats are being looked at, the new chat belongs to that project. */
+    fun newChatAction() = delegate?.drawerPresenterDidRequestNewChat(selectedProject()?.id) ?: Unit
 
     fun settingsAction() = delegate?.drawerPresenterDidRequestSettings() ?: Unit
 
@@ -65,6 +88,32 @@ class DrawerPresenter(private val scope: CoroutineScope, private val conversatio
         conversationStore.delete(id)
         delegate?.drawerPresenterDidDelete(id)
     }
+
+    // Projects
+
+    /** Narrows the list to one project's chats. */
+    fun selectProjectAction(id: ProjectId?) {
+        selectedProjectState.value = id
+    }
+
+    /** Goes back from a project's chats to every chat. */
+    fun allChatsAction() = selectProjectAction(null)
+
+    fun newProjectAction() = delegate?.drawerPresenterDidRequestNewProject() ?: Unit
+
+    /** Opens the settings of the project being looked at. */
+    fun projectSettingsAction() {
+        delegate?.drawerPresenterDidRequestEditing(selectedProject()?.id ?: return)
+    }
+
+    /** Asks which project a chat should go in. */
+    fun addToProjectAction(id: ConversationId) = delegate?.drawerPresenterDidRequestProject(id) ?: Unit
+
+    /** Takes a chat out of its project. The chat itself is kept. */
+    fun removeFromProjectAction(id: ConversationId) = change { conversationStore.setProject(null, id) }
+
+    /** The project being looked at, if it still exists. */
+    private fun selectedProject(): Project? = projectStore.project(selectedProjectState.value)
 
     /** Runs a change to the store. One that could not be written is logged and otherwise let pass. */
     private fun change(action: suspend () -> Unit) {

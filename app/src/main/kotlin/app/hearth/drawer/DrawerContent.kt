@@ -36,7 +36,12 @@ import app.hearth.domain.ModelStore
 import app.hearth.domain.SettingsStore
 import app.hearth.shared.RenameDialog
 
-/** The list of saved chats, with the way to a new one and to the settings. */
+/**
+ * The chat list: the brand, a search field, the projects, the chats grouped by day, and Settings and New chat
+ * floating at the foot.
+ *
+ * The projects, and the heading of a project whose chats are being looked at, are drawn in `DrawerProjects.kt`.
+ */
 @Composable
 fun DrawerContent(
     presenter: DrawerPresenter,
@@ -50,7 +55,14 @@ fun DrawerContent(
     val spacing = HearthTheme.spacing
     val conversations by presenter.conversations.collectAsStateWithLifecycle()
     val query by presenter.query.collectAsStateWithLifecycle()
-    val sections = remember(conversations, query) { DrawerSections.build(conversations, query, System.currentTimeMillis()) }
+    val projects by presenter.projects.collectAsStateWithLifecycle()
+    val selectedProjectId by presenter.selectedProjectId.collectAsStateWithLifecycle()
+    // A project deleted while its chats were being looked at leaves the list showing every chat.
+    val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
+    val sections = remember(conversations, projects, selectedProject?.id, query) {
+        DrawerSections.build(conversations, query, System.currentTimeMillis(), projectId = selectedProject?.id, projects = projects)
+    }
+    val listedProjects = remember(projects, query) { DrawerSections.projects(projects, query) }
     var renaming by remember { mutableStateOf<Conversation?>(null) }
     Column(modifier.fillMaxHeight().padding(horizontal = spacing.xl)) {
         Row(Modifier.fillMaxWidth().padding(start = spacing.s, top = spacing.m), verticalAlignment = Alignment.CenterVertically) {
@@ -74,23 +86,28 @@ fun DrawerContent(
         Box(Modifier.weight(1f)) {
             // The bottom padding leaves room for the last chat to be scrolled clear of the floating controls.
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = spacing.xs, bottom = spacing.floatingClearance)) {
-                if (sections.isEmpty()) {
-                    item {
-                        val inset = Modifier.padding(spacing.l)
-                        Text(stringResource(R.string.drawer_empty), color = colors.mute, style = HearthTheme.type.callout, modifier = inset)
-                    }
+                if (selectedProject != null) {
+                    projectHeaderItems(selectedProject, presenter)
+                } else {
+                    projectListItems(listedProjects, isSearching = query.isNotBlank(), presenter)
                 }
                 sections.forEach { section ->
-                    item(key = section.kind.name) {
-                        Text(
-                            stringResource(section.kind.title),
-                            color = colors.mute,
-                            style = HearthTheme.type.caption,
-                            modifier = Modifier.padding(start = spacing.l, top = spacing.xxl, bottom = spacing.xs).semantics { heading() },
-                        )
+                    item(key = section.kind.name) { DrawerHeading(stringResource(section.kind.title)) }
+                    items(section.rows, key = { it.conversation.id.raw }) { row ->
+                        ConversationRow(row, row.conversation.id == selectedId, hasProjectMark = selectedProject == null, presenter) {
+                            renaming = row.conversation
+                        }
                     }
-                    items(section.conversations, key = { it.id.raw }) { conversation ->
-                        ConversationRow(conversation, conversation.id == selectedId, presenter) { renaming = conversation }
+                }
+                // The note stands beneath the projects, which are always there.
+                if (sections.isEmpty()) {
+                    item {
+                        Text(
+                            stringResource(if (selectedProject == null) R.string.drawer_empty else R.string.project_no_chats),
+                            color = colors.mute,
+                            style = HearthTheme.type.callout,
+                            modifier = Modifier.padding(spacing.l),
+                        )
                     }
                 }
             }
@@ -103,6 +120,18 @@ fun DrawerContent(
             renaming = null
         }
     }
+}
+
+/** A heading of the list: over the projects, and over each group of chats. */
+@Composable
+internal fun DrawerHeading(title: String) {
+    val spacing = HearthTheme.spacing
+    Text(
+        title,
+        color = HearthTheme.colors.mute,
+        style = HearthTheme.type.caption,
+        modifier = Modifier.padding(start = spacing.l, top = spacing.xxl, bottom = spacing.xs).semantics { heading() },
+    )
 }
 
 /** The words for a heading of the list. */

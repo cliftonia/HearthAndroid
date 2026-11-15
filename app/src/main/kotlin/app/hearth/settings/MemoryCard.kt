@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import app.hearth.R
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthSwitchRow
@@ -78,6 +80,7 @@ internal fun MemoryCard(settings: ServerSettings, memories: List<Memory>, presen
             confirmButton = {
                 TextButton(onClick = {
                     isConfirmingClear = false
+                    Haptics.play(HapticKind.WARNING)
                     presenter.clearMemoriesAction()
                 }) { Text(stringResource(R.string.memory_clear), color = colors.danger) }
             },

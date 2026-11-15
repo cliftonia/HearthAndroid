@@ -9,6 +9,8 @@ class ConversationDataProvider(
     val loadAll: suspend () -> List<Conversation>,
     val save: suspend (Conversation) -> Unit,
     val delete: suspend (ConversationId) -> Unit,
+    /** Removes every conversation at once. Without it the store deletes each in turn. */
+    val deleteAll: (suspend () -> Unit)? = null,
 ) {
     companion object {
         /** Conversations kept as one JSON file each, on the device only. */
@@ -19,6 +21,7 @@ class ConversationDataProvider(
                 loadAll = { store.loadAll().mapNotNull { runCatching { hearthJson.decodeFromString(Conversation.serializer(), it) }.getOrNull() } },
                 save = { conversation -> store.save(hearthJson.encodeToString(Conversation.serializer(), conversation), "${conversation.id.raw}.json") },
                 delete = { id -> store.delete("${id.raw}.json") },
+                deleteAll = { store.deleteAll() },
             )
         }
     }

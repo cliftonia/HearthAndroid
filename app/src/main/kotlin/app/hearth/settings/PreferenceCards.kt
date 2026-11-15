@@ -1,8 +1,6 @@
 package app.hearth.settings
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -10,7 +8,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthSwitchRow
@@ -18,25 +15,6 @@ import app.hearth.domain.Appearance
 import app.hearth.domain.ServerSettings
 
 // The smaller groups of settings, each a switch or two.
-
-/** Standing instructions for every conversation, and whether questions are suggested after a reply. */
-@Composable
-internal fun InstructionsCard(settings: ServerSettings, presenter: SettingsPresenter) {
-    HearthCard(stringResource(R.string.settings_instructions), stringResource(R.string.settings_instructions_footer)) {
-        OutlinedTextField(
-            value = settings.customInstructions,
-            onValueChange = { text -> presenter.updateAction { it.copy(customInstructions = text) } },
-            placeholder = { Text(stringResource(R.string.settings_instructions_placeholder)) },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-            minLines = 3,
-            maxLines = 10,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        HearthSwitchRow(stringResource(R.string.settings_follow_ups), settings.isFollowUpsEnabled) { isOn ->
-            presenter.updateAction { it.copy(isFollowUpsEnabled = isOn) }
-        }
-    }
-}
 
 /** Whether the pages a web search finds are read, or only their snippets. */
 @Composable
@@ -55,6 +33,16 @@ internal fun PrivacyCard(settings: ServerSettings, presenter: SettingsPresenter,
         HearthSwitchRow(stringResource(R.string.settings_require_unlock), settings.isLockEnabled) { isOn ->
             // Turning the lock on or off both need the holder of the phone to prove who they are.
             authenticate { isConfirmed -> if (isConfirmed) presenter.updateAction { it.copy(isLockEnabled = isOn) } }
+        }
+    }
+}
+
+/** Whether the phone taps back when something is done. */
+@Composable
+internal fun HapticsCard(settings: ServerSettings, presenter: SettingsPresenter) {
+    HearthCard(footer = stringResource(R.string.haptics_footer)) {
+        HearthSwitchRow(stringResource(R.string.haptics_title), settings.isHapticsEnabled) { isOn ->
+            presenter.updateAction { it.copy(isHapticsEnabled = isOn) }
         }
     }
 }

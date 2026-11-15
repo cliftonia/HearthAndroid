@@ -3,6 +3,8 @@ package app.hearth.chat
 import android.util.Log
 import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
+import app.hearth.domain.Project
+import app.hearth.domain.ProjectId
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
@@ -15,7 +17,7 @@ import kotlinx.coroutines.launch
 /** The longest title a chat may be given by hand. */
 private const val MAXIMUM_TITLE_LENGTH = 80
 
-/** The saved conversations, by which the header tells whether the open one is pinned. */
+/** The saved conversations, by which the header tells whether the open one is pinned and where it belongs. */
 val ChatPresenter.conversations: StateFlow<List<Conversation>>
     get() = dependencies.conversationStore.conversations
 
@@ -33,6 +35,38 @@ fun ChatPresenter.renameChatAction(title: String) {
         dependencies.conversationStore.rename(id, trimmed)
         conversationRenamed(id, trimmed)
     }
+}
+
+// Project
+
+/** The saved projects, by which the header tells which one the open chat belongs to. */
+val ChatPresenter.projects: StateFlow<List<Project>>
+    get() = dependencies.projectStore.projects
+
+/**
+ * The project a chat belongs to; `null` when it is in none, and when its project has been deleted.
+ *
+ * Once a chat has been saved the store says where it belongs, since the chat list can move it while it is
+ * open. Until then the [open] copy is all there is.
+ */
+internal fun chatProject(open: Conversation, saved: List<Conversation>, projects: List<Project>): Project? {
+    val projectId = (saved.firstOrNull { it.id == open.id } ?: open).projectId
+    return projects.firstOrNull { it.id == projectId }
+}
+
+/** The project the open chat belongs to, whose instructions and files its replies are given. */
+internal val ChatPresenter.chatProject: Project?
+    get() = chatProject(state.value.conversation, conversations.value, projects.value)
+
+/** Asks which project the open chat should go in. */
+fun ChatPresenter.projectAction() = delegate?.chatPresenterDidRequestProject(state.value.conversation.id) ?: Unit
+
+/**
+ * Keeps the open copy in step when the chat was filed elsewhere: by the picker or by a new project made for it.
+ * A chat not yet saved carries the choice here until its first save.
+ */
+fun ChatPresenter.conversationMoved(id: ConversationId, projectId: ProjectId?) = state.update {
+    if (it.conversation.id == id) it.copy(conversation = it.conversation.copy(projectId = projectId)) else it
 }
 
 /** Deletes the open chat, stopping any reply on its way, and starts a new one in its place. */

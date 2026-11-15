@@ -26,6 +26,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
+import app.hearth.designsystem.HapticEffect
+import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthMark
 import app.hearth.designsystem.HearthTheme
@@ -50,13 +52,17 @@ fun ChatScreen(
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
     val settings by settingsStore.settings.collectAsStateWithLifecycle()
     val models by modelStore.models.collectAsStateWithLifecycle()
+    val memories by presenter.memories.collectAsStateWithLifecycle()
+    // Felt once as something goes wrong. The tap for a reply that has finished is the presenter's to give.
+    HapticEffect(HapticKind.ERROR, viewModel.error) { _, new -> new != null }
     ChatLayout(
         modifier.fillMaxSize(),
         header = { ChatHeader(viewModel, settings, presenter) },
         content = {
             when {
                 settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
-                viewModel.conversation.messages.isEmpty() -> EmptyState(viewModel.conversation.isPrivate)
+                viewModel.conversation.messages.isEmpty() ->
+                    EmptyState(chatGreeting(viewModel.conversation, settings, memories).words(), viewModel.conversation.isPrivate)
                 else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null, pictures = pictures)
             }
         },
@@ -117,13 +123,13 @@ private fun ChatLayout(
  * greeting is the last to go and nothing is ever shown cut in half.
  */
 @Composable
-private fun EmptyState(isPrivate: Boolean) {
+private fun EmptyState(greeting: String, isPrivate: Boolean) {
     val colors = HearthTheme.colors
     val gap = HearthTheme.spacing.gapS
     Layout(
         content = {
             HearthMark(HearthTheme.sizes.markM)
-            Text(stringResource(R.string.chat_empty_title), style = HearthTheme.type.display, color = colors.ink, textAlign = TextAlign.Center)
+            Text(greeting, style = HearthTheme.type.display, color = colors.ink, textAlign = TextAlign.Center)
             // The note keeps its place whether or not it shows, so the greeting does not jump when the chat is made private.
             Text(
                 if (isPrivate) stringResource(R.string.chat_private_note) else "",

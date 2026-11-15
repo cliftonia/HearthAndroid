@@ -38,6 +38,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.core.content.ContextCompat
 import app.hearth.R
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthRoundButton
 import app.hearth.designsystem.HearthTheme
@@ -186,6 +188,7 @@ internal fun SendButton(viewModel: ChatViewModel, canTalk: Boolean, presenter: C
             else -> {
                 // Sending puts the keyboard away, leaving the whole screen for the reply.
                 focusManager.clearFocus()
+                Haptics.play(HapticKind.LIGHT)
                 presenter.sendAction()
             }
         }

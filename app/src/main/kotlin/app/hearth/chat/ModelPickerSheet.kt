@@ -14,7 +14,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,7 +41,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.hearth.R
-import app.hearth.designsystem.HearthRoundButton
+import app.hearth.designsystem.HapticKind
+import app.hearth.designsystem.Haptics
+import app.hearth.designsystem.HearthSheetHeader
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ChatModel
 import app.hearth.domain.ImageModelKind
@@ -72,18 +73,20 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
         // No tint from elevation: the sheet is the same paper as the screen it rises over.
         tonalElevation = 0.dp,
     ) {
-        SheetHeader(stringResource(if (isPictureMode) R.string.model_picture_sheet_title else R.string.model_sheet_title), close)
+        HearthSheetHeader(stringResource(if (isPictureMode) R.string.model_picture_sheet_title else R.string.model_sheet_title), close)
         Column(
             Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(start = spacing.xxxl, end = spacing.xxxl, bottom = spacing.xxxl),
             verticalArrangement = Arrangement.spacedBy(spacing.xxxl),
         ) {
             if (isPictureMode) {
                 PictureModels(viewModel.pictureModels, viewModel.selectedPictureModel(settings)) { model ->
+                    Haptics.play(HapticKind.SELECTION)
                     presenter.selectPictureModelAction(model)
                     close()
                 }
             } else {
                 ChatModels(models, viewModel.selectedModel) { model ->
+                    Haptics.play(HapticKind.SELECTION)
                     presenter.selectModelAction(model)
                     close()
                 }
@@ -91,31 +94,6 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
         }
         // The effort stays in view below the list, however many models the server has.
         if (!isPictureMode && viewModel.selectedModel?.canThink == true) EffortRow(settings.thinkingLevel, presenter::thinkingLevelAction)
-    }
-}
-
-/** The sheet's title, with the button that closes it at the leading edge. */
-@Composable
-private fun SheetHeader(title: String, onClose: () -> Unit) {
-    val colors = HearthTheme.colors
-    Box(Modifier.fillMaxWidth().padding(start = HearthTheme.spacing.xxxl, end = HearthTheme.spacing.xxxl, bottom = HearthTheme.spacing.xxxl)) {
-        HearthRoundButton(
-            icon = Icons.Outlined.Close,
-            label = stringResource(R.string.common_close),
-            containerColor = colors.card,
-            contentColor = colors.ink,
-            size = HearthTheme.sizes.touchTarget,
-            iconSize = HearthTheme.sizes.iconS,
-            modifier = Modifier.align(Alignment.CenterStart),
-            onClick = onClose,
-        )
-        Text(
-            title,
-            color = colors.ink,
-            style = HearthTheme.type.title,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center).semantics { heading() },
-        )
     }
 }
 

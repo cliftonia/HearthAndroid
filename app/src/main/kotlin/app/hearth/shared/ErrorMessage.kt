@@ -12,6 +12,7 @@ fun errorMessage(error: ErrorViewConfiguration): String = when (error.kind) {
     ErrorKind.UNREACHABLE -> stringResource(R.string.error_unreachable)
     ErrorKind.SAVE_FAILED -> stringResource(R.string.error_save_failed)
     ErrorKind.CHANGE_FAILED -> stringResource(R.string.error_change_failed)
+    ErrorKind.PROJECT_SAVE_FAILED -> stringResource(R.string.error_project_save_failed)
     ErrorKind.SERVER -> error.detail.ifEmpty { stringResource(R.string.error_title) }
     ErrorKind.FILES_UNREADABLE -> stringResource(R.string.error_files_unreadable)
     ErrorKind.SPEECH_NOT_CONFIGURED -> stringResource(R.string.error_speech_not_configured)
