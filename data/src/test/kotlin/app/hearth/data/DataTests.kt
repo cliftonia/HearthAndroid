@@ -8,6 +8,11 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -192,5 +197,40 @@ class FileStoreServiceTests {
         } finally {
             directory.deleteRecursively()
         }
+    }
+}
+
+class CancellationTests {
+
+    @Test
+    fun `a request whose caller is cancelled is closed, not left running`() = runBlocking {
+        val started = CountDownLatch(1)
+        val closed = CountDownLatch(1)
+        // A server that never answers: the request ends only when it is cancelled.
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            started.countDown()
+            while (!chain.call().isCanceled()) Thread.sleep(5)
+            closed.countDown()
+            throw IOException("Canceled")
+        }.build()
+
+        val asking = launch(Dispatchers.Default) { SearchService(client).search("https://search.example", "heat pumps") }
+        assertTrue(started.await(5, TimeUnit.SECONDS))
+        asking.cancelAndJoin()
+
+        assertTrue(closed.await(5, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun `a failure while reading the answer reaches the caller`() = runBlocking {
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(503).message("")
+                .body("busy".toResponseBody("text/plain".toMediaType())).build()
+        }.build()
+
+        val failure = assertFailsWith<HttpError.Status> { SearchService(client).search("https://search.example", "heat pumps") }
+
+        assertEquals(503, failure.code)
+        assertEquals("busy", failure.body)
     }
 }

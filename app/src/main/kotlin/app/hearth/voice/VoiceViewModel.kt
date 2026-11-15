@@ -1,5 +1,9 @@
 package app.hearth.voice
 
+import app.hearth.domain.CameraAvailability
+import app.hearth.domain.VoiceCamera
+import app.hearth.domain.VoiceCameraControlKind
+
 /** Where a voice conversation has got to. */
 enum class VoiceStateKind { LISTENING, THINKING, SPEAKING, MUTED, UNAVAILABLE }
 
@@ -14,4 +18,13 @@ data class VoiceViewModel(
     val failure: VoiceFailureKind? = null,
     val modelName: String = "",
     val voiceName: String = "",
-)
+    /** Whether the camera is on, which way it faces, and why it is off if it should not be. */
+    val camera: VoiceCamera = VoiceCamera(),
+    /** What cameras the phone has. Until the screen opens, none. */
+    val cameraAvailability: CameraAvailability = CameraAvailability(hasCamera = false, canFlip = false),
+    /** Whether the chosen model accepts pictures. */
+    val modelCanSee: Boolean = false,
+) {
+    /** What the camera button can do. */
+    val cameraControl: VoiceCameraControlKind get() = VoiceCamera.control(cameraAvailability, modelCanSee)
+}

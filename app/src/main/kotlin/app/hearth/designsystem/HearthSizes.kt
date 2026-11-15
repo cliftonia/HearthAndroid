@@ -73,6 +73,9 @@ class HearthSizes {
     /** The most room a name may take inside a chip. */
     val chipLabelMaxWidth: Dp = 180.dp
 
+    /** The number beside a source of a report: wide enough for two digits, so that the titles line up. */
+    val sourceNumberWidth: Dp = 22.dp
+
     /** One column of a table in a reply. */
     val tableColumn: Dp = 150.dp
 
@@ -81,6 +84,15 @@ class HearthSizes {
 
     /** From this width up the chat list sits beside the conversation. */
     val wideLayoutMinWidth: Dp = 840.dp
+
+    /** The most room the card of a piece of work takes in a reply. */
+    val canvasCardMaxWidth: Dp = 420.dp
+
+    /** The switch between a piece's preview and its code. */
+    val canvasSwitchWidth: Dp = 200.dp
+
+    /** The narrowest the chat and the canvas may each be with the chat list still beside them. */
+    val canvasColumnMinWidth: Dp = 360.dp
 }
 
 /**

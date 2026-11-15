@@ -82,6 +82,8 @@ dependencies {
     implementation(libs.androidx.fragment)
     // Android can draw a PDF but not read its text; this reads it.
     implementation(libs.pdfbox.android)
+    // A script run at the start of every frame of the canvas's page, not only the page itself.
+    implementation(libs.androidx.webkit)
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))

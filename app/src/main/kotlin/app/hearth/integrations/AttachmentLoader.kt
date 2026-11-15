@@ -16,6 +16,7 @@ import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import java.nio.ByteBuffer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -28,6 +29,14 @@ class AttachmentLoader(private val context: Context) {
     /** Each photo scaled down and held as a JPEG in Base64, the form the model server takes. */
     suspend fun photos(addresses: List<String>): List<String> = withContext(Dispatchers.IO) {
         addresses.mapNotNull { address -> runCatching { jpegBase64(Uri.parse(address)) }.getOrNull() }
+    }
+
+    /**
+     * A picture the camera took for a spoken turn, scaled down and held exactly as a chosen photo is. `null` if
+     * it cannot be read.
+     */
+    suspend fun frame(jpeg: ByteArray): String? = withContext(Dispatchers.IO) {
+        runCatching { jpegBase64(ImageDecoder.createSource(ByteBuffer.wrap(jpeg))) }.getOrNull()
     }
 
     /** The text of each file that has any. A PDF is read with a library, since Android can draw one but not read it. */
@@ -88,14 +97,12 @@ class AttachmentLoader(private val context: Context) {
         return FileProvider.getUriForFile(context, "${context.packageName}.files", file).toString()
     }
 
+    private fun jpegBase64(uri: Uri): String = jpegBase64(ImageDecoder.createSource(context.contentResolver, uri))
+
     /** Decodes a picture no larger than the model needs and squeezes it into a JPEG. */
-    private fun jpegBase64(uri: Uri): String {
-        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
-            val longest = maxOf(info.size.width, info.size.height)
-            if (longest > MAXIMUM_SIDE) {
-                val scale = MAXIMUM_SIDE.toFloat() / longest
-                decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
-            }
+    private fun jpegBase64(source: ImageDecoder.Source): String {
+        val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+            fittedSize(info.size.width, info.size.height)?.let { (width, height) -> decoder.setTargetSize(width, height) }
             // The picture is squeezed into a JPEG next, which needs it in ordinary memory.
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
@@ -137,7 +144,7 @@ class AttachmentLoader(private val context: Context) {
 
     companion object {
         /** The longest side of a photo sent to a model, in pixels. */
-        private const val MAXIMUM_SIDE = 1568
+        internal const val MAXIMUM_SIDE = 1568
 
         /** The most that is read of a text file. */
         private const val MAXIMUM_TEXT_BYTES = 2_000_000
@@ -150,6 +157,17 @@ class AttachmentLoader(private val context: Context) {
 
         /** A photo is shown at a quarter of its stored size each way, which is plenty for a thumbnail. */
         private const val THUMBNAIL_SAMPLE_SIZE = 4
+
+        /**
+         * The size a picture is brought down to before it is sent: its longest side at the limit, its shape kept.
+         * `null` for a picture already small enough, which is never enlarged.
+         */
+        internal fun fittedSize(width: Int, height: Int): Pair<Int, Int>? {
+            val longest = maxOf(width, height)
+            if (longest <= MAXIMUM_SIDE) return null
+            val scale = MAXIMUM_SIDE.toFloat() / longest
+            return (width * scale).toInt().coerceAtLeast(1) to (height * scale).toInt().coerceAtLeast(1)
+        }
 
         /** A photo held as Base64, as a picture to show. `null` if it does not decode. */
         fun bitmap(base64: String): Bitmap? = runCatching {

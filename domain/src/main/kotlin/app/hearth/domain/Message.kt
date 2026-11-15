@@ -30,6 +30,11 @@ data class Message(
     val otherVersions: List<ReplyVersion> = emptyList(),
     /** Where the shown attempt stands among them all, counting from zero. */
     val versionIndex: Int = 0,
+    /**
+     * Whether the reply is a research report, written from pages the app searched for and read. Asking for it
+     * again researches again. A reply saved before there was research is not one.
+     */
+    val isResearch: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
     /** Whether there is nothing in the message to send or show. */

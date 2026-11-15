@@ -93,6 +93,7 @@ menu item.
 | `field` | 14 | Search fields, banners, suggested questions |
 | `card` | 16 | A group of settings |
 | `bubble` | 20 | A message the user sent |
+| `preview` | 20 | The live picture of the camera in a voice conversation |
 | `composer` | 24 | The composer |
 | `pill` | half the height | Chips and buttons with fully rounded ends |
 | `circle` | | Round buttons, dots, halos |
@@ -110,8 +111,9 @@ menu item.
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
-| `chipLabelMaxWidth`, `tableColumn` | 180, 150 | Set widths |
+| `chipLabelMaxWidth`, `tableColumn`, `sourceNumberWidth` | 180, 150, 22 | Set widths |
 | `drawerWidth`, `wideLayoutMinWidth` | 320, 840 | The chat list; where it starts to sit beside the chat |
+| `canvasCardMaxWidth`, `canvasSwitchWidth`, `canvasColumnMinWidth` | 420, 200, 360 | The card of a piece of work in a reply; the canvas's Preview and Code switch; the least the chat and the canvas each need for the chat list to stay beside them |
 
 ### Strokes and elevation: `HearthTheme.strokes`
 
@@ -146,6 +148,7 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, with a line beneath the label on what it does, where given |
 | `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
 | `HearthSheetHeader(title) { … }` | The title of a sheet that offers a choice, with the button that closes it |
+| `HearthPermissionNotice(icon, message, actionTitle) { … }` | A card saying that the phone is holding something back, with a button that leads to where that is changed; the button is left out where there is nowhere to send the user |
 
 ### Haptics
 
@@ -162,12 +165,16 @@ everywhere.
 A haptic marks a moment, never a stretch of time: one as a reply finishes, none while it streams.
 
 Things that look like components but are used by one feature stay with it: the composer's toggles, the
-drawer's New chat and Settings buttons, the chips for sources and files.
+drawer's New chat and Settings buttons, the chips for sources and files, the card of a piece of work in a reply.
+The canvas's switch is Material's segmented button as it comes, and its code is set in `type.code` on `card`,
+with the line numbers in `mute`.
 
 ## Accessibility
 
 - Every button has a label. A symbol that only decorates has `null` for its description.
 - Group titles are marked as headings; a row that is a switch is one switch to a screen reader, and a row that
   leads to a page is one button.
-- What only decorates is hidden from a screen reader: the avatar beside a name, the dots that swell with a voice.
+- What only decorates is hidden from a screen reader: the avatar beside a name, the dots that swell with a voice,
+  the line numbers beside code in the canvas. The card of a piece of work is one button that says what it is and
+  where it leads.
 - Text sizes are in `sp` and follow the phone's font size.

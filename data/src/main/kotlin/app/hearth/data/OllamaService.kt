@@ -50,16 +50,15 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
         }
     }
 
-    /** A single, non-streamed reply. */
-    suspend fun chat(baseUrl: String, request: OllamaChatRequestDto): OllamaChatChunkDto = withContext(Dispatchers.IO) {
-        client.newCall(chatRequest(baseUrl, request)).execute().use { response ->
+    /** A single, non-streamed reply. Cancelling the caller closes the connection. */
+    suspend fun chat(baseUrl: String, request: OllamaChatRequestDto): OllamaChatChunkDto =
+        client.newCall(chatRequest(baseUrl, request)).await { response ->
             val body = response.body?.string().orEmpty()
             val chunk = runCatching { OllamaChatChunkDto.fromLine(body) }.getOrNull()
             chunk?.error?.let { throw HttpError.Server(it) }
             if (!response.isSuccessful || chunk == null) throw HttpError.Status(response.code, body.take(500))
             chunk
         }
-    }
 
     /** The reply as it is written, one chunk per streamed line. Cancelling the collector closes the connection. */
     fun streamChat(baseUrl: String, request: OllamaChatRequestDto): Flow<OllamaChatChunkDto> = channelFlow {

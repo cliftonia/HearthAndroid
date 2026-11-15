@@ -3,6 +3,7 @@ package app.hearth.chat
 import android.util.Log
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
+import app.hearth.domain.CanvasReference
 import app.hearth.domain.ChatError
 import app.hearth.domain.ChatInteractor
 import app.hearth.domain.ChatModel
@@ -20,6 +21,7 @@ import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProjectId
 import app.hearth.domain.ProjectStore
 import app.hearth.domain.ReplyStyle
+import app.hearth.domain.ResearchInteractor
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechInteractor
@@ -44,12 +46,15 @@ interface ChatPresenterDelegate {
 
     /** A project is to be chosen for the chat. */
     fun chatPresenterDidRequestProject(id: ConversationId)
+
+    /** A piece of a reply is to be opened in the canvas. */
+    fun chatPresenterDidRequestCanvas(reference: CanvasReference)
 }
 
 /**
  * Runs the conversation on screen: sends messages, streams replies into the view model and saves what arrives.
  *
- * The actions for attachments, editing, dictation, pictures, reading aloud, notifications and the chat's menu, and the
+ * The actions for attachments, editing, dictation, pictures, research, reading aloud, notifications, the canvas and the chat's menu, and the
  * making of a reply itself, are extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
  */
 class ChatPresenter(
@@ -63,6 +68,7 @@ class ChatPresenter(
         val chat: ChatInteractor,
         val speech: SpeechInteractor,
         val image: ImageInteractor,
+        val research: ResearchInteractor,
         val dictation: DictationProvider,
         val notifications: NotificationProvider,
         val pictureWords: PictureWords,
@@ -141,18 +147,32 @@ class ChatPresenter(
         stopDictation()
         discardEditedMessages()
         state.update { it.copy(draft = "", pendingImages = emptyList(), pendingDocuments = emptyList()) }
-        turnJob = scope.launch { if (current.isPictureMode) submitPicture(message) else submit(message) }
+        turnJob = scope.launch {
+            when {
+                current.isPictureMode -> submitPicture(message)
+                // Research is of a question in words; a message that is only a photo or a file is answered as usual.
+                isResearchChosen && message.text.isNotEmpty() -> submitResearch(message)
+                else -> submit(message)
+            }
+        }
     }
 
     /** Sends one of the suggested questions as the next message. */
     fun followUpAction(question: String) {
         if (state.value.isStreaming) return
-        turnJob = scope.launch { submit(Message(role = MessageRole.USER, text = question, createdAt = now())) }
+        val message = Message(role = MessageRole.USER, text = question, createdAt = now())
+        // While research is chosen for the chat, a suggested question is researched like a typed one.
+        turnJob = scope.launch { if (isResearchChosen) submitResearch(message) else submit(message) }
     }
 
-    /** Sends words alone, as a voice conversation does, and returns when the reply is complete. */
-    suspend fun submitSpoken(text: String, onDelta: (String) -> Unit) {
-        val job = scope.launch { submit(Message(role = MessageRole.USER, text = text, createdAt = now()), ReplyStyle.VOICE, onDelta) }
+    /**
+     * Sends what was said, as a voice conversation does, and returns when the reply is complete.
+     *
+     * @param images The picture taken as the words ended, if the camera was on. It is kept on the message like any attached photo.
+     */
+    suspend fun submitSpoken(text: String, images: List<String> = emptyList(), onDelta: (String) -> Unit) {
+        val message = Message(role = MessageRole.USER, text = text, images = images, createdAt = now())
+        val job = scope.launch { submit(message, ReplyStyle.VOICE, onDelta) }
         turnJob = job
         job.join()
     }
@@ -198,9 +218,11 @@ class ChatPresenter(
             return
         }
         val model = current.selectedModel ?: return
+        // A report is researched again, not answered from what the model already knows.
+        val isResearch = previous?.isResearch == true || (previous == null && isResearchChosen)
         state.update { it.copy(conversation = it.conversation.copy(messages = messages)) }
         turnJob = scope.launch {
-            reply(model, ReplyStyle.CHAT, previous)
+            if (isResearch) research(model, previous) else reply(model, ReplyStyle.CHAT, previous)
             suggestFollowUps(model)
         }
     }
@@ -286,6 +308,9 @@ class ChatPresenter(
                 hasSearchFailed = false,
                 error = null,
                 isStreaming = false,
+                // Research is chosen for one chat at a time, so that another is never researched by accident.
+                isResearchMode = false,
+                researchStep = null,
             )
         }
     }

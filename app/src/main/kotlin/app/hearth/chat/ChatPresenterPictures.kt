@@ -57,7 +57,8 @@ fun ChatViewModel.selectedPictureModel(settings: ServerSettings): ImageModelKind
  */
 fun ChatPresenter.togglePictureModeAction() {
     val isOn = !state.value.isPictureMode
-    state.update { it.copy(isPictureMode = isOn) }
+    // A message asks for a picture or for research, never both.
+    state.update { it.copy(isPictureMode = isOn, isResearchMode = it.isResearchMode && !isOn) }
     if (!isOn) return
     // Asking what the server offers also wakes it, so the first picture comes sooner.
     scope.launch {

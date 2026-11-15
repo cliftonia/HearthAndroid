@@ -1,6 +1,7 @@
 package app.hearth.voice
 
 import android.util.Log
+import app.hearth.domain.CameraProvider
 import app.hearth.domain.DictationProvider
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SpeechInteractor
@@ -24,21 +25,33 @@ interface VoicePresenterDelegate {
     fun voicePresenterDidFinish()
 }
 
-/** Runs a spoken conversation: listen until the user pauses, ask the model, speak the reply, listen again. */
-class VoicePresenter(private val scope: CoroutineScope, private val dependencies: Dependencies) {
-    /** What a voice conversation is run with. The chat itself is reached only through the two closures. */
+/**
+ * Runs a spoken conversation: listen until the user pauses, ask the model, speak the reply, listen again.
+ *
+ * The camera that may accompany it is worked in `VoicePresenterCamera.kt`, which is why the state is `internal`.
+ */
+class VoicePresenter(internal val scope: CoroutineScope, internal val dependencies: Dependencies) {
+    /** What a voice conversation is run with. The chat itself is reached only through closures. */
     class Dependencies(
         val dictation: DictationProvider,
         val speech: SpeechInteractor,
+        val camera: CameraProvider,
         val settings: () -> ServerSettings,
         val modelName: () -> String,
-        /** Sends the words to the chat; the closure receives the reply piece by piece. */
-        val runTurn: suspend (String, (String) -> Unit) -> Unit,
+        /** Whether the chosen model accepts pictures, without which the camera has nobody to show them to. */
+        val modelCanSee: () -> Boolean,
+        /** Shrinks a picture from the camera exactly as an attached photo is shrunk, into the form a message holds; `null` if it cannot be read. */
+        val prepareFrame: suspend (ByteArray) -> String?,
+        /**
+         * Sends the words to the chat, with the picture taken as they ended if the camera is on; the closure
+         * receives the reply piece by piece.
+         */
+        val runTurn: suspend (String, String?, (String) -> Unit) -> Unit,
         /** Stops a reply on its way and returns once what arrived has been kept. */
         val stopTurn: suspend () -> Unit,
     )
 
-    private val state = MutableStateFlow(VoiceViewModel())
+    internal val state = MutableStateFlow(VoiceViewModel())
     val viewModel: StateFlow<VoiceViewModel> = state.asStateFlow()
     var delegate: VoicePresenterDelegate? = null
 
@@ -58,7 +71,13 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
      */
     fun startAction(isMicrophoneAllowed: Boolean) {
         if (loopJob?.isActive == true) return
-        state.value = VoiceViewModel(modelName = dependencies.modelName(), voiceName = dependencies.settings().voice)
+        state.value = VoiceViewModel(
+            modelName = dependencies.modelName(),
+            voiceName = dependencies.settings().voice,
+            camera = resetCamera(),
+            cameraAvailability = dependencies.camera.availability(),
+            modelCanSee = dependencies.modelCanSee(),
+        )
         when {
             !isMicrophoneAllowed -> fail(VoiceFailureKind.PERMISSION_DENIED)
             startsMuted -> state.update { it.copy(state = VoiceStateKind.MUTED) }
@@ -70,6 +89,8 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
     fun endAction() {
         startsMuted = false
         scope.launch {
+            // The camera goes first, so that it is off before anything else is waited for.
+            stopCamera()
             halt()
             delegate?.voicePresenterDidFinish()
         }
@@ -132,7 +153,8 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
                 // Nothing was said before the recogniser gave up; start listening afresh.
                 delay(RESTART_DELAY_MILLISECONDS)
             } else {
-                respond(words)
+                // The picture is taken as the words end, before anything is asked of the model.
+                respond(words, captureFrame())
             }
         }
     }
@@ -150,8 +172,10 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
     /**
      * Asks the model and speaks its reply sentence by sentence while the rest is still being written.
      * Returns when the last sentence has been spoken.
+     *
+     * @param frame The picture that goes with the words, as a message holds one, or `null` for words alone.
      */
-    private suspend fun respond(words: String) = coroutineScope {
+    private suspend fun respond(words: String, frame: String?) = coroutineScope {
         state.update { it.copy(state = VoiceStateKind.THINKING) }
         val feed = SpokenReplyFeed()
         val settings = dependencies.settings()
@@ -166,7 +190,7 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
             }
         }
         try {
-            dependencies.runTurn(words) { delta ->
+            dependencies.runTurn(words, frame) { delta ->
                 val completedSentence = feed.append(delta)
                 state.update { it.copy(state = if (completedSentence) VoiceStateKind.SPEAKING else it.state, caption = feed.caption) }
             }
@@ -177,8 +201,8 @@ class VoicePresenter(private val scope: CoroutineScope, private val dependencies
         speaking.join()
     }
 
-    private companion object {
+    internal companion object {
         const val TAG = "VoicePresenter"
-        const val RESTART_DELAY_MILLISECONDS = 300L
+        private const val RESTART_DELAY_MILLISECONDS = 300L
     }
 }

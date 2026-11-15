@@ -5,21 +5,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,13 +32,11 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
+import app.hearth.designsystem.HearthPermissionNotice
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.integrations.openNotificationSettings
-
-/** How much of the danger colour borders the notice that the phone is holding notifications back. */
-private const val DENIED_BORDER_ALPHA = 0.5f
 
 /** The row in the settings that leads to the notification switches, saying whether any is on. */
 @Composable
@@ -106,25 +99,11 @@ internal fun NotificationsPage(settings: ServerSettings, presenter: SettingsPres
         // until it does something.
     }
     // The phone's refusal only matters while a switch is on.
-    if (settings.isReplyNotificationsEnabled && isAllowed == false && !isAsking) DeniedNotice { openNotificationSettings(context) }
-}
-
-/** Says that the phone is holding notifications back, and leads to where that is changed. */
-@Composable
-private fun DeniedNotice(onOpenSettings: () -> Unit) {
-    val colors = HearthTheme.colors
-    val spacing = HearthTheme.spacing
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(colors.card, HearthTheme.shapes.field)
-            .border(HearthTheme.strokes.hairline, colors.danger.copy(alpha = DENIED_BORDER_ALPHA), HearthTheme.shapes.field)
-            .padding(start = spacing.xl, end = spacing.xl, top = spacing.xl),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.m)) {
-            Icon(Icons.Outlined.NotificationsOff, contentDescription = null, tint = colors.ink, modifier = Modifier.size(HearthTheme.sizes.iconS))
-            Text(stringResource(R.string.notifications_denied), color = colors.ink, style = HearthTheme.type.footnoteSnug)
-        }
-        TextButton(onClick = onOpenSettings) { Text(stringResource(R.string.notifications_open_settings), color = colors.pine) }
+    if (settings.isReplyNotificationsEnabled && isAllowed == false && !isAsking) {
+        HearthPermissionNotice(
+            Icons.Outlined.NotificationsOff,
+            stringResource(R.string.notifications_denied),
+            actionTitle = stringResource(R.string.notifications_open_settings),
+        ) { openNotificationSettings(context) }
     }
 }

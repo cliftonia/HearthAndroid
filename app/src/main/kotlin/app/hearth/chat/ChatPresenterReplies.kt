@@ -132,7 +132,7 @@ internal suspend fun ChatPresenter.reply(model: ChatModel, style: ReplyStyle, pr
  * Ends a reply: one that came to nothing is dropped, and the conversation is saved. If it was another attempt at
  * an earlier reply, that earlier reply is shown again.
  */
-private suspend fun ChatPresenter.finish(id: ConversationId, reply: Message) {
+internal suspend fun ChatPresenter.finish(id: ConversationId, reply: Message) {
     // Another conversation may have been opened while this one was still replying.
     if (state.value.conversation.id != id) return
     state.update { current ->
@@ -143,7 +143,7 @@ private suspend fun ChatPresenter.finish(id: ConversationId, reply: Message) {
             earlier != null -> current.conversation.replacing(earlier).messages
             else -> current.conversation.messages.filter { it.id != reply.id }
         }
-        current.copy(conversation = current.conversation.copy(messages = messages, updatedAt = now()), isStreaming = false, searchingFor = null)
+        current.copy(conversation = current.conversation.copy(messages = messages, updatedAt = now()), isStreaming = false, searchingFor = null, researchStep = null)
     }
     save(state.value.conversation)
 }
@@ -159,7 +159,7 @@ internal suspend fun ChatPresenter.save(conversation: Conversation) {
 }
 
 /** Swaps the opening words for a title the model writes. The opening words stand if it cannot. */
-private suspend fun ChatPresenter.nameConversation(id: ConversationId, text: String, model: ChatModel) {
+internal suspend fun ChatPresenter.nameConversation(id: ConversationId, text: String, model: ChatModel) {
     val title = try {
         dependencies.chat.title(text, model, dependencies.settingsStore.settings.value)
     } catch (failure: CancellationException) {

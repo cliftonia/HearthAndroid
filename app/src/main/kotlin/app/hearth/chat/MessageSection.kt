@@ -61,6 +61,7 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
+import app.hearth.domain.ResearchStepKind
 import app.hearth.domain.SearchSource
 import app.hearth.integrations.PictureLibrary
 import app.hearth.domain.shownVersionIndex
@@ -76,6 +77,8 @@ data class MessageViewConfiguration(
     val pictureWork: PictureWorkKind? = null,
     /** How many jobs the picture server has before this one, while the picture waits its turn. */
     val pictureJobsAhead: Int? = null,
+    /** What research is doing while this reply, a report, is on its way. */
+    val researchStep: ResearchStepKind? = null,
     val hasSearchFailed: Boolean = false,
     val memoryNotice: MemoryOutcome? = null,
     val canRetry: Boolean = false,
@@ -87,8 +90,11 @@ data class MessageViewConfiguration(
     val canEdit: Boolean = false,
 )
 
-/** What the reader may do with a message. [onVersion] shows the version of a reply at the given place. */
-class MessageActions(val onRetry: () -> Unit, val onSpeak: () -> Unit, val onEdit: () -> Unit, val onVersion: (Int) -> Unit)
+/**
+ * What the reader may do with a message. [onVersion] shows the version of a reply at the given place, and
+ * [onCanvas] opens the piece of work at the given place among the reply's pieces in the canvas.
+ */
+class MessageActions(val onRetry: () -> Unit, val onSpeak: () -> Unit, val onEdit: () -> Unit, val onVersion: (Int) -> Unit, val onCanvas: (Int) -> Unit)
 
 /**
  * One message of the conversation. The user's is a bubble at the right; a reply runs the full width, with its
@@ -104,19 +110,28 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
         Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
-            if (message.sources.isNotEmpty()) SourceRow(message.sources)
+            // A report lists its sources in full beneath it; an ordinary reply has them here, as pills.
+            if (message.sources.isNotEmpty() && !message.isResearch) SourceRow(message.sources)
             val picture = message.images.firstOrNull()
             val pictureWork = configuration.pictureWork
+            val researchStep = configuration.researchStep
             if (picture != null) {
                 PictureSection(picture, pictures)
                 // Under a picture the text is only a note on how it was made.
                 if (message.text.isNotEmpty()) Text(message.text, color = HearthTheme.colors.mute, style = HearthTheme.type.footnote)
             } else if (message.text.isNotEmpty()) {
-                MarkdownSection(message.text)
+                ReplyBodySection(message.text, configuration.isStreaming, actions.onCanvas)
             } else if (configuration.isStreaming && pictureWork != null) {
                 Activity(pictureStatus(pictureWork, configuration.pictureJobsAhead))
+            } else if (configuration.isStreaming && researchStep != null) {
+                // The steps of research show until the report itself begins to arrive.
+                Activity(researchStatus(researchStep))
             } else if (configuration.isStreaming && configuration.searchingFor == null && message.thinking.isEmpty()) {
                 Activity(stringResource(R.string.message_writing))
+            }
+            // A report lists its sources once it is finished, when their numbers are settled.
+            if (message.isResearch && message.sources.isNotEmpty() && !configuration.isStreaming) {
+                ResearchSourcesSection(ResearchSourceViewConfiguration.list(message.sources))
             }
             if (configuration.hasSearchFailed) Notice(stringResource(R.string.notice_search_failed))
             configuration.memoryNotice?.let { outcome -> memoryNoticeText(outcome)?.let { Notice(it) } }
@@ -193,6 +208,17 @@ private fun pictureStatus(work: PictureWorkKind, jobsAhead: Int?): String =
             },
         )
     }
+
+/** The line shown in place of a report while it is on its way: which step research has reached. */
+@Composable
+private fun researchStatus(step: ResearchStepKind): String = when (step) {
+    ResearchStepKind.Planning -> stringResource(R.string.research_planning)
+    is ResearchStepKind.Searching -> stringResource(R.string.research_searching, step.number, step.total)
+    is ResearchStepKind.Reading -> stringResource(R.string.research_reading, step.number, step.total)
+    is ResearchStepKind.TakingNotes -> stringResource(R.string.research_taking_notes, step.number, step.total)
+    ResearchStepKind.Checking -> stringResource(R.string.research_checking)
+    ResearchStepKind.Writing -> stringResource(R.string.research_writing)
+}
 
 /** What to say about a change to memory. A refusal is the model's business and is not shown. */
 @Composable

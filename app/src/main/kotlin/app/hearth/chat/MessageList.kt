@@ -2,6 +2,7 @@ package app.hearth.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.hearth.R
 import app.hearth.designsystem.HearthTheme
+import app.hearth.domain.CanvasReference
 import app.hearth.domain.MessageRole
 import app.hearth.integrations.PictureLibrary
 
@@ -46,6 +48,11 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
     var isFollowing by remember(viewModel.conversation.id) { mutableStateOf(true) }
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) focusManager.clearFocus() else isFollowing = !listState.canScrollForward
+    }
+    // A finger on the list means the reader is taking it somewhere, so it stops following at once; where it is
+    // left decides, above, whether it follows again.
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) isFollowing = false }
     }
     val last = messages.lastOrNull()
     LaunchedEffect(messages.size, last?.text?.length, last?.thinking?.length, last?.images?.size, viewModel.followUps.size) {
@@ -73,6 +80,7 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
                     searchingFor = if (isReplying) viewModel.searchingFor else null,
                     pictureWork = if (isReplying) viewModel.pictureWork else null,
                     pictureJobsAhead = if (isReplying) viewModel.pictureJobsAhead else null,
+                    researchStep = if (isReplying) viewModel.researchStep else null,
                     hasSearchFailed = isLast && viewModel.hasSearchFailed,
                     memoryNotice = if (isLast) viewModel.memoryNotice else null,
                     canRetry = isLast && !viewModel.isStreaming,
@@ -85,6 +93,7 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
                     onSpeak = { presenter.speakAction(message.id) },
                     onEdit = { presenter.editAction(message.id) },
                     onVersion = { index -> presenter.selectVersionAction(index, message.id) },
+                    onCanvas = { index -> presenter.canvasAction(CanvasReference(message.id, index)) },
                 ),
                 pictures = pictures,
             )

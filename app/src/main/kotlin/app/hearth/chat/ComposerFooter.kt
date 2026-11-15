@@ -58,6 +58,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
@@ -83,6 +84,7 @@ fun ComposerFooter(
     val spacing = HearthTheme.spacing
     val model = viewModel.selectedModel
     val isPictureMode = viewModel.isPictureMode
+    val isResearchChosen = viewModel.isResearchChosen(settings)
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
@@ -103,6 +105,8 @@ fun ComposerFooter(
             stringResource(R.string.picture_follow_up_placeholder)
         isPictureMode && viewModel.pendingImages.isEmpty() -> stringResource(R.string.picture_placeholder)
         isPictureMode -> stringResource(R.string.picture_change_placeholder)
+        // Research says so in the field too, where it shows even while the composer is at rest.
+        isResearchChosen -> stringResource(R.string.research_placeholder)
         // At rest the composer says what can be done with it; once opened it says who is being written to.
         !isExpanded -> stringResource(R.string.composer_placeholder_resting)
         model != null -> stringResource(R.string.composer_placeholder_model, model.displayName)
@@ -172,7 +176,10 @@ fun ComposerFooter(
                             .semantics { contentDescription = placeholder },
                         decorationBox = { innerField ->
                             Box {
-                                if (viewModel.draft.isEmpty()) Text(placeholder, color = colors.mute, style = HearthTheme.type.inputHint, maxLines = 1)
+                                // Where the resting row is too narrow for all of it, it ends in an ellipsis, not at a word.
+                                if (viewModel.draft.isEmpty()) {
+                                    Text(placeholder, color = colors.mute, style = HearthTheme.type.inputHint, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                                }
                                 innerField()
                             }
                         },
@@ -211,10 +218,16 @@ fun ComposerFooter(
                                 !isPictureMode -> model?.displayName ?: stringResource(R.string.chat_no_model)
                                 else -> pictureModel?.shortName() ?: stringResource(R.string.picture_section)
                             },
-                            // How hard to think is shown beside the model and chosen with it.
-                            effort = if (!isPictureMode && model?.canThink == true) settings.thinkingLevel.title() else "",
+                            // The effort is shown beside the model and chosen with it: research always, a thinking level
+                            // only for a model that thinks.
+                            effort = when {
+                                isPictureMode -> ""
+                                isResearchChosen || model?.canThink == true -> viewModel.effortChoice(settings).title(canThink = model?.canThink == true)
+                                else -> ""
+                            },
                             label = stringResource(if (isPictureMode) R.string.picture_model_picker else R.string.chat_model_picker),
                             modifier = Modifier.weight(1f, fill = false).padding(horizontal = spacing.xs),
+                            isEffortProminent = isResearchChosen,
                         ) { isModelSheetOpen = true }
                     }
                     if (isExpanded && !isPictureMode) {

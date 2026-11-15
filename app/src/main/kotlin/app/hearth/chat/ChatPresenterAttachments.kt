@@ -15,6 +15,9 @@ fun ChatPresenter.removeImageAction(index: Int) = state.update {
     it.copy(pendingImages = it.pendingImages.filterIndexed { position, _ -> position != index })
 }
 
+/** The phone will not let the app use the camera, so no photo can be taken; says where that is changed. */
+fun ChatPresenter.cameraDeniedAction() = state.update { it.copy(error = ErrorViewConfiguration(ErrorKind.CAMERA_DENIED)) }
+
 /** Adds the files that could be read to the next message, and says so if some could not. */
 fun ChatPresenter.addDocumentsAction(documents: List<AttachedDocument>, unreadableCount: Int) = state.update {
     it.copy(

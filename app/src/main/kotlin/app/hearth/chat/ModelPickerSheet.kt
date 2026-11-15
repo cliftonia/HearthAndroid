@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -46,16 +47,17 @@ import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthSheetHeader
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ChatModel
+import app.hearth.domain.EffortChoiceKind
 import app.hearth.domain.ImageModelKind
 import app.hearth.domain.ServerSettings
-import app.hearth.domain.ThinkingLevel
 import app.hearth.shared.blurb
 import app.hearth.shared.shortName
 import kotlinx.coroutines.launch
 
 /**
- * The sheet opened from the composer's model chip: the server's models to choose from, and how hard the chosen
- * one should think. While pictures are being made it lists the picture models instead.
+ * The sheet opened from the composer's model chip: the server's models to choose from, and the effort that goes
+ * into a reply: how hard the chosen model thinks, or deep research. While pictures are being made it lists the
+ * picture models instead.
  */
 @Composable
 internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter, onDismiss: () -> Unit) {
@@ -93,7 +95,7 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
             }
         }
         // The effort stays in view below the list, however many models the server has.
-        if (!isPictureMode && viewModel.selectedModel?.canThink == true) EffortRow(settings.thinkingLevel, presenter::thinkingLevelAction)
+        if (!isPictureMode) EffortRow(viewModel, settings, presenter::selectEffortAction)
     }
 }
 
@@ -177,13 +179,19 @@ private fun EmptyNote(text: String) {
     )
 }
 
-/** How hard the chosen model thinks before it replies. A menu, since there are only four levels. */
+/**
+ * The effort that goes into a reply: how hard the chosen model thinks before it, for a model that thinks, and deep
+ * research for any model. A menu, since the choices are few. Research is listed but cannot be chosen until there
+ * is a search address, and says so.
+ */
 @Composable
-private fun EffortRow(level: ThinkingLevel, onSelect: (ThinkingLevel) -> Unit) {
+private fun EffortRow(viewModel: ChatViewModel, settings: ServerSettings, onSelect: (EffortChoiceKind) -> Unit) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     var isOpen by remember { mutableStateOf(false) }
-    val levelTitle = level.title()
+    val canThink = viewModel.selectedModel?.canThink == true
+    val chosen = viewModel.effortChoice(settings)
+    val chosenTitle = chosen.title(canThink)
     Box(Modifier.fillMaxWidth().padding(start = spacing.xxxl, end = spacing.xxxl, top = spacing.m, bottom = spacing.xxxl)) {
         Row(
             Modifier
@@ -191,29 +199,48 @@ private fun EffortRow(level: ThinkingLevel, onSelect: (ThinkingLevel) -> Unit) {
                 .clip(HearthTheme.shapes.card)
                 .background(colors.card)
                 .clickable(role = Role.DropdownList) { isOpen = true }
-                .semantics(mergeDescendants = true) { stateDescription = levelTitle }
+                .semantics(mergeDescendants = true) { stateDescription = chosenTitle }
                 .padding(horizontal = spacing.xxxl, vertical = spacing.xxl),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.m),
         ) {
             Text(stringResource(R.string.model_effort), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(levelTitle, color = colors.mute, style = HearthTheme.type.subhead)
+            Text(chosenTitle, color = if (chosen == EffortChoiceKind.Research) colors.pine else colors.mute, style = HearthTheme.type.subhead)
             Icon(Icons.Outlined.UnfoldMore, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconS))
         }
-        // The menu opens under the level it changes, at the trailing edge.
+        // The menu opens under the effort it changes, at the trailing edge.
         Box(Modifier.align(Alignment.BottomEnd)) {
             DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-                ThinkingLevel.entries.forEach { option ->
+                viewModel.effortChoices(settings).forEach { option ->
+                    val isAvailable = option.isAvailable(settings)
                     DropdownMenuItem(
-                        text = { Text(option.title()) },
-                        trailingIcon = { if (option == level) Icon(Icons.Outlined.Check, null, tint = colors.pine, modifier = Modifier.size(HearthTheme.sizes.iconS)) },
+                        text = { EffortOption(option, canThink, isAvailable) },
+                        trailingIcon = { if (option == chosen) Icon(Icons.Outlined.Check, null, tint = colors.pine, modifier = Modifier.size(HearthTheme.sizes.iconS)) },
+                        enabled = isAvailable,
                         onClick = {
                             isOpen = false
+                            Haptics.play(HapticKind.SELECTION)
                             onSelect(option)
                         },
                     )
                 }
             }
+        }
+    }
+}
+
+/** One effort in the menu. Research has a line beneath saying what it does, or what it is waiting for. */
+@Composable
+private fun EffortOption(option: EffortChoiceKind, canThink: Boolean, isAvailable: Boolean) {
+    Column(Modifier.padding(vertical = HearthTheme.spacing.xs)) {
+        Text(option.title(canThink))
+        if (option == EffortChoiceKind.Research) {
+            Text(
+                stringResource(if (isAvailable) R.string.research_detail else R.string.research_needs_search),
+                // Unavailable, the line fades with the name above it; available, it is the quieter of the two.
+                color = if (isAvailable) HearthTheme.colors.mute else LocalContentColor.current,
+                style = HearthTheme.type.footnoteSnug,
+            )
         }
     }
 }

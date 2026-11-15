@@ -24,7 +24,7 @@ val Message.allVersions: List<ReplyVersion>
 /** An empty reply to be filled by asking again, with this reply and its other attempts kept behind it. */
 fun Message.startingNewVersion(now: Long = System.currentTimeMillis()): Message {
     val kept = if (text.isEmpty() && thinking.isEmpty()) otherVersions else allVersions
-    return Message(role = role, text = "", otherVersions = kept, versionIndex = kept.size, createdAt = now)
+    return Message(role = role, text = "", otherVersions = kept, versionIndex = kept.size, isResearch = isResearch, createdAt = now)
 }
 
 /** The same reply showing another of its attempts. A place outside the attempts changes nothing. */

@@ -43,6 +43,7 @@ import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthRoundButton
 import app.hearth.designsystem.HearthTheme
+import app.hearth.domain.EffortChoiceKind
 import app.hearth.domain.ThinkingLevel
 import app.hearth.integrations.AttachmentLoader
 import kotlinx.coroutines.launch
@@ -63,6 +64,16 @@ fun ThinkingLevel.title(): String = stringResource(
         ThinkingLevel.HIGH -> R.string.composer_thinking_high
     },
 )
+
+/**
+ * The name of an effort, in the effort menu and beside it. A model that cannot think has a single ordinary choice,
+ * which is not named after a level it would ignore.
+ */
+@Composable
+fun EffortChoiceKind.title(canThink: Boolean): String = when (this) {
+    is EffortChoiceKind.Thinking -> if (canThink) level.title() else stringResource(R.string.model_effort_standard)
+    EffortChoiceKind.Research -> stringResource(R.string.research_title)
+}
 
 /** One of the composer's options that is either on or off, shown in the accent colour while on. */
 @Composable
@@ -101,6 +112,18 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { wasTaken ->
         if (wasTaken) addPhotos(listOfNotNull(cameraAddress))
     }
+
+    fun takePhoto() {
+        val address = attachments.newCameraAddress()
+        cameraAddress = address
+        camera.launch(Uri.parse(address))
+    }
+    // An app that uses the camera itself, as a voice conversation does, may borrow the phone's camera app only
+    // with the same leave. It is asked for when a photo is first to be taken.
+    val context = LocalContext.current
+    val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) takePhoto() else presenter.cameraDeniedAction()
+    }
     Box {
         HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
         DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
@@ -128,9 +151,8 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                     text = { Text(stringResource(R.string.composer_take_photo)) },
                     onClick = {
                         isOpen = false
-                        val address = attachments.newCameraAddress()
-                        cameraAddress = address
-                        camera.launch(Uri.parse(address))
+                        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                        if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
                     },
                 )
                 DropdownMenuItem(

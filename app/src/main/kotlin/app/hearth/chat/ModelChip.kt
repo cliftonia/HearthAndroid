@@ -31,9 +31,11 @@ import app.hearth.designsystem.HearthTheme
  * Tapping it opens the sheet where both are chosen.
  *
  * The name gives way before the effort does: where there is not room for all of it, its middle is left out.
+ * [isEffortProminent] shows the effort in the brand colour, as research is, so that it is plain what the next
+ * message will set off.
  */
 @Composable
-internal fun ModelChip(name: String, effort: String, label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun ModelChip(name: String, effort: String, label: String, modifier: Modifier = Modifier, isEffortProminent: Boolean = false, onClick: () -> Unit) {
     val colors = HearthTheme.colors
     Row(
         modifier
@@ -47,7 +49,7 @@ internal fun ModelChip(name: String, effort: String, label: String, modifier: Mo
     ) {
         val nameRoom = Modifier.weight(1f, fill = false).widthIn(max = HearthTheme.sizes.chipLabelMaxWidth)
         MiddleTruncatedText(name, colors.ink, HearthTheme.type.footnoteStrong, nameRoom)
-        if (effort.isNotEmpty()) Text(effort, color = colors.mute, style = HearthTheme.type.footnote, maxLines = 1, softWrap = false)
+        if (effort.isNotEmpty()) Text(effort, color = if (isEffortProminent) colors.pine else colors.mute, style = HearthTheme.type.footnote, maxLines = 1, softWrap = false)
     }
 }
 

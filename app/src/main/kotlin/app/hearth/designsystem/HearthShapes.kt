@@ -28,6 +28,9 @@ class HearthShapes {
     /** A message the user sent. */
     val bubble: Shape = RoundedCornerShape(20.dp)
 
+    /** The live picture of the camera in a voice conversation. */
+    val preview: Shape = RoundedCornerShape(20.dp)
+
     /** The composer. */
     val composer: Shape = RoundedCornerShape(24.dp)
 

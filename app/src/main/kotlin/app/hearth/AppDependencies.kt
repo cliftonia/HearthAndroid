@@ -1,7 +1,9 @@
 package app.hearth
 
 import android.app.Application
+import android.util.Log
 import app.hearth.domain.AudioPlaybackProvider
+import app.hearth.domain.CameraProvider
 import app.hearth.domain.ChatDataProvider
 import app.hearth.domain.ChatInteractor
 import app.hearth.domain.ConversationDataProvider
@@ -16,6 +18,7 @@ import app.hearth.domain.ModelStore
 import app.hearth.domain.ProjectDataProvider
 import app.hearth.domain.ProjectInteractor
 import app.hearth.domain.ProjectStore
+import app.hearth.domain.ResearchInteractor
 import app.hearth.domain.SearchDataProvider
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsDataProvider
@@ -29,6 +32,8 @@ import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProfilePhotoProvider
 import app.hearth.domain.ProfileStore
 import app.hearth.integrations.AttachmentLoader
+import app.hearth.integrations.CameraLeave
+import app.hearth.integrations.DeviceCamera
 import app.hearth.integrations.PictureLibrary
 import app.hearth.integrations.ProfilePhotoLoader
 import app.hearth.integrations.SideListPreference
@@ -37,6 +42,9 @@ import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/** What a voice conversation listens and speaks through. */
+class VoiceParts(val dictation: DictationProvider, val speech: SpeechInteractor)
 
 /** Everything the screens are built from, made once for the life of the app. */
 class AppDependencies(
@@ -48,11 +56,17 @@ class AppDependencies(
     val chat: ChatInteractor,
     val speech: SpeechInteractor,
     val image: ImageInteractor,
+    val research: ResearchInteractor,
     val projects: ProjectInteractor,
     val profileStore: ProfileStore,
     val eraser: EraseInteractor,
     val notifications: NotificationProvider,
     val dictation: DictationProvider,
+    /** The same listening and speaking as the chat's, except in a build made for trying the app out. */
+    val voice: VoiceParts,
+    val camera: CameraProvider,
+    val deviceCamera: DeviceCamera,
+    val cameraLeave: CameraLeave,
     val attachments: AttachmentLoader,
     val pictures: PictureLibrary,
     val pictureWords: PictureWords,
@@ -68,6 +82,7 @@ class AppDependencies(
          */
         fun live(application: Application): AppDependencies {
             val chat = ChatDataProvider.live()
+            val search = SearchDataProvider.live()
             val defaults = ServerSettings(
                 ollamaAddress = BuildConfig.OLLAMA_ADDRESS,
                 searchAddress = BuildConfig.SEARCH_ADDRESS,
@@ -85,6 +100,10 @@ class AppDependencies(
             val sideList = SideListPreference.live(application)
             // What the app keeps outside the stores: a photo taken for a message, a picture lent to another app, a
             // memory file set aside because it could not be read, and whether the chat list was put away.
+            val dictation = DictationProvider.live(application)
+            val speech = SpeechInteractor(SpeechDataProvider.live(), AudioPlaybackProvider.live(application))
+            val deviceCamera = DeviceCamera(application)
+            val cameraLeave = CameraLeave.live(application)
             val leftovers = listOf(File(application.cacheDir, "camera"), File(application.cacheDir, "pictures"), File(files, "Memory"))
             return AppDependencies(
                 settingsStore = settingsStore,
@@ -92,9 +111,11 @@ class AppDependencies(
                 conversationStore = conversationStore,
                 memoryStore = memoryStore,
                 projectStore = projectStore,
-                chat = ChatInteractor(chat, SearchDataProvider.live()),
-                speech = SpeechInteractor(SpeechDataProvider.live(), AudioPlaybackProvider.live(application)),
+                chat = ChatInteractor(chat, search),
+                speech = speech,
                 image = ImageInteractor(ImageDataProvider.live()),
+                // Research asks the same model through the same provider as a reply, and reads pages as a search does.
+                research = ResearchInteractor(chat, search, log = { Log.i("Research", it) }),
                 projects = ProjectInteractor(projectStore, conversationStore),
                 profileStore = profileStore,
                 eraser = EraseInteractor(
@@ -108,7 +129,11 @@ class AppDependencies(
                     },
                 ),
                 notifications = notifications,
-                dictation = DictationProvider.live(application),
+                dictation = dictation,
+                voice = voiceParts(application, VoiceParts(dictation, speech)),
+                camera = CameraProvider.live(deviceCamera, cameraLeave),
+                deviceCamera = deviceCamera,
+                cameraLeave = cameraLeave,
                 attachments = AttachmentLoader(application),
                 pictures = PictureLibrary(application),
                 pictureWords = PictureWords.live(application.resources),

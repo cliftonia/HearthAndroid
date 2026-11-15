@@ -9,6 +9,7 @@
     <string name="model_sheet_title">Select model</string>
     <string name="model_picture_sheet_title">Select picture model</string>
     <string name="model_effort">Effort</string>
+    <string name="model_effort_standard">Standard</string>
     <string name="model_thinks">Thinks before replying</string>
     <string name="model_sees">Sees pictures</string>
     <string name="model_searches">Searches by itself</string>
@@ -86,6 +87,51 @@
     <string name="notice_search_failed">Web search failed, so this reply does not use it.</string>
     <string name="export_user">You</string>
     <string name="untitled">Untitled chat</string>
+
+    <string name="canvas_title">Canvas</string>
+    <string name="canvas_open">Open</string>
+    <string name="canvas_writing">Writing…</string>
+    <string name="canvas_writing_progress">Writing… %1$s</string>
+    <string name="canvas_kind_page">Page</string>
+    <string name="canvas_kind_drawing">Drawing</string>
+    <string name="canvas_kind_document">Document</string>
+    <string name="canvas_kind_code">Code</string>
+    <string name="canvas_kind_code_in">%1$s code</string>
+    <plurals name="canvas_lines">
+        <item quantity="one">%1$d line</item>
+        <item quantity="other">%1$d lines</item>
+    </plurals>
+    <string name="canvas_detail">%1$s · %2$s</string>
+    <string name="canvas_open_label">%1$s, %2$s. Open in the canvas</string>
+    <string name="canvas_writing_label">%1$s, being written. Open in the canvas</string>
+    <string name="canvas_show_as">Show as</string>
+    <string name="canvas_preview">Preview</string>
+    <string name="canvas_copy">Copy</string>
+    <string name="canvas_share">Share</string>
+    <string name="canvas_close">Close canvas</string>
+    <string name="canvas_earlier">Earlier version</string>
+    <string name="canvas_later">Later version</string>
+    <string name="canvas_version">%1$d of %2$d</string>
+    <string name="canvas_preview_unavailable">The preview could not be shown on this phone. The code is still here.</string>
+
+    <string name="research_title">Deep research</string>
+    <string name="research_detail">Searches, reads the pages and writes a sourced report</string>
+    <string name="research_needs_search">Add a search address in Settings</string>
+    <string name="research_placeholder">Ask a question to research</string>
+    <string name="research_planning">Planning</string>
+    <string name="research_searching">Searching %1$d of %2$d</string>
+    <string name="research_reading">Reading %1$d of %2$d</string>
+    <string name="research_taking_notes">Taking notes %1$d of %2$d</string>
+    <string name="research_checking">Checking for gaps</string>
+    <string name="research_writing">Writing</string>
+    <string name="research_sources">Sources</string>
+    <string name="research_source">Source %1$d: %2$s, %3$s</string>
+    <string name="research_open_source">Open page</string>
+    <string name="error_research_not_configured">Add a search address in Settings to research a question.</string>
+    <string name="error_research_search_failed">The web could not be searched, so nothing was researched.</string>
+    <string name="error_research_nothing_found">The searches found no pages to read, so no report was written.</string>
+    <string name="error_research_nothing_readable">None of the pages found could be read, so no report was written.</string>
+    <string name="error_research_nothing_relevant">The pages read said nothing about the question, so no report was written.</string>
 
     <string name="error_title">Something went wrong</string>
     <string name="error_retry">Retry</string>
@@ -240,6 +286,7 @@
     <string name="error_speech_failed">The reply could not be spoken.</string>
     <string name="error_dictation_denied">Allow microphone access in the phone\'s Settings to dictate.</string>
     <string name="error_dictation_unavailable">Dictation is not available right now.</string>
+    <string name="error_camera_denied">Allow camera access in the phone\'s Settings to take a photo.</string>
 
     <string name="picture_title">Picture</string>
     <string name="picture_section">Pictures</string>
@@ -323,6 +370,15 @@
     <string name="voice_hint">Speak when you are ready.</string>
     <string name="voice_muted_hint">Unmute to carry on.</string>
     <string name="voice_permission_denied">Allow microphone access in the phone\'s Settings to talk.</string>
+    <string name="voice_camera_turn_on">Turn camera on</string>
+    <string name="voice_camera_turn_off">Turn camera off</string>
+    <string name="voice_camera_hint">One picture is sent with each thing you say. Nothing is recorded.</string>
+    <string name="voice_camera_flip">Switch camera</string>
+    <string name="voice_camera_preview">What the camera sees</string>
+    <string name="voice_camera_model_cannot_see">This model cannot see pictures, so the camera stays off. Choose one marked Sees pictures to use it.</string>
+    <string name="voice_camera_unavailable">The camera could not be started. You can carry on talking without it.</string>
+    <string name="voice_camera_denied">The camera is turned off for Hearth in the phone\'s Settings. You can carry on talking without it.</string>
+    <string name="voice_camera_open_settings">Open the phone\'s Settings</string>
 
     <string name="widget_new_chat_name">New Chat</string>
     <string name="widget_new_chat_description">Start a new chat in Hearth.</string>

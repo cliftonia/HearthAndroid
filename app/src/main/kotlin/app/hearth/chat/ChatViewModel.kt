@@ -6,6 +6,7 @@ import app.hearth.domain.Conversation
 import app.hearth.domain.ImageModelKind
 import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.MessageId
+import app.hearth.domain.ResearchStepKind
 import app.hearth.shared.ErrorViewConfiguration
 
 /** Everything the chat screen shows. */
@@ -36,6 +37,13 @@ data class ChatViewModel(
     val dictatedDraftCount: Int = 0,
     /** Whether what is sent asks for a picture, not for a reply from the chat model. */
     val isPictureMode: Boolean = false,
+    /**
+     * Whether deep research is chosen as the effort for this chat, so that what is sent is researched on the web.
+     * It belongs to the open chat and is never saved: a new chat, another chat and picture mode all clear it.
+     */
+    val isResearchMode: Boolean = false,
+    /** What research is doing right now, while a report is on its way. */
+    val researchStep: ResearchStepKind? = null,
     /** The picture models the server offers, for the sheet where one is chosen while pictures are being made. Empty until it answers. */
     val pictureModels: List<ImageModelKind> = emptyList(),
     /** What the picture server is doing right now, while a picture is on its way. */

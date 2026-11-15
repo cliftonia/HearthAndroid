@@ -31,24 +31,27 @@ app/src/main/kotlin/app/hearth/
 ├── AppCoordinator.kt        Owns the presenters; decides which screen shows
 ├── AppDependencies.kt       Builds the stores, interactors and providers, once
 ├── RootView.kt              Drawer or two columns, back button, which screen is drawn
-├── chat/                    The conversation: presenter, view model, screen, composer, hold to talk, greeting, messages, pictures
+├── chat/                    The conversation: presenter, view model, screen, composer, hold to talk, greeting, messages, pictures, research, the canvas's cards
+├── canvas/                  The canvas: presenter, view model, screen, the code view, the web view and its guard, the wide layout
 ├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
 ├── project/                 The sheet that makes, edits and deletes a project: presenter, view model, sheet
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
 ├── settings/                Settings: presenter, screen, one file per card, the profile and notifications pages
-├── voice/                   The voice conversation: presenter, view model, screen
+├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
 ├── shared/                  The little that more than one feature needs and is not styling
 ├── widget/                  The home screen widgets
-└── integrations/            Wrappers round the platform: speech recogniser, media player, files, saved pictures, profile photo, notifications
+└── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications
 
 domain/src/main/kotlin/app/hearth/domain/
-├── Conversation.kt, Message.kt, Project.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, …   Models, one concept a file
-├── ChatInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt, ProjectInteractor.kt, EraseInteractor.kt   Business logic
+├── Conversation.kt, Message.kt, Project.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, VoiceCamera.kt, …   Models, one concept a file
+├── ChatInteractor.kt, ResearchInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt, ProjectInteractor.kt, EraseInteractor.kt   Business logic
 ├── ConversationStore.kt, ProjectStore.kt, MemoryStore.kt, ProfileStore.kt, ModelStore.kt, SettingsStore.kt   Shared state
-├── ChatDataProvider.kt, ProjectDataProvider.kt, ProfilePhotoProvider.kt, NotificationProvider.kt, …   The seams to the outside
+├── ChatDataProvider.kt, ProjectDataProvider.kt, ProfilePhotoProvider.kt, NotificationProvider.kt, CameraProvider.kt, …   The seams to the outside
 ├── GreetingPlanner.kt, ReplyNotificationPlanner.kt                                 Small decisions, kept pure
+├── Research.kt, ResearchQueryParser.kt, ResearchSourceSelector.kt, ResearchPromptBuilder.kt, ResearchCitationTransformer.kt   Research: its models and pure steps
+├── Canvas.kt, CanvasExtractor.kt, CanvasVersionMatcher.kt, CanvasWebPolicy.kt      The canvas: its models and pure decisions
 └── PromptBuilder.kt, PromptBuilderProject.kt, MarkdownTransformer.kt, …            Pure text work
 
 data/src/main/kotlin/app/hearth/data/
@@ -108,15 +111,16 @@ The coordinator lives in `HearthApplication`, not the activity, and runs on its 
 what lets a reply keep streaming while the phone is rotated or the app is in the background.
 
 **Large presenters are split by concern.** `ChatPresenter` keeps its core in one file and its other actions as
-extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`,
+extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`, `ChatPresenterResearch.kt`,
 `ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
-`ChatPresenterNotifications.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its two pages
-(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`). The state they share is
+`ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its two pages
+(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`), and `VoicePresenter` for its camera
+(`VoicePresenterCamera.kt`). The state they share is
 `internal` for that reason.
 
 ## Below the presenters
 
-**Interactors** (`ChatInteractor`, `SpeechInteractor`, `ImageInteractor`, `ProjectInteractor`, `EraseInteractor`) are concrete classes that carry out a piece of business
+**Interactors** (`ChatInteractor`, `ResearchInteractor`, `SpeechInteractor`, `ImageInteractor`, `ProjectInteractor`, `EraseInteractor`) are concrete classes that carry out a piece of business
 logic from the providers, or the stores, they are given. They hold no screen state.
 
 **Stores** (`ConversationStore`, `ProjectStore`, `MemoryStore`, `ProfileStore`, `ModelStore`, `SettingsStore`) hold what more than one screen
@@ -135,12 +139,12 @@ class SpeechDataProvider(
 )
 ```
 
-A test builds one from lambdas; nothing is mocked. Three providers, `AudioPlaybackProvider`,
-`DictationProvider` and `NotificationProvider`, are declared in `domain` but have their `live()` in
-`app/integrations`, because playing sound, listening and notifying are the phone's business.
+A test builds one from lambdas; nothing is mocked. Four providers, `AudioPlaybackProvider`,
+`DictationProvider`, `NotificationProvider` and `CameraProvider`, are declared in `domain` but have their `live()` in
+`app/integrations`, because playing sound, listening, notifying and the camera are the phone's business.
 
-**Errors.** Services throw what the transport throws. The domain remaps those to `ChatError`, `SpeechError` or
-`ImageError` where the meaning matters. A presenter catches at the action, logs the kind of failure (never its content),
+**Errors.** Services throw what the transport throws. The domain remaps those to `ChatError`, `SpeechError`,
+`ImageError` or `ResearchError` where the meaning matters. A presenter catches at the action, logs the kind of failure (never its content),
 and puts an `ErrorViewConfiguration` in its state for the screen to word.
 
 ## Projects
@@ -170,6 +174,137 @@ chats, and `DrawerSections` does the narrowing and the grouping. Two sheets belo
 of its own: `project` makes and edits one, `projectpicker` files a chat. The coordinator holds one value,
 `projectSheet`, for both, so that the picker can give way to the editor when a new project is wanted for a chat;
 `RootView` draws whichever it names over everything else.
+
+## Deep research
+
+Research answers one question with a report written from pages the app searched for and read. It is a turn like
+any other: it runs with the chat's selected model, streams into a reply, and is saved in the conversation. It
+mirrors the iPhone app step for step, with the same bounds, prompts and wording.
+
+- **Chosen as an effort.** The model sheet's Effort menu lists the thinking levels and then Deep research.
+  `EffortChoiceKind` is that choice: `Thinking(ThinkingLevel)` or `Research`. Research is never a thinking level
+  and is never sent to the model as one; while it is chosen the model thinks at the level saved in the settings.
+  A thinking level is saved for every chat (`ServerSettings.thinkingLevel`); research is only
+  `ChatViewModel.isResearchMode`, which belongs to the open chat, is not saved, and is cleared by a new chat, by
+  opening another chat and by picture mode. Whether it is in force is `isResearchChosen(settings)`, which also
+  wants a search address, so taking the address away takes research with it. A model that cannot think is offered
+  one ordinary choice, "Standard", and research. Without a search address research is listed, disabled, with a line
+  saying why. It is not in the + menu.
+- **The run** is `ResearchInteractor.run`, a `Flow` of events, built on the same `ChatDataProvider` and
+  `SearchDataProvider` as a reply, so requests go to the same model through the same service and pages are read
+  through `PageService` and its `PageAddressPolicy`. In order: plan (one request), search each query, choose the
+  pages, read them a few at a time, take notes on each (one request a page), ask once whether anything important is
+  missing (one request) and, if so, search, read and note once more, then write (one streamed request).
+- **What is pure** sits in transformers: `ResearchQueryParser` reads queries out of JSON, fenced JSON, objects or
+  plain lines, and falls back to the question; `ResearchSourceSelector` drops repeats by normalised address, lets
+  the searches take turns and caps the pages from one site; `ResearchPromptBuilder` words each request and fences
+  page text and notes between markers made up for the run; `ResearchCitationTransformer` turns every citation into
+  a plain `[n]`, removes any number with no source behind it, and cuts the sources to those cited, renumbered in
+  order. Citations inside code and the text of links are left alone.
+- **Bounds** are the constants of `ResearchLimits`: queries, sources, sources from one site, pages fetched at once,
+  note requests at once, the wait for a page, characters read from a page, characters of one page's notes, and
+  characters of notes handed to the writer.
+- **What stops it.** A search or a page that fails is passed over. With nothing to write from it throws a
+  `ResearchError` that says which step came to nothing (`SearchFailed`, `NothingFound`, `NothingReadable`,
+  `NothingRelevant`) and no report is written. The model failing on one page loses that page; failing on all of
+  them is the chat server's error. Stopping cancels the coroutine that collects the flow, and with it every fetch
+  and request under way: the pages and the notes are children of that coroutine, and the services close their
+  connections when their caller is cancelled (`Call.await` in `HearthHttp.kt`), so nothing is left running.
+- **Kept** as an ordinary reply whose `Message.isResearch` is set, with the report as its text and the cited pages
+  as its `sources`, so "Try again" researches again whatever effort is then chosen, keeping the earlier report as
+  a version. A chat saved before there was research reads as having none. A report stopped part of the way is kept
+  as far as it got, tidied in the same way; one stopped before it had a word is dropped, and the earlier report is
+  shown again if it was another attempt. The sources close memory for the rest of the conversation, as any web
+  search does, and research itself reads no memories. It is announced like any reply when it finishes.
+- **On screen**, `ChatPresenterResearch.kt` keeps the step in `ChatViewModel.researchStep`, which `MessageSection`
+  words as a line in place of the report until its first words arrive, and `ResearchSourcesSection` lists the
+  sources under a finished report by number, title and site. The composer's chip names the effort in the brand
+  colour and its field asks for a question to research. The logs hold counts only: never the question, a page's
+  text or an address. Reducing a page to text is done off the main thread.
+
+## The canvas
+
+A reply may hold a piece of standalone work: a web page, a drawing, a document or a long block of code. The chat
+shows a card in its place, and the card opens it in the canvas. Nothing about it is stored and nothing about it is
+sent to the model; a piece is read out of the saved text of its reply each time it is wanted. It mirrors the iPhone
+app rule for rule, with the same wording.
+
+- **What a piece is** is decided by `CanvasExtractor`, a pure transformer over a reply's Markdown. It reads the
+  text once, line by line, and cuts it into `CanvasSegment`s: stretches of ordinary Markdown and `CanvasPiece`s. A
+  fenced block is a piece when it is HTML or SVG, by its language tag or by how it begins (`<!doctype html`,
+  `<html`, `<svg`), or when it has at least `CanvasExtractor.MINIMUM_LINE_COUNT` lines, 15, as a `markdown`/`md`
+  document or as code. Any other block stays in the Markdown around it, exactly as written, and is drawn by
+  `MarkdownSection` as before. A fence still open when the text ends makes a piece that is not yet closed
+  (`isClosed`), which is how a reply on its way is read. A block is closed by a bare fence at least as long as
+  its own, and a Markdown document counts the fenced blocks inside it in and out.
+- **Its kind** is a `CanvasKind`: `Html`, `Svg`, `Markdown` or `Code(language)`. **Its title** is the page's or the
+  drawing's own `<title>`, a document's first heading, or else the nearest heading within twelve lines above it;
+  with none, the screen names it for its kind ("Page", "Drawing", "Document", "Python code"; `shared/CanvasWording.kt`).
+  **Its identity** is its place among the pieces of its reply, which cannot change while the reply streams, with
+  the message's identifier: a `CanvasReference`.
+- **Versions** are found by `CanvasVersionMatcher`, also pure: a piece anywhere in the chat is a version of the
+  open one when it is the same kind (any two pieces of code are) and either has the same title or is the only
+  piece in its reply. The canvas remembers the piece it was opened for and, at most, a version stepped back to;
+  with none it shows the newest, so a version being written is followed as it arrives.
+- **In the chat**, `ReplyBodySection` (`chat/CanvasCard.kt`) lays a reply out from its segments, with a card for
+  each piece. A card whose piece is open in a reply still streaming shows that it is being written.
+- **The screen** is `CanvasPresenter`, `CanvasViewModel` and `CanvasScreen`. The presenter is given two closures,
+  the open chat's messages and the reply on its way, and builds a `CanvasViewConfiguration` from them whenever the
+  coordinator tells it the chat has changed, so it holds no copy of anything beyond what is on screen. The view
+  model holds what was opened, the version looked at, the choice of Preview or Code, and that configuration. A
+  piece still being written is shown as code. Copy and Share are the screen's, as they are for a reply. The canvas
+  does not know the chat: the root view hands it `MarkdownSection` to lay a document out with.
+- **Opening and closing** go through the coordinator: the card calls `ChatPresenter.canvasAction`, the coordinator
+  opens the presenter and sets `isCanvasOpen`. A wide window shows the canvas as a trailing column of `RootView`;
+  `CanvasLayout` gives it half of the space beside the chat list and puts the chat list away while there is not
+  room for all three (each of the chat and the canvas wants `canvasColumnMinWidth`), which needs no state of its
+  own, so closing brings the list back, and the chat list's button closes the canvas while the list is crowded
+  out. A narrow window shows a page that rises over the chat; the chat stays as it was beneath it, out of reach of
+  touch and of a screen reader. The canvas closes by its button, by the back button, by the lock, by the settings
+  or a voice conversation taking the chat's place, and when its piece is no longer in the open chat, as when
+  another chat or a new chat is opened.
+- **A generated page is untrusted.** `CanvasWebPolicy` in the domain holds the decisions and `CanvasWebPreview`
+  carries them out in an `android.webkit.WebView`, made only for a finished page or drawing and destroyed when the
+  canvas goes:
+  - the document is given with `loadDataWithBaseURL` at `about:blank`, so it has an opaque origin and no file or
+    content address; file and content access are off; cookies, DOM storage, the database, form data and the cache
+    are off or cleared;
+  - scripts run, and nothing of the app is exposed to them (`addJavascriptInterface` is never called);
+  - the network is refused three ways: `blockNetworkLoads` and `blockNetworkImage`; `shouldInterceptRequest`
+    answers everything but `data:` and `about:` with an empty 403; and the policy puts a
+    `Content-Security-Policy` first in the page's head (after its doctype, if it has one), which allows only what
+    the page carries itself and no connection. The last matters: measured on the emulator, the first two alone
+    let a WebSocket through, and the rules stop it;
+  - `shouldOverrideUrlLoading` cancels every navigation but one to `about:`, the rules forbid sending a form, and
+    `onCreateWindow` makes no window, so a link, `location.href`, a refresh and `window.open` all lead nowhere.
+    The log notes that a navigation was cancelled and never its address;
+  - permissions (camera, microphone), geolocation, file choosing and downloads are refused without asking;
+  - a script put before the page's own (`CanvasWebPolicy.startScript`) takes peer connections out of the page's
+    window and out of every frame the page makes, and has `sendBeacon` answer that nothing was sent. The engine
+    does not know the `webrtc` rule, so this script is what stops WebRTC.
+- **Peer connections in frames.** A frame starts with an empty document whose window has peer connections of its
+  own, and a page can make one (an empty `<iframe>`, `srcdoc`, markup, `innerHTML`, a frame in a frame) and take
+  `RTCPeerConnection` from it at once. `WebViewCompat.addDocumentStartJavaScript` (`androidx.webkit`), which the
+  app now uses with every origin wherever the web view supports it, runs the script at the start of each
+  document a frame loads, but measured on the emulator (WebView 113) it does not run in that first empty
+  document, nor does a `frame-src 'none'` rule stop such a frame. So the script seals frames itself: every way a
+  script makes a frame or reaches its window (inserting nodes or markup, `document.write` and `open`,
+  `contentWindow` and `contentDocument`, shadow roots and the like) seals every frame in the page, walked by
+  index, and installs the same script in each; a frame made by the parser is sealed by a `MutationObserver`
+  before the next script runs, and one whose `load` handler runs at once by a listener ahead of the page's.
+  Everything it relies on is taken before the page runs. Measured with a probe page that makes or reaches frames
+  22 ways and reads the constructors from each, at once and three seconds later, and with scripts inside
+  `srcdoc` frames that report on themselves: before, every frame gave a working constructor and a capture
+  showed STUN packets leaving; with `addDocumentStartJavaScript` alone, all but the loaded `srcdoc` frames still
+  did; after, none did and the capture showed none.
+- **What is not shut off.** Checked with a packet capture on the emulator (WebView 113): a page can still cause a
+  DNS lookup with `<link rel="dns-prefetch">`, and a lookup and a bare connection with `<link rel="preconnect">`.
+  `android.webkit` and `androidx.webkit` have no setting for either, and nothing known closes them. No load
+  succeeds through either, but each can carry data out of a page. The frame sealing is a script that stands
+  between the page and the engine rather than a rule the engine enforces: it covers every way to make or reach a
+  frame that the probe tried, but a way it does not intercept (a newer one, such as declarative shadow roots
+  that WebView 113 does not yet parse, firing a frame's handlers inside a shadow root) would reopen it. So a page
+  should not be thought of as sealed.
 
 ## Profile, and erasing everything
 
@@ -234,6 +369,57 @@ The rule that matters: **the recogniser is never left listening with nobody hold
 
 The words wait in the press until it ends, then go into the draft; nothing is sent. The dots in the recording row
 follow the level the recogniser reports (`VoiceLevelMeter`, `VoiceLevelDots`).
+
+## Voice with the camera
+
+A voice conversation may have the camera on. While it is, each spoken turn is sent with one still picture taken as
+the words end. No video is recorded or sent. It mirrors the iPhone app, account for account.
+
+- **The provider.** `CameraProvider` in the domain is a class of closures: ask for leave, start facing one way,
+  stop, flip, take one frame, and say what cameras there are. `CameraProvider.live` in `integrations/Camera.kt` is
+  backed by `DeviceCamera`, which works the platform's own camera API (Camera2) with no library added. While the
+  camera is on, the only thing it feeds is the live picture on screen; a still is one capture of its own, asked
+  for when a turn ends, delivered as a JPEG, and no sound is made for it. Every step runs on the camera's own
+  thread, one at a time. Turning it off closes the camera device, which is what puts the phone's indicator out.
+- **The live picture** never passes through the domain. `VoiceCameraCard` holds a `TextureView` and tells
+  `DeviceCamera` when it has somewhere to draw and when that has gone; the camera carries on without it, as it
+  must while the phone is turned round and the screen is drawn afresh. The view lets go of its surface the moment
+  it goes: a surface kept after its view has gone is drawn into with nobody taking the pictures away, and a
+  camera held up like that takes many seconds to close. `CameraGeometry` holds the sums, apart from the camera so
+  that they can be tested: which sizes to ask for, how far a still must be turned to be upright, and how the live
+  picture is scaled and turned to fill its card unstretched whichever way the phone is held.
+- **The account.** `VoiceCamera` is the pure state, kept on `VoiceViewModel`: off, asking, starting or on, which
+  way it faces, and why it is off if the user would expect otherwise. Each step returns the account as it then
+  stands, or `null` when the step does not apply. Every attempt to turn the camera on is numbered, and each step
+  of it is checked against that number, so an attempt overtaken by the screen closing, the app leaving the front
+  or another tap can never leave the camera running. `VoiceCamera.control` says whether the button is hidden (no
+  camera), disabled (the chosen model cannot see; the screen says so, and no other model is chosen for the user)
+  or enabled.
+- **Leave.** Only a screen can put the phone's question to the user, and the presenter must not know the screen.
+  `CameraLeave` stands between them: the voice screen lends it a way of asking for as long as it is showing, and
+  the provider's `requestAuthorization` waits on it for the answer. Leave is asked for only when the button is
+  first turned on. A refusal leaves the conversation as it was and shows a `HearthPermissionNotice` that leads to
+  the phone's settings for the app.
+- **When it stops.** By its button, by the conversation ending, by the screen leaving for any reason
+  (`closedAction`, and the coordinator when it puts the conversation away), and by the app leaving the foreground:
+  the screen passes on `ON_PAUSE` as covered and `ON_STOP` as off the screen. The phone's own question about the
+  camera also covers the app, so an attempt that is only asking is left to finish unless the app goes off the
+  screen altogether. Turning the phone round is none of these, and the camera stays as it was. It is off, facing
+  away, each time a conversation opens, and stays off after the app returns.
+- **The picture.** When the listener hears the end of a turn, the loop asks for one frame before anything is
+  sent. The frame goes through `AttachmentLoader.frame`, the same decoding, shrinking and squeezing an attached
+  photo is given, and is handed to the chat with the words (`ChatPresenter.submitSpoken`), where it is an ordinary
+  entry in `Message.images`: shown on the user's message, saved with the chat, sent to the model, and closing
+  memory, in a private chat as in any other. A frame that cannot be taken or read, or that is ready only after
+  the camera was turned off, means the turn goes without one.
+- **Take photo needs the same leave.** Once an app declares that it uses the camera, Android lets it borrow the
+  phone's camera app only if it has leave to use the camera itself. The composer's Take photo therefore asks for
+  that leave the first time, and says where it is given if it is refused.
+- **Trying it on an emulator.** An emulator's recogniser hears nothing. A debug build looks for a file named
+  `voice-script.txt` among the app's own files; if it is there, a scripted listener takes the recogniser's place
+  and hears the words in the file once, twenty seconds after listening begins, and the voice says nothing and asks
+  no speech server. With an empty file it hears nothing. The code is in `app/src/debug` with a twin in
+  `app/src/release` that changes nothing, so it is in no build that ships.
 
 ## Haptics
 

@@ -24,19 +24,23 @@ import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProjectDataProvider
 import app.hearth.domain.ProjectStore
 import app.hearth.domain.ReplyNotification
+import app.hearth.domain.ResearchInteractor
 import app.hearth.domain.SearchDataProvider
+import app.hearth.domain.SearchSource
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsDataProvider
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechDataProvider
 import app.hearth.domain.SpeechInteractor
 import java.io.IOException
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 
 /**
@@ -48,8 +52,8 @@ internal class ChatPresenterFixture(
     settings: ServerSettings = ServerSettings(ollamaAddress = "chat.example", isFollowUpsEnabled = false),
     stored: List<Conversation> = emptyList(),
     memories: List<Memory> = emptyList(),
+    val model: ChatModel = ChatModel(ModelId("m")),
 ) {
-    val model = ChatModel(ModelId("m"))
 
     /** What the model answers with. Empty makes the turn fail, as when the server goes away. */
     var reply: List<ChatDelta> = listOf(ChatDelta.Text("Paris is the capital of France."))
@@ -89,6 +93,30 @@ internal class ChatPresenterFixture(
         complete = { _, _ -> "" },
     )
 
+    /** What the web serves for a page that research reads. The default is a page worth reading. */
+    var page: suspend (String) -> String = { RESEARCH_PAGE }
+
+    /** How many times research was planned. */
+    var researchPlanCount = 0
+
+    /** The model as research finds it: a plan of one search, a note on every page, no gaps, and a report that cites as it pleases. */
+    private val researchChat = ChatDataProvider(
+        fetchModels = { emptyList() },
+        // Cites the first and third pages, and one that does not exist.
+        streamChat = { _, _ -> flowOf(ChatDelta.Text("Pumps move heat [1]. They work in the cold [3][8].")) },
+        complete = { _, request ->
+            val prompt = request.messages.lastOrNull()?.text.orEmpty()
+            when {
+                prompt.startsWith("Plan the web searches") -> {
+                    researchPlanCount += 1
+                    """{"queries": ["heat pumps"]}"""
+                }
+                prompt.startsWith("You are taking notes") -> "- A fact."
+                else -> """{"queries": []}"""
+            }
+        },
+    )
+
     private val dictation = DictationProvider(
         start = {
             val words = Channel<DictationUpdate>(Channel.UNLIMITED).also { heard = it }
@@ -117,6 +145,11 @@ internal class ChatPresenterFixture(
                 AudioPlaybackProvider(play = {}, stop = {}),
             ),
             image = ImageInteractor(ImageDataProvider(fetchCapabilities = { ImageCapabilities() }, render = { _, _, _, _ -> awaitCancellation() })),
+            research = ResearchInteractor(
+                researchChat,
+                SearchDataProvider(fetchPage = { page(it) }, search = { _, _ -> RESEARCH_SOURCES }),
+                reading = EmptyCoroutineContext,
+            ),
             dictation = dictation,
             notifications = NotificationProvider(isAllowed = { true }, post = { posted += it }),
             pictureWords = PictureWords(title = "Picture", caption = { _, seconds -> "Made in $seconds s" }),
@@ -143,6 +176,9 @@ internal class ChatPresenterFixture(
     val isListening: Boolean get() = listenCount > releasedCount
 
     companion object {
+        /** A page with enough text to be worth reading, and the three pages every research search finds. */
+        val RESEARCH_PAGE = "<html><body><p>" + "Heat pumps move heat. ".repeat(20) + "</p></body></html>"
+        val RESEARCH_SOURCES = (1..3).map { SearchSource(title = "Page $it", url = "https://site$it.example/page", snippet = "") }
         val WORDS = ReplyNoticeWords(brand = "Hearth", replyReady = "A reply is ready.", pictureReady = "Your picture is ready")
     }
 }
