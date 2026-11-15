@@ -72,6 +72,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     // Unlocking with a fingerprint, face or PIN.
     implementation(libs.androidx.biometric)
+    // The biometric library brings an old fragment library whose activity cannot ask for a permission or open a
+    // picker the way Compose does: it refuses the request and the app stops. A current one is named here to replace it.
+    implementation(libs.androidx.fragment)
     // Android can draw a PDF but not read its text; this reads it.
     implementation(libs.pdfbox.android)
     debugImplementation(libs.androidx.ui.tooling)
