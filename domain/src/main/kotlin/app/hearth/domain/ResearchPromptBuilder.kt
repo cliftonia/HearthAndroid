@@ -68,12 +68,15 @@ class ResearchPromptBuilder(
 
     /** Asks whether an important part of the question is still unanswered, and what to search for if so. */
     fun gapMessages(notes: List<ResearchNote>): List<PromptMessage> {
+        // The earlier conversation is left out: these queries are built from what web pages said, and they go to the
+        // search engines, so nothing of the user's beyond the question itself is put within their reach.
         val task = "You are researching the question below. Today is $today.\n\n" +
-            "$asked\n\n" +
+            "Question: $question\n\n" +
             "${quotedNotes(notes)}\n\n" +
             "Do these notes leave an important part of the question unanswered? If they are enough, reply with {\"queries\": []}. " +
             "If something important is missing, reply with at most ${ResearchLimits.MAXIMUM_FOLLOW_UP_QUERIES} new search queries that " +
-            "would find it, each a few plain keywords, different from what the notes already cover.\n\n" +
+            "would find it, each a few plain keywords, different from what the notes already cover. " +
+            "Never put the user's private details into a query.\n\n" +
             "Reply with JSON only, in this form: {\"queries\": [\"first query\"]}"
         return listOf(PromptMessage(PromptRole.USER, task))
     }

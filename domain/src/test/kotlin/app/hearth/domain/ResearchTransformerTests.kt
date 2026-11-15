@@ -233,6 +233,19 @@ class ResearchPromptTests {
     }
 
     @Test
+    fun `follow-up searches are asked for from the question and the notes alone`() {
+        val context = listOf(Message(role = MessageRole.USER, text = "My address is 12 Secret Lane"))
+        val source = SearchSource(title = "A page", url = "https://www.site.example/a", snippet = "")
+
+        val prompt = ResearchPromptBuilder(question = "And in winter?", context = context, now = 1_800_000_000_000)
+            .gapMessages(listOf(ResearchNote(1, source, "- A fact."))).single().text
+
+        assertFalse("Secret Lane" in prompt)
+        assertTrue("Question: And in winter?" in prompt)
+        assertTrue("Never put the user's private details into a query." in prompt)
+    }
+
+    @Test
     fun `the earlier conversation is given as background, the last few messages cut short and photos left out`() {
         val context = (1..6).map { Message(role = if (it % 2 == 1) MessageRole.USER else MessageRole.ASSISTANT, text = "Message $it\nsecond line " + "x".repeat(700)) } +
             Message(role = MessageRole.ASSISTANT, text = "A picture", images = listOf("jpeg"))
