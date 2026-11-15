@@ -24,3 +24,13 @@ fun ImageModelKind.shortName(): String = stringResource(
         ImageModelKind.JUGGERNAUT_XL -> R.string.picture_model_name_juggernaut
     },
 )
+
+/** A few words on what the picture model is best at. */
+@Composable
+fun ImageModelKind.blurb(): String = stringResource(
+    when (this) {
+        ImageModelKind.Z_IMAGE_TURBO -> R.string.picture_blurb_z_image
+        ImageModelKind.KREA2_TURBO -> R.string.picture_blurb_krea
+        ImageModelKind.JUGGERNAUT_XL -> R.string.picture_blurb_juggernaut
+    },
+)

@@ -30,7 +30,7 @@ data class ChatViewModel(
     val isDictating: Boolean = false,
     /** Whether what is sent asks for a picture, not for a reply from the chat model. */
     val isPictureMode: Boolean = false,
-    /** The picture models the server offers, for the menu at the top while pictures are being made. Empty until it answers. */
+    /** The picture models the server offers, for the sheet where one is chosen while pictures are being made. Empty until it answers. */
     val pictureModels: List<ImageModelKind> = emptyList(),
     /** What the picture server is doing right now, while a picture is on its way. */
     val pictureWork: PictureWorkKind? = null,

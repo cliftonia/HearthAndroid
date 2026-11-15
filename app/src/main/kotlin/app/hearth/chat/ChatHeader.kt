@@ -2,25 +2,22 @@ package app.hearth.chat
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Lock as LockFilled
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,53 +25,59 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
+import app.hearth.designsystem.HearthIcons
 import app.hearth.designsystem.HearthTheme
-import app.hearth.domain.ChatModel
-import app.hearth.domain.ImageModelKind
+import app.hearth.domain.Conversation
+import app.hearth.domain.ConversationExporter
 import app.hearth.domain.ServerSettings
-import app.hearth.shared.shortName
-import app.hearth.shared.title
+import app.hearth.shared.RenameDialog
+import app.hearth.shared.share
 
-/** The top of the chat: the way to the chat list, the model in use for chat or for pictures, and the private chat button. */
+/**
+ * The top of the chat: the way to the chat list at one end; at the other, the private chat button until the chat
+ * begins, and from then on a new chat and the chat's own menu.
+ *
+ * The model is chosen from the composer, where the message it will answer is written.
+ */
 @Composable
-internal fun ChatHeader(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter) {
+internal fun ChatHeader(viewModel: ChatViewModel, settings: ServerSettings, presenter: ChatPresenter) {
+    val conversation = viewModel.conversation
+    val hasBegun = conversation.messages.isNotEmpty()
     Row(
         Modifier.fillMaxWidth().padding(horizontal = HearthTheme.spacing.xs, vertical = HearthTheme.spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), onClick = presenter::drawerAction)
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            // While pictures are being made the chat model takes no part, so the picture models are offered in its place.
-            if (viewModel.isPictureMode) {
-                PictureModelPicker(viewModel.selectedPictureModel(settings), viewModel.pictureModels, presenter::selectPictureModelAction)
-            } else {
-                ModelPicker(viewModel.selectedModel, models, presenter::selectModelAction)
-            }
+        Spacer(Modifier.weight(1f))
+        // Before a chat has begun there is nothing to pin, share or start afresh, so the private chat button stands
+        // here alone. Once it has begun, a new chat and the chat's menu take its place.
+        if (hasBegun) {
+            if (conversation.isPrivate) PrivateMark()
+            ChatControls(conversation, presenter)
+        } else {
+            PrivateToggle(conversation.isPrivate, canChange = settings.isMemoryEnabled && settings.ollamaUrl != null, presenter::togglePrivateAction)
         }
-        val canChange = viewModel.conversation.messages.isEmpty() && settings.isMemoryEnabled && settings.ollamaUrl != null
-        PrivateToggle(viewModel.conversation.isPrivate, canChange, presenter::togglePrivateAction)
     }
 }
 
-/** Makes a chat that has not yet begun private. Once the chat has begun it only shows that the chat is private. */
+/** Makes a chat that has not yet begun private, or ordinary again. It keeps its place when there is nothing to change. */
 @Composable
 private fun PrivateToggle(isPrivate: Boolean, canChange: Boolean, onToggle: () -> Unit) {
     val colors = HearthTheme.colors
-    if (!canChange && !isPrivate) {
+    if (!canChange) {
         Spacer(Modifier.size(HearthTheme.sizes.touchTarget))
         return
     }
-    IconButton(onClick = onToggle, enabled = canChange, modifier = Modifier.semantics { selected = isPrivate }) {
+    IconButton(onClick = onToggle, modifier = Modifier.semantics { selected = isPrivate }) {
         Box(
             Modifier.size(HearthTheme.sizes.controlM).background(if (isPrivate) colors.pineSoft else Color.Transparent, HearthTheme.shapes.circle),
             contentAlignment = Alignment.Center,
@@ -89,85 +92,69 @@ private fun PrivateToggle(isPrivate: Boolean, canChange: Boolean, onToggle: () -
     }
 }
 
-/** The name of the model in use, opening a menu of the models the server offers: its own first, then cloud ones. */
+/** Shows that a chat that has begun is private. It is not a button: a chat cannot be made ordinary once it has begun. */
 @Composable
-private fun ModelPicker(selected: ChatModel?, models: List<ChatModel>, onSelect: (ChatModel) -> Unit) {
-    var isOpen by remember { mutableStateOf(false) }
+private fun PrivateMark() {
     val colors = HearthTheme.colors
-    Box {
-        val openLabel = stringResource(R.string.chat_model_picker)
-        TextButton(onClick = { isOpen = true }, modifier = Modifier.semantics { onClick(label = openLabel, action = null) }) {
-            Text(
-                selected?.displayName ?: stringResource(R.string.chat_no_model),
-                color = colors.ink,
-                style = HearthTheme.type.controlTitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = HearthTheme.sizes.modelNameMaxWidth),
-            )
-            Icon(Icons.Outlined.ExpandMore, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconS))
+    Box(
+        Modifier.padding(end = HearthTheme.spacing.m).size(HearthTheme.sizes.controlS).background(colors.pineSoft, HearthTheme.shapes.circle),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(Icons.Filled.LockFilled, stringResource(R.string.chat_private), tint = colors.pine, modifier = Modifier.size(HearthTheme.sizes.iconXs))
+    }
+}
+
+/** A new chat, and the menu of what can be done with this one, side by side in one pill. */
+@Composable
+private fun ChatControls(conversation: Conversation, presenter: ChatPresenter) {
+    val colors = HearthTheme.colors
+    var isMenuOpen by remember { mutableStateOf(false) }
+    var isRenaming by remember { mutableStateOf(false) }
+    Row(
+        Modifier
+            .padding(end = HearthTheme.spacing.m)
+            .shadow(HearthTheme.strokes.floatingShadow, HearthTheme.shapes.pill)
+            .background(colors.card, HearthTheme.shapes.pill)
+            .padding(horizontal = HearthTheme.spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HearthIconButton(HearthIcons.NewChat, stringResource(R.string.chat_new), onClick = presenter::newChatAction)
+        Box {
+            HearthIconButton(Icons.Outlined.MoreHoriz, stringResource(R.string.chat_options)) { isMenuOpen = true }
+            ChatMenu(conversation, isMenuOpen, presenter, onRename = { isRenaming = true }, onDismiss = { isMenuOpen = false })
         }
-        DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-            listOf(R.string.chat_local_models to models.filterNot { it.isCloud }, R.string.chat_cloud_models to models.filter { it.isCloud })
-                .filter { it.second.isNotEmpty() }
-                .forEach { (title, group) ->
-                    Text(
-                        stringResource(title),
-                        color = colors.mute,
-                        style = HearthTheme.type.caption,
-                        modifier = Modifier.padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.s).semantics { heading() },
-                    )
-                    group.forEach { model ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(model.displayName, fontWeight = if (model.id == selected?.id) FontWeight.SemiBold else null)
-                                    model.parameterSize?.let { Text(it, color = colors.mute, style = HearthTheme.type.controlDetail) }
-                                }
-                            },
-                            onClick = {
-                                isOpen = false
-                                onSelect(model)
-                            },
-                        )
-                    }
-                }
+    }
+    if (isRenaming) {
+        RenameDialog(conversation.title, onDismiss = { isRenaming = false }) { title ->
+            presenter.renameChatAction(title)
+            isRenaming = false
         }
     }
 }
 
-/** The model pictures are made with, in the same place; tapping it lists the picture models the server has. */
+/** What can be done with a chat that has begun: pin it; share or rename it; delete it. */
 @Composable
-private fun PictureModelPicker(selected: ImageModelKind?, models: List<ImageModelKind>, onSelect: (ImageModelKind) -> Unit) {
-    var isOpen by remember { mutableStateOf(false) }
+private fun ChatMenu(conversation: Conversation, isOpen: Boolean, presenter: ChatPresenter, onRename: () -> Unit, onDismiss: () -> Unit) {
     val colors = HearthTheme.colors
-    Box {
-        val openLabel = stringResource(R.string.picture_model_picker)
-        TextButton(onClick = { isOpen = true }, modifier = Modifier.semantics { onClick(label = openLabel, action = null) }) {
-            Icon(Icons.Filled.Brush, null, tint = colors.pine, modifier = Modifier.padding(end = HearthTheme.spacing.s).size(HearthTheme.sizes.iconXs))
-            Text(
-                selected?.shortName() ?: stringResource(R.string.picture_section),
-                color = colors.ink,
-                style = HearthTheme.type.controlTitle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = HearthTheme.sizes.modelNameMaxWidth),
-            )
-            Icon(Icons.Outlined.ExpandMore, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconS))
-        }
-        DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-            Text(
-                stringResource(R.string.picture_models),
-                color = colors.mute,
-                style = HearthTheme.type.caption,
-                modifier = Modifier.padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.s).semantics { heading() },
-            )
-            models.forEach { model ->
+    val context = LocalContext.current
+    val conversations by presenter.conversations.collectAsStateWithLifecycle()
+    val isPinned = conversations.firstOrNull { it.id == conversation.id }?.isPinned == true
+    val exporter = ConversationExporter(stringResource(R.string.export_user), stringResource(R.string.brand), stringResource(R.string.untitled))
+    // Each group of the menu, with a line drawn between one group and the next.
+    val groups: List<List<Pair<Int, () -> Unit>>> = listOf(
+        listOf((if (isPinned) R.string.drawer_unpin else R.string.drawer_pin) to presenter::togglePinAction),
+        listOf(R.string.message_share to { share(context, exporter.markdown(conversation)) }, R.string.drawer_rename to onRename),
+        listOf(R.string.drawer_delete to presenter::deleteChatAction),
+    )
+    DropdownMenu(expanded = isOpen, onDismissRequest = onDismiss) {
+        groups.forEachIndexed { index, group ->
+            if (index > 0) HorizontalDivider(color = colors.line)
+            group.forEach { (label, action) ->
                 DropdownMenuItem(
-                    text = { Text(model.title(), fontWeight = if (model == selected) FontWeight.SemiBold else null) },
+                    text = { Text(stringResource(label), color = if (label == R.string.drawer_delete) colors.danger else colors.ink) },
                     onClick = {
-                        isOpen = false
-                        onSelect(model)
+                        onDismiss()
+                        action()
                     },
                 )
             }

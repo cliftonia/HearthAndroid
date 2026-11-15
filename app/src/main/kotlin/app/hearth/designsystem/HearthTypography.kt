@@ -49,6 +49,9 @@ class HearthTypography {
     /** The running caption of a voice conversation. */
     val lead = Plain.copy(fontSize = 17.sp, lineHeight = 25.sp)
 
+    /** The title of a sheet. */
+    val title = Plain.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+
     /** Row labels and short explanations. */
     val subhead = Plain.copy(fontSize = 15.sp)
 
@@ -73,6 +76,9 @@ class HearthTypography {
     /** Group titles, chip labels and other small print. */
     val footnote = Plain.copy(fontSize = 13.sp)
 
+    /** As [footnote], for the name on a chip that is a button. */
+    val footnoteStrong = Plain.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium)
+
     /** As [footnote], for notices that may run to several lines. */
     val footnoteSnug = Plain.copy(fontSize = 13.sp, lineHeight = 18.sp)
 
@@ -84,12 +90,6 @@ class HearthTypography {
 
     /** The label of a text button, as Material sets it. */
     val control = Control
-
-    /** The name of the chosen model, which is a text button but reads as the title of the chat. */
-    val controlTitle = Control.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-
-    /** The second, smaller line of a menu item. */
-    val controlDetail = Control.copy(fontSize = 12.sp)
 
     /** A heading in a reply, from the largest, level 1, down. */
     fun heading(level: Int): TextStyle = when (level) {

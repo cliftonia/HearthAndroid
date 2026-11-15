@@ -52,7 +52,7 @@ fun ChatScreen(
     val models by modelStore.models.collectAsStateWithLifecycle()
     ChatLayout(
         modifier.fillMaxSize(),
-        header = { ChatHeader(viewModel, models, settings, presenter) },
+        header = { ChatHeader(viewModel, settings, presenter) },
         content = {
             when {
                 settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
@@ -61,7 +61,7 @@ fun ChatScreen(
             }
         },
         banner = { viewModel.error?.let { ErrorBanner(it, presenter::retryAction, presenter::dismissErrorAction) } },
-        footer = { ComposerFooter(viewModel, settings, presenter, attachments) },
+        footer = { ComposerFooter(viewModel, models, settings, presenter, attachments) },
     )
 }
 

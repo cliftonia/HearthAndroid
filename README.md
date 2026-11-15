@@ -42,8 +42,10 @@ two share a design and a feature list, not code.
 ## Finding your way round
 
 - **The composer** is a single row at rest. Tap it and it opens out, showing the options for the reply you are
-  about to ask for: web search, how hard the model should think, and whether replies are read aloud. Which of
-  these appear depends on the model and on the servers you have set.
+  about to ask for: the model, web search, and whether replies are read aloud. Which of these appear depends on
+  the model and on the servers you have set. Tap the model's name to choose another, and how hard it should think.
+- **The top of a chat** holds the private chat button until the first message is sent. From then on it holds a
+  new chat button and a menu to pin, share, rename or delete the chat.
 - **The chat list** slides in from the left. Its **Settings** and **New chat** buttons float at the bottom; the
   dot on Settings is green while your server can be reached.
 - **Private chat** is the padlock at the top right of a chat that has not yet begun. Once the chat has begun,

@@ -58,15 +58,16 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `input`, `inputHint` | 16 / 22, 16 / 24 | The composer's text and its prompt |
 | `message` | 16 / 23 | A message the user sent |
 | `lead` | 17 / 25 | The caption of a voice conversation |
+| `title` | 17 | The title of a sheet |
 | `subhead`, `subheadSnug`, `subheadStrong` | 15 | Row labels; multi-line text; a prominent button |
 | `callout`, `calloutSnug`, `calloutTight`, `calloutStrong` | 14 | Status lines; thinking; error text; error title |
-| `footnote`, `footnoteSnug` | 13 | Group titles and chips; multi-line notices |
+| `footnote`, `footnoteStrong`, `footnoteSnug` | 13 | Group titles and chips; the name on a chip that is a button; multi-line notices |
 | `caption`, `captionSnug` | 12 | Headings in lists and menus; the note under a card |
-| `control`, `controlTitle`, `controlDetail` | 14, 16, 12 | Text inside Material's buttons and menu items |
+| `control` | 14 | Text inside Material's buttons and menu items |
 
 Where no leading is given, the style keeps Material's body leading of 24. `Snug` and `Tight` set the lines
-closer for text that wraps. The `control` styles start from Material's label style, so use them only inside a
-button or a menu item.
+closer for text that wraps. `control` starts from Material's label style, so use it only inside a button or a
+menu item.
 
 ### Spacing: `HearthTheme.spacing`
 
@@ -107,7 +108,7 @@ button or a menu item.
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
-| `modelNameMaxWidth`, `chipLabelMaxWidth`, `tableColumn` | 220, 180, 150 | Set widths |
+| `chipLabelMaxWidth`, `tableColumn` | 180, 150 | Set widths |
 | `drawerWidth`, `wideLayoutMinWidth` | 320, 840 | The chat list; where it starts to sit beside the chat |
 
 ### Strokes and elevation: `HearthTheme.strokes`
@@ -117,9 +118,10 @@ button or a menu item.
 | `hairline` | 1 | Borders and dividers |
 | `progress` | 2 | The ring of the small spinner |
 | `accent` | 3 | The bar beside a quotation |
+| `floatingShadow` | 3 | The lift of a control that floats over the conversation: the pill at the top of a chat |
 
-There are no elevation tokens because there is no elevation. Nothing in the app casts a shadow: one surface is
-told from another by colour (`card` on `paper`) and, where that is not enough, by a `hairline` border in `line`.
+`floatingShadow` is the only elevation. Everywhere else one surface is told from another by colour (`card` on
+`paper`) and, where that is not enough, by a `hairline` border in `line`.
 
 ### Widgets
 
@@ -135,6 +137,7 @@ by two features, or in two files of one, and is about looks and not about what a
 |---|---|
 | `HearthTheme(isDark) { … }` | Provides the colours, and hands them to Material's components |
 | `HearthMark(sideLength)` | The app's mark, drawn in proportion to its side |
+| `HearthIcons` | The symbols the app draws itself, because Material's set has none like them: `NewChat` |
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
 | `HearthCard(title, footer) { … }` | A titled group of controls on a card, with a note beneath |

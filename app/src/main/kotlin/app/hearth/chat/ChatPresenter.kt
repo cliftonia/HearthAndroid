@@ -41,8 +41,8 @@ interface ChatPresenterDelegate {
 /**
  * Runs the conversation on screen: sends messages, streams replies into the view model and saves what arrives.
  *
- * The actions for attachments, editing, dictation, pictures and reading aloud, and the making of a reply itself, are
- * extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
+ * The actions for attachments, editing, dictation, pictures, reading aloud and the chat's menu, and the making of a
+ * reply itself, are extensions in the files beside this one, which is why some of its state is `internal` and not `private`.
  */
 class ChatPresenter(
     internal val scope: CoroutineScope,
@@ -213,12 +213,12 @@ class ChatPresenter(
         dependencies.modelStore.model(conversation.modelId)?.let { model -> state.update { it.copy(selectedModel = model) } }
     }
 
-    /** A conversation deleted in the drawer while it is open is replaced by a fresh one. */
+    /** A conversation deleted while it is open is replaced by a fresh one. */
     fun conversationDeleted(id: ConversationId) {
         if (id == state.value.conversation.id) newChatAction()
     }
 
-    /** Keeps the open conversation in step when it is renamed from the drawer. */
+    /** Keeps the open conversation in step when it is renamed. */
     fun conversationRenamed(id: ConversationId, title: String) = state.update {
         if (it.conversation.id == id) it.copy(conversation = it.conversation.copy(title = title)) else it
     }

@@ -10,13 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -85,17 +82,4 @@ internal fun ConversationRow(conversation: Conversation, isSelected: Boolean, pr
             }
         }
     }
-}
-
-/** Asks for a new title for a chat. A blank one cannot be saved. */
-@Composable
-internal fun RenameDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
-    var title by remember { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.drawer_rename_chat)) },
-        text = { OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.drawer_chat_title)) }, singleLine = true) },
-        confirmButton = { TextButton(onClick = { onSave(title) }, enabled = title.isNotBlank()) { Text(stringResource(R.string.drawer_save)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
-    )
 }

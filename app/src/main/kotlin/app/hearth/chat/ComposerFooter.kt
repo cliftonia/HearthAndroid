@@ -36,13 +36,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
+import app.hearth.domain.ChatModel
 import app.hearth.domain.ServerSettings
 import app.hearth.integrations.AttachmentLoader
+import app.hearth.shared.shortName
 
 /** Where a message is written, with the controls that shape the reply. */
 @Composable
 fun ComposerFooter(
     viewModel: ChatViewModel,
+    models: List<ChatModel>,
     settings: ServerSettings,
     presenter: ChatPresenter,
     attachments: AttachmentLoader,
@@ -63,8 +66,10 @@ fun ComposerFooter(
     }
     val focusManager = LocalFocusManager.current
     var isFocused by remember { mutableStateOf(false) }
-    // At rest the composer is a single row. It opens out, showing its options, while a message is being written.
-    val isExpanded = isFocused || viewModel.draft.isNotEmpty()
+    var isModelSheetOpen by remember { mutableStateOf(false) }
+    // At rest the composer is a single row. It opens out, showing its options, while a message is being written,
+    // and stays so while a model is being chosen for it.
+    val isExpanded = isFocused || viewModel.draft.isNotEmpty() || isModelSheetOpen
     // A different conversation starts with the composer at rest.
     LaunchedEffect(viewModel.conversation.id) { focusManager.clearFocus() }
     Column(
@@ -112,8 +117,20 @@ fun ComposerFooter(
                 )
                 // Shows that the next message asks for a picture; tapping it goes back to chatting.
                 if (isPictureMode) ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
+                if (isExpanded) {
+                    val pictureModel = viewModel.selectedPictureModel(settings)
+                    ModelChip(
+                        name = when {
+                            !isPictureMode -> model?.displayName ?: stringResource(R.string.chat_no_model)
+                            else -> pictureModel?.shortName() ?: stringResource(R.string.picture_section)
+                        },
+                        // How hard to think is shown beside the model and chosen with it.
+                        effort = if (!isPictureMode && model?.canThink == true) settings.thinkingLevel.title() else "",
+                        label = stringResource(if (isPictureMode) R.string.picture_model_picker else R.string.chat_model_picker),
+                        modifier = Modifier.weight(1f, fill = false).padding(horizontal = spacing.xs),
+                    ) { isModelSheetOpen = true }
+                }
                 if (isExpanded && !isPictureMode) {
-                    if (model?.canThink == true) ThinkingMenu(settings.thinkingLevel, presenter::thinkingLevelAction)
                     // A model that can call tools searches when it sees fit; any other must be told to.
                     if (model != null && !model.canUseTools && settings.searchUrl != null) {
                         val label = stringResource(R.string.composer_search)
@@ -131,6 +148,7 @@ fun ComposerFooter(
             }
         }
     }
+    if (isModelSheetOpen) ModelPickerSheet(viewModel, models, settings, presenter) { isModelSheetOpen = false }
 }
 
 /**
@@ -138,6 +156,9 @@ fun ComposerFooter(
  *
  * At rest the three sit in one row. While a message is being written the field takes a row of its own above the
  * controls. The field is the same element in both, so it keeps the keyboard as the arrangement changes.
+ *
+ * The leading controls are offered only the room the trailing ones leave, so a long model name is shortened
+ * instead of running under them.
  *
  * The controls are never given up for height. Where there is not room for two rows, as on a phone held sideways
  * with the keyboard up, the one row is kept; and the field is given only the height the controls leave, past

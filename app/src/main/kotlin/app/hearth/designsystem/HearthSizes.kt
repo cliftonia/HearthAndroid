@@ -66,9 +66,6 @@ class HearthSizes {
     val fieldMinHeight: Dp = 24.dp
     val fieldMaxHeight: Dp = 140.dp
 
-    /** The most room a model's name may take in the header. */
-    val modelNameMaxWidth: Dp = 220.dp
-
     /** The most room a name may take inside a chip. */
     val chipLabelMaxWidth: Dp = 180.dp
 
@@ -83,8 +80,8 @@ class HearthSizes {
 }
 
 /**
- * The widths of drawn lines. The app has no shadows: one surface is told from another by its colour and,
- * where that is not enough, by a border.
+ * The widths of drawn lines, and the one shadow. A surface is told from another by its colour and, where that is
+ * not enough, by a border; only a control that floats over the conversation casts a shadow.
  */
 class HearthStrokes {
     /** Borders and dividers. */
@@ -95,4 +92,7 @@ class HearthStrokes {
 
     /** The bar beside a quotation. */
     val accent: Dp = 3.dp
+
+    /** How far a floating control is lifted off the paper, which sets the shadow beneath it. */
+    val floatingShadow: Dp = 3.dp
 }

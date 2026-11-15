@@ -101,7 +101,8 @@ what lets a reply keep streaming while the phone is rotated or the app is in the
 
 **Large presenters are split by concern.** `ChatPresenter` keeps its core in one file and its other actions as
 extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`,
-`ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`). The state they share is
+`ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
+`ChatPresenterMenu.kt`). The state they share is
 `internal` for that reason.
 
 ## Below the presenters

@@ -34,6 +34,7 @@ import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ModelStore
 import app.hearth.domain.SettingsStore
+import app.hearth.shared.RenameDialog
 
 /** The list of saved chats, with the way to a new one and to the settings. */
 @Composable

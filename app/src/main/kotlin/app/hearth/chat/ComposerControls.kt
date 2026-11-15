@@ -16,14 +16,12 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,10 +34,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.ContextCompat
 import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
@@ -159,36 +155,6 @@ internal fun DictationButton(isDictating: Boolean, presenter: ChatPresenter) {
     HearthIconButton(Icons.Outlined.Mic, label, tint = if (isDictating) colors.danger else colors.mute) {
         val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (isDictating || isAllowed) presenter.dictationAction() else permission.launch(Manifest.permission.RECORD_AUDIO)
-    }
-}
-
-/** Shows how hard the model is to think, and opens the menu that changes it. */
-@Composable
-internal fun ThinkingMenu(level: ThinkingLevel, onSelect: (ThinkingLevel) -> Unit) {
-    var isOpen by remember { mutableStateOf(false) }
-    val colors = HearthTheme.colors
-    val openLabel = stringResource(R.string.composer_thinking)
-    Box {
-        TextButton(onClick = { isOpen = true }, modifier = Modifier.semantics { onClick(label = openLabel, action = null) }) {
-            Icon(
-                Icons.Outlined.Lightbulb,
-                openLabel,
-                tint = if (level == ThinkingLevel.OFF) colors.mute else colors.pine,
-                modifier = Modifier.padding(end = HearthTheme.spacing.xs).size(HearthTheme.sizes.iconS),
-            )
-            Text(level.title(), color = if (level == ThinkingLevel.OFF) colors.mute else colors.pine, style = HearthTheme.type.control)
-        }
-        DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-            ThinkingLevel.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.title(), fontWeight = if (option == level) FontWeight.SemiBold else null) },
-                    onClick = {
-                        isOpen = false
-                        onSelect(option)
-                    },
-                )
-            }
-        }
     }
 }
 

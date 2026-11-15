@@ -4,7 +4,15 @@
 
     <string name="chat_menu">Chat list</string>
     <string name="chat_new">New chat</string>
+    <string name="chat_options">Chat options</string>
     <string name="chat_model_picker">Choose model</string>
+    <string name="model_sheet_title">Select model</string>
+    <string name="model_picture_sheet_title">Select picture model</string>
+    <string name="model_effort">Effort</string>
+    <string name="model_thinks">Thinks before replying</string>
+    <string name="model_sees">Sees pictures</string>
+    <string name="model_searches">Searches by itself</string>
+    <string name="common_close">Close</string>
     <string name="chat_no_model">No model</string>
     <string name="chat_local_models">On your server</string>
     <string name="chat_cloud_models">Cloud</string>
@@ -18,7 +26,6 @@
 
     <string name="composer_placeholder">Message</string>
     <string name="composer_placeholder_model">Message %1$s</string>
-    <string name="composer_thinking">Thinking</string>
     <string name="composer_thinking_off">Off</string>
     <string name="composer_thinking_light">Light</string>
     <string name="composer_thinking_medium">Medium</string>
@@ -58,6 +65,7 @@
     <string name="error_no_model">Choose a model first.</string>
     <string name="error_unreachable">Could not reach the server. Check that your VPN is connected.</string>
     <string name="error_save_failed">This chat could not be saved.</string>
+    <string name="error_change_failed">That change could not be saved. The chat is as it was.</string>
 
     <string name="drawer_search">Search chats</string>
     <string name="drawer_today">Today</string>
@@ -145,7 +153,6 @@
 
     <string name="picture_title">Picture</string>
     <string name="picture_section">Pictures</string>
-    <string name="picture_models">Picture models</string>
     <string name="picture_model_picker">Choose picture model</string>
     <string name="picture_mode">Make a picture</string>
     <string name="picture_placeholder">Describe a picture</string>
@@ -181,6 +188,10 @@
     <string name="picture_model_z_image">Z-Image Turbo · fast, all-round</string>
     <string name="picture_model_krea">Krea 2 Turbo · most photographic, slower</string>
     <string name="picture_model_juggernaut">Juggernaut XL · painterly</string>
+    <string name="picture_blurb_z_image">Fast, all-round</string>
+    <string name="picture_blurb_krea">Most photographic, slower</string>
+    <string name="picture_blurb_juggernaut">Painterly</string>
+    <string name="picture_no_models_yet">Looking for picture models…</string>
     <string name="picture_can_change">Can change a picture you show it</string>
     <string name="picture_can_enlarge">Can enlarge a picture</string>
     <string name="picture_no_models">Add a picture server address above to make pictures.</string>

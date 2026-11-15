@@ -52,8 +52,8 @@ fun ChatViewModel.selectedPictureModel(settings: ServerSettings): ImageModelKind
     settings.imageModel?.takeIf { it in pictureModels } ?: pictureModels.firstOrNull()
 
 /**
- * Turns picture mode on or off. While it is on, what is sent asks for a picture, and the menu at the top offers
- * the picture models in place of the chat models.
+ * Turns picture mode on or off. While it is on, what is sent asks for a picture, and the composer's model chip
+ * offers the picture models in place of the chat models.
  */
 fun ChatPresenter.togglePictureModeAction() {
     val isOn = !state.value.isPictureMode
