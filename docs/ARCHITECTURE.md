@@ -319,9 +319,9 @@ app rule for rule, with the same wording.
   frame the sweep still cannot reach, such as one the parser made with a sandbox, is taken out of the page (so is a
   frame left on an error page by a blocked address, which shows nothing anyway). Markup that would make a shadow
   root from a script is read as plain markup, so a script cannot hide a frame in a closed one: `setHTMLUnsafe` and
-  `Document.parseHTMLUnsafe` where the engine has them (WebView 113 has neither), and a `DOMParser` asked to
-  `includeShadowRoots`, which WebView 113 has. Measured on the emulator (WebView 113) with the probe above extended
-  by 15 sandboxed frames that report on themselves (in the page's markup, in a declarative shadow root in it, by
+  `Document.parseHTMLUnsafe` where the engine has them (WebView 113 has neither), a `DOMParser` asked to
+  `includeShadowRoots`, which WebView 113 has, and `document.write` (below). Measured on the emulator (WebView
+  113) with the probe above extended by 15 sandboxed frames that report on themselves (in the page's markup, in a declarative shadow root in it, by
   `setAttribute` with and without `allow-same-origin`, the property, an attribute node, its list of flags, after
   insertion, removed after insertion, by `innerHTML`, by `setHTMLUnsafe`, by `document.write` into a shadow root, by
   a `DOMParser` shadow root, and with a `javascript:` address from script and from markup). With the web view as
@@ -329,10 +329,30 @@ app rule for rule, with the same wording.
   and `0 of 59` after, and a capture showed no STUN packet and no lookup of the STUN server. With the start script
   in the page alone, as on a web view without `DOCUMENT_START_SCRIPT`, the sandboxed frames were the gap: 12 of 61
   before, every sandboxed frame without `allow-same-origin` able to make a peer connection; 2 of 59 after.
-- **What is not shut off.** Those two: a sandboxed frame inside a closed declarative shadow root written in the
-  page's own markup or by `document.write` cannot be found to be removed; where the web view has
-  `DOCUMENT_START_SCRIPT` the script still runs in it, and it measured sealed. Checked with a packet capture on the
-  emulator (WebView 113): a page can still cause a DNS lookup with `<link rel="dns-prefetch">`, and a lookup and a
+- **Declarative shadow roots.** The parser makes a shadow root from `<template shadowrootmode>` without any script
+  being asked, so the sweep neither sees it made nor looks inside it, and a frame there (in a closed one, a sandboxed
+  frame above all) was out of its reach. Three things close that. `CanvasWebPolicy.document` puts the page, and a
+  drawing, through `CanvasShadowRootTransformer`, which renames `shadowrootmode`, `shadowroot`,
+  `shadowrootdelegatesfocus`, `shadowrootclonable` and `shadowrootserializable`, in any case, wherever an
+  attribute's name can begin and end, to `data-hearth-…`: the template stays an inert template. It does not read
+  the markup as the parser does, so it also renames the words where one stands alone in the page's text; one too
+  many does no harm. The start script does the same to everything given to `document.write` and `writeln`, keeping
+  the end of what each document was last given so that a name split between two writes is cut in two. And its
+  sweep keeps every open shadow root it comes across, whoever made it, and watches it as it does one a script made;
+  since a frame in a shadow root is not among the page's frames by index, a frame the sweep finds anywhere, or whose
+  window is asked for, is sealed then and there. Which other ways make such a root was measured in Chromium (desktop
+  157, with the network shut off) and in WebKit: `document.write` and `open` made one (one split between two writes
+  too), as did `setHTMLUnsafe` and `Document.parseHTMLUnsafe`, which were already covered;
+  `Range.createContextualFragment`, `DOMParser` (asked to include shadow roots or not), `innerHTML`,
+  `insertAdjacentHTML` and `execCommand("insertHTML")` made none, and `setHTML` left no frame. With a probe page
+  making frames in shadow roots those ways and the script in the page, the script as it was left every one of them
+  working; after, every frame was sealed and no write made a root. Not yet measured on the emulator.
+- **What is not shut off.** The two left above, a sandboxed frame in a closed declarative shadow root in the
+  page's markup and one written by `document.write`, are now kept from being made (not yet measured on the
+  emulator). A closed declarative shadow root can still be made by a frame's own document, a `srcdoc` whose
+  markup hides the attribute's name behind character references, say, and a sandboxed frame inside it cannot be
+  found to be removed; where the web view has `DOCUMENT_START_SCRIPT` the script still runs in it. Checked with a
+  packet capture on the emulator (WebView 113): a page can still cause a DNS lookup with `<link rel="dns-prefetch">`, and a lookup and a
   bare connection with `<link rel="preconnect">`. `android.webkit` and `androidx.webkit` have no setting for
   either, and nothing known closes them. No load succeeds through either, but each can carry data out of a page.
   The frame sealing is a script that stands between the page and the engine rather than a rule the engine

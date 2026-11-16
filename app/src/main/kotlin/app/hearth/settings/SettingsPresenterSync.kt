@@ -99,9 +99,15 @@ fun SettingsPresenter.syncEnabledAction(isOn: Boolean) {
     }
 }
 
-/** Seals the typed token in the phone's keystore and empties the field. */
+/**
+ * Seals the typed token in the phone's keystore and empties the field. The typed address is kept first, so that the
+ * token is saved for the hub it was typed for, and is not forgotten when that address is kept later.
+ */
 fun SettingsPresenter.saveSyncTokenAction() {
-    scope.launch { keepTypedToken() }
+    scope.launch {
+        keepSyncSettings(syncStore.settings.value.isEnabled)
+        keepTypedToken()
+    }
 }
 
 /** Forgets the saved token. */
@@ -109,11 +115,11 @@ fun SettingsPresenter.removeSyncTokenAction() {
     scope.launch { keepToken(null) }
 }
 
-/** Keeps what is typed and syncs now. */
+/** Keeps what is typed, the address before the token since a new address forgets the token, and syncs now. */
 fun SettingsPresenter.syncNowAction() {
     scope.launch {
-        keepTypedToken()
         keepSyncSettings(syncStore.settings.value.isEnabled)
+        keepTypedToken()
         dependencies.sync.syncNow()
     }
 }
@@ -121,8 +127,8 @@ fun SettingsPresenter.syncNowAction() {
 /** Checks that the hub at the typed address answers and lets this device in. */
 fun SettingsPresenter.checkHubAction() {
     scope.launch {
-        keepTypedToken()
         keepSyncSettings(syncStore.settings.value.isEnabled)
+        keepTypedToken()
         syncCheckState.value = SyncCheck.Checking
         val url = syncStore.settings.value.hubUrl
         syncCheckState.value = if (url == null) {

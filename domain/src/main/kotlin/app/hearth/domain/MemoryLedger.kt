@@ -67,8 +67,8 @@ class MemoryLedger {
         /** The most characters one fact may run to. */
         const val MAXIMUM_LENGTH = 200
 
-        /** Any run of white space, in any script. */
-        private val WHITESPACE = Regex("(?U)\\s+")
+        /** Any run of white space, in any script. Android's regex engine has no `(?U)` flag, so the separators are named. */
+        private val WHITESPACE = Regex("[\\s\\p{Z}]+")
 
         /** The marks Unicode puts on a letter, such as an accent, once the letter is taken apart. */
         private val COMBINING_MARKS = Regex("\\p{M}+")

@@ -62,7 +62,10 @@ class SyncStore(
 
     // Settings
 
-    /** Keeps new settings. Pointing at another hub forgets what was known of the last one. */
+    /**
+     * Keeps new settings. Pointing at another hub, or at none, forgets what was known of the last one, its token
+     * included: a token is only ever sent to the hub it was saved for, so the user enters one again for the new hub.
+     */
     suspend fun update(settings: SyncSettings) {
         val isOtherHub = settings.hubUrl != settingsState.value.hubUrl
         settingsState.value = settings
@@ -72,11 +75,19 @@ class SyncStore(
             lastSyncedState.value = null
             failureState.value = null
             persistJournal()
+            forgetToken()
         }
     }
 
-    /** The access token; `null` when none is saved or it cannot be read. */
-    suspend fun token(): String? = readTokenQuietly()
+    /**
+     * The access token; `null` when none is saved, it cannot be read, or the hub changed while it was being read,
+     * since it then belonged to the hub before. Read at once after the hub's address, it is the token for that address.
+     */
+    suspend fun token(): String? {
+        val hubUrl = settingsState.value.hubUrl
+        val token = readTokenQuietly()
+        return token.takeIf { settingsState.value.hubUrl == hubUrl }
+    }
 
     /** Keeps a new access token, or forgets it with `null` or an empty one. A failure to keep it is thrown. */
     suspend fun setToken(token: String?) {
@@ -145,11 +156,7 @@ class SyncStore(
     suspend fun reset() {
         settingsState.value = SyncSettings()
         provider.saveSettings(null)
-        try {
-            provider.writeToken(null)
-        } catch (failure: Exception) {
-            log("Forgetting the hub token failed: ${failure.javaClass.simpleName}")
-        }
+        forgetToken()
         hasTokenState.value = false
         failureState.value = null
         syncingState.value = false
@@ -161,6 +168,16 @@ class SyncStore(
             } catch (failure: IOException) {
                 log("Removing the sync journal failed: ${failure.javaClass.simpleName}")
             }
+        }
+    }
+
+    /** Forgets the saved token. A failure is logged, and the page goes on showing that a token is saved. */
+    private suspend fun forgetToken() {
+        try {
+            provider.writeToken(null)
+            hasTokenState.value = false
+        } catch (failure: Exception) {
+            log("Forgetting the hub token failed: ${failure.javaClass.simpleName}")
         }
     }
 

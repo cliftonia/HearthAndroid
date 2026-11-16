@@ -104,6 +104,47 @@ class SyncSettingsTests {
     }
 
     @Test
+    fun `a new address forgets the token saved for the old one, and a token typed with it is kept for it`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        fixture.syncStore.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true))
+        fixture.syncStore.setToken("for-the-old-hub")
+        val subject = fixture.subject
+        subject.syncAction()
+
+        subject.syncAddressDraftAction("http://other.local:8765")
+        subject.syncAddressAction()
+        advanceUntilIdle()
+        assertNull(fixture.token)
+        assertFalse(subject.hasSyncToken.value)
+
+        subject.syncAddressDraftAction("http://third.local:8765")
+        subject.syncTokenDraftAction("for-the-third-hub")
+        subject.syncNowAction()
+        advanceUntilIdle()
+        assertEquals("http://third.local:8765", fixture.syncStore.settings.value.hubAddress)
+        assertEquals("for-the-third-hub", fixture.token)
+        assertTrue(subject.hasSyncToken.value)
+    }
+
+    @Test
+    fun `a token saved while a new address is typed belongs to that address`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        fixture.syncStore.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true))
+        val subject = fixture.subject
+        subject.syncAction()
+
+        subject.syncAddressDraftAction("http://other.local:8765")
+        subject.syncTokenDraftAction("for-the-other-hub")
+        subject.saveSyncTokenAction()
+        subject.backAction()
+        advanceUntilIdle()
+
+        assertEquals("http://other.local:8765", fixture.syncStore.settings.value.hubAddress)
+        assertEquals("for-the-other-hub", fixture.token)
+        assertTrue(subject.hasSyncToken.value)
+    }
+
+    @Test
     fun `a check of the hub says what it found`() = runTest {
         val fixture = SettingsEraseTests.Fixture(this)
         val subject = fixture.subject
