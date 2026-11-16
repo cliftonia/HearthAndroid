@@ -67,13 +67,11 @@ class CanvasShadowRootTests {
     }
 
     @Test
-    fun `the script makes written markup inert, and sweeps the shadow roots the parser made`() {
+    fun `the script refuses document writes, and sweeps the shadow roots the parser made`() {
         val script = CanvasWebPolicy().startScript
 
-        CanvasShadowRootTransformer.ATTRIBUTE_NAMES.forEach { name -> assertTrue("'$name'" in script, name) }
-        assertTrue("wrap(w, 'Document', 'write', 'value', inertWrite(''))" in script)
-        assertTrue("wrap(w, 'Document', 'writeln', 'value', inertWrite(newline))" in script)
-        assertTrue("'data-hearth-'" in script)
+        assertTrue("wrap(w, 'Document', 'write', 'value', refuseWrite)" in script)
+        assertTrue("wrap(w, 'Document', 'writeln', 'value', refuseWrite)" in script)
         // Every open shadow root it comes across is kept and watched, and a frame it finds anywhere is sealed.
         assertTrue("getterOf(Element.prototype, 'shadowRoot')" in script)
         assertTrue("keep(shadow, watchHere)" in script)
