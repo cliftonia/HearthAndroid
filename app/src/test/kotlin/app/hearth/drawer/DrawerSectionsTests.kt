@@ -22,6 +22,9 @@ class DrawerSectionsTests {
     /** A conversation active today, in the given project or in none. */
     private fun conversation(title: String, project: Project?) = Conversation(title = title, projectId = project?.id, updatedAt = now)
 
+    /** A chat a scheduled task filed the given number of days before `now`. */
+    private fun taskChat(title: String, daysAgo: Int) = conversation(title, daysAgo).copy(taskId = "task-$title")
+
     private fun List<DrawerSection>.titles() = flatMap { it.rows }.map { it.conversation.title }
 
     @Test
@@ -32,10 +35,41 @@ class DrawerSectionsTests {
             conversation("Yesterday", daysAgo = 1),
             conversation("This week", daysAgo = 5),
             conversation("Ancient", daysAgo = 40),
+            taskChat("Morning news", daysAgo = 0),
         )
         val sections = DrawerSections.build(conversations, "", now, zone)
         assertEquals(DrawerSectionKind.entries, sections.map { it.kind })
-        assertEquals(listOf("Old but pinned", "Fresh", "Yesterday", "This week", "Ancient"), sections.titles())
+        assertEquals(listOf("Old but pinned", "Morning news", "Fresh", "Yesterday", "This week", "Ancient"), sections.titles())
+    }
+
+    @Test
+    fun `chats filed by scheduled tasks are gathered newest first and not listed under their day`() {
+        val conversations = listOf(
+            taskChat("Monday digest", daysAgo = 6),
+            conversation("Fresh", daysAgo = 0),
+            taskChat("Today's digest", daysAgo = 0),
+            taskChat("Yesterday's digest", daysAgo = 1),
+        )
+        val sections = DrawerSections.build(conversations, "", now, zone)
+        assertEquals(listOf(DrawerSectionKind.SCHEDULED_TASKS, DrawerSectionKind.TODAY), sections.map { it.kind })
+        assertEquals(listOf("Today's digest", "Yesterday's digest", "Monday digest"), sections.first().rows.map { it.conversation.title })
+        assertEquals(listOf("Fresh"), sections.last().rows.map { it.conversation.title })
+    }
+
+    @Test
+    fun `a pinned task chat is listed under Pinned only, and no task heading is left empty`() {
+        val pinned = taskChat("Weekly plan", daysAgo = 3).copy(isPinned = true)
+        val sections = DrawerSections.build(listOf(pinned, conversation("Fresh", daysAgo = 0)), "", now, zone)
+        assertEquals(listOf(DrawerSectionKind.PINNED, DrawerSectionKind.TODAY), sections.map { it.kind })
+        assertEquals(listOf("Weekly plan", "Fresh"), sections.titles())
+    }
+
+    @Test
+    fun `a search still finds task chats`() {
+        val conversations = listOf(taskChat("Tide times", daysAgo = 2), conversation("Lunch", daysAgo = 0))
+        val sections = DrawerSections.build(conversations, "tide", now, zone)
+        assertEquals(listOf(DrawerSectionKind.SCHEDULED_TASKS), sections.map { it.kind })
+        assertEquals(listOf("Tide times"), sections.titles())
     }
 
     @Test

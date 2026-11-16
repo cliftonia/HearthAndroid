@@ -28,6 +28,9 @@ interface DrawerPresenterDelegate {
     /** A new chat is wanted: in the given project, or in none. */
     fun drawerPresenterDidRequestNewChat(projectId: ProjectId?)
     fun drawerPresenterDidRequestSettings()
+
+    /** The scheduled tasks are to be looked after, in the settings. */
+    fun drawerPresenterDidRequestTasks()
     fun drawerPresenterDidRequestNewProject()
     fun drawerPresenterDidRequestEditing(projectId: ProjectId)
 
@@ -71,6 +74,8 @@ class DrawerPresenter(
     fun newChatAction() = delegate?.drawerPresenterDidRequestNewChat(selectedProject()?.id) ?: Unit
 
     fun settingsAction() = delegate?.drawerPresenterDidRequestSettings() ?: Unit
+
+    fun manageTasksAction() = delegate?.drawerPresenterDidRequestTasks() ?: Unit
 
     /** Pins or unpins a conversation; its place by date is not disturbed. */
     fun pinAction(id: ConversationId, isPinned: Boolean) = change { conversationStore.setPinned(isPinned, id) }

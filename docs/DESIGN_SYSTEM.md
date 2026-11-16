@@ -144,6 +144,7 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthIcons` | The symbols the app draws itself, because Material's set has none like them: `NewChat` |
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
+| `HearthCircleButton(icon, label, tint, containerColor) { … }` | One symbol in a floating circle the size of a touch target: the frosted card colour, a hairline edge and a soft shadow, drawn like the composer. The chat list and private chat buttons at the top of a chat. `containerColor` fills it to show it is switched on |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, at least `touchTarget` high, with a line beneath the label on what it does, where given |
 | `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, ending in an arrow; TalkBack hears it as one button, by its description. Unavailable, it has no arrow and is heard as such |

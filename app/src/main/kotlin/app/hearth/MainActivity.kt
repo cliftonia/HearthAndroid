@@ -72,7 +72,7 @@ class MainActivity : FragmentActivity() {
         // With the lock on, the conversations are also kept out of the recent apps list and out of screenshots.
         LaunchedEffect(settings.isLockEnabled) {
             val secure = WindowManager.LayoutParams.FLAG_SECURE
-            if (settings.isLockEnabled) window.addFlags(secure) else window.clearFlags(secure)
+            if (settings.isLockEnabled && !showcaseAllowsCapture(application)) window.addFlags(secure) else window.clearFlags(secure)
         }
         HearthTheme(isDark) {
             // While locked nothing else is drawn at all, so no menu or dialog can sit above the lock.
@@ -128,6 +128,10 @@ class MainActivity : FragmentActivity() {
      * taking in what another app shared. It waits for the saved settings, which say whether voice has a server.
      */
     private fun handle(intent: Intent?) = coordinator.whenReady {
+        if (showcaseRequested(intent)) {
+            startShowcase(application as HearthApplication)
+            return@whenReady
+        }
         when (intent?.action) {
             ACTION_VOICE -> coordinator.startVoice(isFromOutside = true)
             ACTION_NEW_CHAT -> coordinator.startNewChat()

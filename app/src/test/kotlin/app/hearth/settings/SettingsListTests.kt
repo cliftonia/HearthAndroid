@@ -23,6 +23,12 @@ class SettingsListTests {
     private val hub = SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true)
 
     @Test
+    fun `pictures without models blame the server, not the address, once an address is set`() {
+        assertEquals(PicturesEmptyNote.NO_ADDRESS, picturesEmptyNote(ServerSettings(imageAddress = "")))
+        assertEquals(PicturesEmptyNote.NO_ANSWER, picturesEmptyNote(ServerSettings(imageAddress = "http://pictures.local:8188")))
+    }
+
+    @Test
     fun `memory says whether it is on and how many are kept`() {
         assertEquals(MemoryRowStatus.Off, memoryRowStatus(ServerSettings(isMemoryEnabled = false), 3))
         assertEquals(MemoryRowStatus.On(12), memoryRowStatus(ServerSettings(isMemoryEnabled = true), 12))

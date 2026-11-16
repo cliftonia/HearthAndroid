@@ -125,6 +125,14 @@ fun ComposerFooter(
             keyboard?.show()
         }
     }
+    // Choosing Edit puts the message in the field to be changed, so the field takes the keyboard at once.
+    LaunchedEffect(viewModel.editingMessageId) {
+        if (viewModel.editingMessageId != null) {
+            field.moveCursorToEnd()
+            focusRequester.requestFocus()
+            keyboard?.show()
+        }
+    }
     // An alert asking for the microphone, or the app being left, may swallow the lift of the finger.
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { presenter.holdToTalkEndedAction() }
     HapticEffect(HapticKind.LIGHT, isPictureMode)

@@ -72,6 +72,12 @@ fun voiceRowStatus(settings: ServerSettings): VoiceRowStatus =
 /** The picture model chosen; `null` for Automatic. */
 fun pictureRowStatus(settings: ServerSettings): ImageModelKind? = settings.imageModel
 
+/** Why the pictures page has no models to offer: no address is set, or the server at it gave none. */
+enum class PicturesEmptyNote { NO_ADDRESS, NO_ANSWER }
+
+fun picturesEmptyNote(settings: ServerSettings): PicturesEmptyNote =
+    if (settings.imageUrl == null) PicturesEmptyNote.NO_ADDRESS else PicturesEmptyNote.NO_ANSWER
+
 fun notificationsRowStatus(settings: ServerSettings): NotificationsRowStatus = when {
     settings.isReplyNotificationsEnabled && settings.isTaskNotificationsEnabled -> NotificationsRowStatus.REPLIES_AND_TASKS
     settings.isReplyNotificationsEnabled -> NotificationsRowStatus.REPLIES

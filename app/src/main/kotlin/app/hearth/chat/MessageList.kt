@@ -16,10 +16,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,23 +42,24 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
     // The list follows the reply as it grows, unless the reader has scrolled away to read something above.
-    var isFollowing by remember(viewModel.conversation.id) { mutableStateOf(true) }
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) focusManager.clearFocus() else isFollowing = !listState.canScrollForward
+    val following = remember(viewModel.conversation.id) { ListFollowing() }
+    LaunchedEffect(listState.isScrollInProgress, following) {
+        if (listState.isScrollInProgress) focusManager.clearFocus()
+        following.scrollStateChanged(listState.isScrollInProgress, listState.canScrollForward)
     }
     // A finger on the list means the reader is taking it somewhere, so it stops following at once; where it is
     // left decides, above, whether it follows again.
-    LaunchedEffect(listState) {
-        listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) isFollowing = false }
+    LaunchedEffect(listState, following) {
+        listState.interactionSource.interactions.collect { if (it is DragInteraction.Start) following.dragStarted() }
     }
     val last = messages.lastOrNull()
     LaunchedEffect(messages.size, last?.text?.length, last?.thinking?.length, last?.images?.size, viewModel.followUps.size) {
-        if (isFollowing) listState.scrollToItem(messages.size + 1)
+        if (following.isFollowing) listState.scrollToItem(messages.size + 1)
     }
     // A picture takes its place a moment after its reply arrives, and the list follows that as well.
-    LaunchedEffect(listState, viewModel.conversation.id) {
+    LaunchedEffect(listState, following) {
         snapshotFlow { listState.canScrollForward && !listState.isScrollInProgress }.collect { hasGrown ->
-            if (hasGrown && isFollowing) listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
+            if (hasGrown && following.isFollowing) listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
         }
     }
     LazyColumn(

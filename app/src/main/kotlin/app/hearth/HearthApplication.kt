@@ -11,9 +11,14 @@ class HearthApplication : Application(), BackgroundSyncHost {
     lateinit var coordinator: AppCoordinator
         private set
 
+    /** What the coordinator was built from; a debug build's sample data is written straight into its stores. */
+    lateinit var dependencies: AppDependencies
+        private set
+
     override fun onCreate() {
         super.onCreate()
-        coordinator = AppCoordinator(AppDependencies.live(this)).also { it.start() }
+        dependencies = AppDependencies.live(this)
+        coordinator = AppCoordinator(dependencies).also { it.start() }
     }
 
     override suspend fun backgroundSync() = coordinator.backgroundSync()

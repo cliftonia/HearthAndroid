@@ -50,7 +50,12 @@ internal fun PicturesPage(settings: ServerSettings, presenter: SettingsPresenter
     LaunchedEffect(settings.imageUrl) { presenter.loadPictureCapabilitiesAction() }
     HearthCard(footer = stringResource(R.string.picture_footer)) {
         if (capabilities.models.isEmpty()) {
-            Text(stringResource(R.string.picture_no_models), color = HearthTheme.colors.mute, style = HearthTheme.type.subhead)
+            // With an address set, the fault is the server's, not a missing address.
+            val note = when (picturesEmptyNote(settings)) {
+                PicturesEmptyNote.NO_ADDRESS -> R.string.picture_no_models
+                PicturesEmptyNote.NO_ANSWER -> R.string.picture_server_no_models
+            }
+            Text(stringResource(note), color = HearthTheme.colors.mute, style = HearthTheme.type.subhead)
         } else {
             ModelRow(settings.imageModel, capabilities.models) { model -> presenter.updateAction { it.copy(imageModel = model) } }
             Ability(stringResource(R.string.picture_can_change), capabilities.canEdit)

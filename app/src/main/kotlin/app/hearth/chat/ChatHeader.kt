@@ -20,7 +20,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -42,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
+import app.hearth.designsystem.HearthCircleButton
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthIcons
 import app.hearth.designsystem.HearthTheme
@@ -70,7 +69,7 @@ internal fun ChatHeader(viewModel: ChatViewModel, settings: ServerSettings, pres
             Modifier.fillMaxWidth().padding(horizontal = HearthTheme.spacing.xs, vertical = HearthTheme.spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            HearthIconButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu)) {
+            HearthCircleButton(Icons.Outlined.Menu, stringResource(R.string.chat_menu), Modifier.padding(start = HearthTheme.spacing.xl)) {
                 // Opening or closing the chats by this button is felt; a drag has the finger's own feedback.
                 Haptics.play(HapticKind.LIGHT)
                 presenter.drawerAction()
@@ -136,19 +135,14 @@ private fun PrivateToggle(isPrivate: Boolean, canChange: Boolean, onToggle: () -
         Spacer(Modifier.size(HearthTheme.sizes.touchTarget))
         return
     }
-    IconButton(onClick = onToggle, modifier = Modifier.semantics { selected = isPrivate }) {
-        Box(
-            Modifier.size(HearthTheme.sizes.controlM).background(if (isPrivate) colors.pineSoft else Color.Transparent, HearthTheme.shapes.circle),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                if (isPrivate) Icons.Filled.LockFilled else Icons.Outlined.Lock,
-                stringResource(R.string.chat_private),
-                tint = if (isPrivate) colors.pine else colors.ink,
-                modifier = Modifier.size(HearthTheme.sizes.iconL),
-            )
-        }
-    }
+    HearthCircleButton(
+        if (isPrivate) Icons.Filled.LockFilled else Icons.Outlined.Lock,
+        stringResource(R.string.chat_private),
+        modifier = Modifier.padding(end = HearthTheme.spacing.xl).semantics { selected = isPrivate },
+        tint = if (isPrivate) colors.pine else colors.ink,
+        containerColor = if (isPrivate) colors.pineSoft else null,
+        onClick = onToggle,
+    )
 }
 
 /** Shows that a chat that has begun is private. It is not a button: a chat cannot be made ordinary once it has begun. */
@@ -171,7 +165,7 @@ private fun ChatControls(conversation: Conversation, isInProject: Boolean, prese
     var isRenaming by remember { mutableStateOf(false) }
     Row(
         Modifier
-            .padding(end = HearthTheme.spacing.m)
+            .padding(end = HearthTheme.spacing.xl)
             .shadow(HearthTheme.strokes.floatingShadow, HearthTheme.shapes.pill)
             .background(colors.card, HearthTheme.shapes.pill)
             .padding(horizontal = HearthTheme.spacing.xs),

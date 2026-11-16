@@ -33,6 +33,7 @@ import app.hearth.settings.SettingsPresenterDelegate
 import app.hearth.settings.SyncControls
 import app.hearth.settings.TaskControls
 import app.hearth.settings.scheduleTaskAction
+import app.hearth.settings.tasksPageAction
 import app.hearth.sync.SyncScheduler
 import app.hearth.sync.TaskChatNotifier
 import app.hearth.voice.VoicePresenter
@@ -167,7 +168,7 @@ class AppCoordinator(
     private val syncScheduler = SyncScheduler(
         scope,
         dependencies.syncStore,
-        runSync = { dependencies.sync.sync() },
+        runSync = dependencies.runSync,
         log = { Log.i("Sync", it) },
     )
     private val syncHooks = dependencies.syncHooks
@@ -529,6 +530,11 @@ class AppCoordinator(
     }
 
     override fun drawerPresenterDidRequestSettings() = showSettings()
+
+    override fun drawerPresenterDidRequestTasks() {
+        settings.tasksPageAction()
+        showSettings()
+    }
 
     override fun settingsPresenterDidFinish() {
         screenState.value = Screen.CHAT

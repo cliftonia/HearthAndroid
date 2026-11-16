@@ -92,6 +92,8 @@ class AppDependencies(
     val syncStore: SyncStore,
     /** One sync with the hub; when it runs is the coordinator's scheduler's to decide. */
     val sync: SyncInteractor,
+    /** Runs [sync], returning how many items were too large to send. Only a debug build's sample data puts anything else here. */
+    val runSync: suspend () -> Int,
     /** Filled in by the coordinator once the chat and the scheduler exist. */
     val syncHooks: SyncHooks,
     /** Schedules the phone's background sync job while sync is on, and cancels it while it is off. */
@@ -156,7 +158,7 @@ class AppDependencies(
             taskStore.onLocalChange = record
             return AppDependencies(
                 settingsStore = settingsStore,
-                modelStore = ModelStore(chat.fetchModels),
+                modelStore = ModelStore(showcaseModels(application, chat.fetchModels)),
                 conversationStore = conversationStore,
                 memoryStore = memoryStore,
                 projectStore = projectStore,
@@ -195,6 +197,7 @@ class AppDependencies(
                 sideList = sideList,
                 syncStore = syncStore,
                 sync = sync,
+                runSync = showcaseSync(application) { sync.sync() },
                 syncHooks = syncHooks,
                 backgroundSync = { isOn -> BackgroundSync.update(application, isOn) },
             )

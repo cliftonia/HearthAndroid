@@ -16,6 +16,7 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -92,9 +93,21 @@ fun DrawerContent(
                     projectListItems(listedProjects, isSearching = query.isNotBlank(), presenter)
                 }
                 sections.forEach { section ->
-                    item(key = section.kind.name) { DrawerHeading(stringResource(section.kind.title)) }
+                    item(key = section.kind.name) {
+                        if (section.kind == DrawerSectionKind.SCHEDULED_TASKS) {
+                            DrawerHeading(stringResource(section.kind.title), stringResource(R.string.drawer_manage_tasks), presenter::manageTasksAction)
+                        } else {
+                            DrawerHeading(stringResource(section.kind.title))
+                        }
+                    }
                     items(section.rows, key = { it.conversation.id.raw }) { row ->
-                        ConversationRow(row, row.conversation.id == selectedId, hasProjectMark = selectedProject == null, presenter) {
+                        ConversationRow(
+                            row,
+                            row.conversation.id == selectedId,
+                            hasProjectMark = selectedProject == null,
+                            presenter,
+                            hasTaskMark = section.kind != DrawerSectionKind.SCHEDULED_TASKS,
+                        ) {
                             renaming = row.conversation
                         }
                     }
@@ -134,10 +147,27 @@ internal fun DrawerHeading(title: String) {
     )
 }
 
+/** A heading with a small action at its end, such as Manage beside the scheduled tasks' chats. */
+@Composable
+private fun DrawerHeading(title: String, action: String, onAction: () -> Unit) {
+    val spacing = HearthTheme.spacing
+    // The button's own height stands above and below the line, so the row starts a little lower than a plain heading.
+    Row(Modifier.fillMaxWidth().padding(start = spacing.l, end = spacing.s, top = spacing.l), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            title,
+            color = HearthTheme.colors.mute,
+            style = HearthTheme.type.caption,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        TextButton(onClick = onAction) { Text(action, color = HearthTheme.colors.pine, style = HearthTheme.type.caption) }
+    }
+}
+
 /** The words for a heading of the list. */
 private val DrawerSectionKind.title: Int
     get() = when (this) {
         DrawerSectionKind.PINNED -> R.string.drawer_pinned
+        DrawerSectionKind.SCHEDULED_TASKS -> R.string.drawer_scheduled_tasks
         DrawerSectionKind.TODAY -> R.string.drawer_today
         DrawerSectionKind.YESTERDAY -> R.string.drawer_yesterday
         DrawerSectionKind.PREVIOUS_WEEK -> R.string.drawer_previous_week

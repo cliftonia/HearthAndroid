@@ -7,7 +7,7 @@ import java.time.Instant
 import java.time.ZoneId
 
 /** The headings of the chat list, in the order they are shown. */
-enum class DrawerSectionKind { PINNED, TODAY, YESTERDAY, PREVIOUS_WEEK, EARLIER }
+enum class DrawerSectionKind { PINNED, SCHEDULED_TASKS, TODAY, YESTERDAY, PREVIOUS_WEEK, EARLIER }
 
 /** One chat in the list. */
 data class DrawerRow(
@@ -19,11 +19,15 @@ data class DrawerRow(
 /** One heading of the chat list and the chats under it. */
 data class DrawerSection(val kind: DrawerSectionKind, val rows: List<DrawerRow>)
 
-/** Sorts conversations under the headings of the drawer, pinned first and then by how long ago they were last used, and lists the projects above them. */
+/**
+ * Sorts conversations under the headings of the drawer, pinned first, then the chats scheduled tasks filed, then the
+ * rest by how long ago they were last used, and lists the projects above them.
+ */
 object DrawerSections {
     /**
      * Keeps the conversations whose title or messages contain the query, and groups them by heading.
-     * Headings with nothing under them are left out.
+     * Headings with nothing under them are left out. Each chat is under one heading only: a chat a scheduled task
+     * filed is under Scheduled tasks, newest first, not under its day, unless it is pinned, when it is under Pinned.
      *
      * [projectId] is the project whose chats alone are wanted; `null` for every chat, in a project or not.
      * [projects] are the projects that exist. A chat is marked as being in a project only if its project is among
@@ -50,12 +54,16 @@ object DrawerSections {
             val day = Instant.ofEpochMilli(conversation.updatedAt).atZone(zone).toLocalDate()
             when {
                 conversation.isPinned -> DrawerSectionKind.PINNED
+                conversation.taskId != null -> DrawerSectionKind.SCHEDULED_TASKS
                 !day.isBefore(today) -> DrawerSectionKind.TODAY
                 day == today.minusDays(1) -> DrawerSectionKind.YESTERDAY
                 day.isAfter(today.minusDays(8)) -> DrawerSectionKind.PREVIOUS_WEEK
                 else -> DrawerSectionKind.EARLIER
             }
-        }.toSortedMap().map { (kind, group) -> DrawerSection(kind, group.map { DrawerRow(it, isInProject = it.projectId in known) }) }
+        }.toSortedMap().map { (kind, group) ->
+            val ordered = if (kind == DrawerSectionKind.SCHEDULED_TASKS) group.sortedByDescending { it.updatedAt } else group
+            DrawerSection(kind, ordered.map { DrawerRow(it, isInProject = it.projectId in known) })
+        }
     }
 
     /**

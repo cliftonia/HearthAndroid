@@ -130,6 +130,12 @@ fun SettingsPresenter.scheduleTaskAction(question: String) {
     pageState.value = SettingsPageKind.TASK
 }
 
+/** Opens the tasks page straight from elsewhere in the app; back from it is the settings list. */
+fun SettingsPresenter.tasksPageAction() {
+    isTaskFromChat = false
+    pageState.value = SettingsPageKind.TASKS
+}
+
 /** Opens the editor on a saved task. */
 fun SettingsPresenter.editTaskAction(id: TaskId) {
     val task = taskControls.store.task(id) ?: return

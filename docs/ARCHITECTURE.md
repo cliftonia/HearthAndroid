@@ -200,8 +200,10 @@ characters in order; the model is told which file was cut short and which were l
 reference files closes the memory tools for its chats, exactly as an attached file does: what is in a file must
 not be able to plant a memory. A project with instructions alone leaves memory open, since the user typed those.
 
-**The screens.** The drawer lists the projects above the dated groups; choosing one narrows the list to its
-chats, and `DrawerSections` does the narrowing and the grouping. Two sheets belong to projects, each a feature
+**The screens.** The drawer lists the projects above the chats: Pinned, then Scheduled tasks (the chats a task
+filed, newest first, with **Manage** leading to the tasks page), then the dated groups. Each chat is under one
+heading only, so a task's chat is not listed again under its day, and a pinned one stays under Pinned. Choosing a
+project narrows the list to its chats, and `DrawerSections` does the narrowing and the grouping. Two sheets belong to projects, each a feature
 of its own: `project` makes and edits one, `projectpicker` files a chat. The coordinator holds one value,
 `projectSheet`, for both, so that the picker can give way to the editor when a new project is wanted for a chat;
 `RootView` draws whichever it names over everything else.
@@ -543,6 +545,14 @@ the words end. No video is recorded or sent. It mirrors the iPhone app, account 
   and hears the words in the file once, twenty seconds after listening begins, and the voice says nothing and asks
   no speech server. With an empty file it hears nothing. The code is in `app/src/debug` with a twin in
   `app/src/release` that changes nothing, so it is in no build that ships.
+- **Sample data for pictures.** In a debug build,
+  `adb shell am start -n <application id>/app.hearth.MainActivity --ez hearth_screenshots true` fills the app with
+  tidy example chats, a project, memories, scheduled tasks, a canvas piece and a research report, a stand-in model
+  list (`gemma4` and two `:cloud` models), placeholder addresses such as `https://my-server:11434` and a person
+  called Sam (`Showcase.kt`). It leaves a `showcase` file among the app's files; while that is there the model list
+  is the stand-in one, a sync touches no hub, and the window may be captured with the lock on. Clearing the app's
+  storage (`adb shell pm clear`) or uninstalling it ends it; the in-app Erase does not.
+  The release twin hands everything back unchanged and ignores the extra.
 
 ## Haptics
 

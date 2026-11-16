@@ -147,6 +147,8 @@
     <string name="drawer_yesterday">Yesterday</string>
     <string name="drawer_previous_week">Previous 7 days</string>
     <string name="drawer_earlier">Earlier</string>
+    <string name="drawer_scheduled_tasks">Scheduled tasks</string>
+    <string name="drawer_manage_tasks">Manage</string>
     <string name="drawer_pinned">Pinned</string>
     <string name="drawer_pin">Pin</string>
     <string name="drawer_unpin">Unpin</string>
@@ -350,6 +352,7 @@
     <string name="picture_can_change">Can change a picture you show it</string>
     <string name="picture_can_enlarge">Can enlarge a picture</string>
     <string name="picture_no_models">Add a picture server address in Servers to make pictures.</string>
+    <string name="picture_server_no_models">The picture server did not answer, or has no picture models. Check its address in Servers.</string>
     <string name="picture_footer">To make a picture, tap + in a chat and choose Make a picture. Attach a photo to change it or enlarge it. The picture server is asked to free its memory after every picture.</string>
     <string name="picture_ability_there">Available</string>
     <string name="picture_ability_missing">Not available</string>

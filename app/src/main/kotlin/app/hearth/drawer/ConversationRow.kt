@@ -44,10 +44,11 @@ import app.hearth.shared.share
  * or delete it.
  *
  * [hasProjectMark] is whether a chat that is in a project is marked as such. Among a project's own chats the mark
- * would say nothing, so it is asked for only where every chat is listed.
+ * would say nothing, so it is asked for only where every chat is listed. [hasTaskMark] is the same for the note under
+ * a chat a scheduled task filed, which says nothing under the Scheduled tasks heading.
  */
 @Composable
-internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark: Boolean, presenter: DrawerPresenter, onRename: () -> Unit) {
+internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark: Boolean, presenter: DrawerPresenter, hasTaskMark: Boolean = true, onRename: () -> Unit) {
     val conversation = row.conversation
     val colors = HearthTheme.colors
     val context = LocalContext.current
@@ -74,7 +75,7 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
         Column(Modifier.weight(1f)) {
             Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
             // A chat a scheduled task filed says so, under its title.
-            if (conversation.taskId != null) {
+            if (conversation.taskId != null && hasTaskMark) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xs)) {
                     Icon(Icons.Outlined.Schedule, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
                     Text(stringResource(R.string.chat_scheduled_task), color = colors.mute, style = HearthTheme.type.caption, maxLines = 1)
