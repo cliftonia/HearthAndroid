@@ -71,6 +71,8 @@ fun canEnableSync(address: String): Boolean = SyncSettings(hubAddress = address)
 
 /** Opens the sync page, filled from what is saved. The token is never read into it. */
 fun SettingsPresenter.syncAction() {
+    // Sync set up from tasks begun in the chat leads back to the list of settings, as any page does.
+    isTaskFromChat = false
     syncAddressState.value = syncStore.settings.value.hubAddress
     syncTokenDraftState.value = ""
     syncCheckState.value = null

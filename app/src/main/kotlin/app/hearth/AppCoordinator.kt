@@ -32,6 +32,7 @@ import app.hearth.settings.SettingsPresenter
 import app.hearth.settings.SettingsPresenterDelegate
 import app.hearth.settings.SyncControls
 import app.hearth.settings.TaskControls
+import app.hearth.settings.scheduleTaskAction
 import app.hearth.sync.SyncScheduler
 import app.hearth.sync.TaskChatNotifier
 import app.hearth.voice.VoicePresenter
@@ -454,6 +455,12 @@ class AppCoordinator(
     override fun chatPresenterDidRequestCanvas(reference: CanvasReference) {
         canvas.open(reference)
         canvasState.value = true
+    }
+
+    /** Opens a new scheduled task in the settings, asking what was written; without sync, the tasks page, which says why. */
+    override fun chatPresenterDidRequestTask(question: String) {
+        settings.scheduleTaskAction(question)
+        showSettings()
     }
 
     override fun canvasPresenterDidClose() {

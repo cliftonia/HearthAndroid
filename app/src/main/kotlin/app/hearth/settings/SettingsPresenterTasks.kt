@@ -102,6 +102,7 @@ fun SettingsPresenter.isTaskInPast(draft: TaskDraft): Boolean = draft.isInPast(t
 
 /** Opens the scheduled tasks page. */
 fun SettingsPresenter.tasksAction() {
+    isTaskFromChat = false
     taskDraftState.value = null
     pageState.value = SettingsPageKind.TASKS
 }
@@ -110,6 +111,22 @@ fun SettingsPresenter.tasksAction() {
 fun SettingsPresenter.addTaskAction() {
     if (!syncStore.settings.value.canSync) return
     taskDraftState.value = TaskDraft(date = tomorrow(), model = TaskModels.AUTOMATIC)
+    pageState.value = SettingsPageKind.TASK
+}
+
+/**
+ * Opens a new task from the chat's composer, asking what is written there, with the title left to the user. Without
+ * sync the tasks page opens instead, which says why none can be added and leads to sync. Either way, leaving goes
+ * back to the chat, whose draft is left as it was.
+ */
+fun SettingsPresenter.scheduleTaskAction(question: String) {
+    isTaskFromChat = true
+    if (!syncStore.settings.value.canSync) {
+        taskDraftState.value = null
+        pageState.value = SettingsPageKind.TASKS
+        return
+    }
+    taskDraftState.value = TaskDraft(prompt = question.trim(), date = tomorrow(), model = TaskModels.AUTOMATIC)
     pageState.value = SettingsPageKind.TASK
 }
 
@@ -158,7 +175,8 @@ fun SettingsPresenter.saveTaskAction() {
         try {
             taskControls.store.save(task)
             taskDraftState.value = null
-            pageState.value = SettingsPageKind.TASKS
+            // A task begun in the chat's composer goes back to the chat once it is kept.
+            if (isTaskFromChat) doneAction() else pageState.value = SettingsPageKind.TASKS
         } catch (failure: IOException) {
             Log.e(SettingsPresenter.TAG, "Saving a task failed: ${failure.javaClass.simpleName}")
             taskDraftState.value = taskDraftState.value?.copy(hasFailed = true)

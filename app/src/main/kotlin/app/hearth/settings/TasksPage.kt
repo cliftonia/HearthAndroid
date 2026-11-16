@@ -15,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -26,27 +25,12 @@ import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthCard
-import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ScheduledTask
 import app.hearth.domain.TaskModels
 import app.hearth.domain.TaskRunKind
 import app.hearth.domain.TaskSchedule
 import java.time.ZoneId
-
-/** The row in the settings that leads to the scheduled tasks, saying how many there are. */
-@Composable
-internal fun TasksCard(presenter: SettingsPresenter) {
-    val colors = HearthTheme.colors
-    val tasks by presenter.tasks.collectAsStateWithLifecycle()
-    val state = if (tasks.isEmpty()) stringResource(R.string.tasks_none) else pluralStringResource(R.plurals.tasks_count, tasks.size, tasks.size)
-    HearthCard {
-        HearthPageRow(stringResource(R.string.tasks_open, state), presenter::tasksAction) {
-            Text(stringResource(R.string.tasks_title), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(state, color = colors.mute, style = HearthTheme.type.subhead)
-        }
-    }
-}
 
 /**
  * The scheduled tasks: each with its schedule, how its last run went and a switch, and a way to add one. Tasks are

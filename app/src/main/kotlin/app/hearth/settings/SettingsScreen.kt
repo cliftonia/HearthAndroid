@@ -27,13 +27,12 @@ import app.hearth.R
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
 import app.hearth.integrations.ProfilePhotoLoader
+import app.hearth.shared.UnlockMethodKind
 
 /**
- * Where the servers are named and the app's behaviour is chosen. Each group of settings is a card of its own.
- *
- * The profile, the notifications, sync and the scheduled tasks are pages of their own, reached from rows here; the
- * back button leads from any of them to this list (from the task editor to the tasks), and from this list out of the
- * settings.
+ * Where the servers are named and the app's behaviour is chosen. The list is a few groups of rows, most of which
+ * lead to a page of their own and say how things stand there; the back button leads from any page to this list (from
+ * the task editor to the tasks), and from this list out of the settings.
  */
 @Composable
 fun SettingsScreen(
@@ -42,11 +41,11 @@ fun SettingsScreen(
     photos: ProfilePhotoLoader,
     /** Asks the phone to confirm who is holding it, and reports whether it did. */
     authenticate: (onResult: (Boolean) -> Unit) -> Unit,
+    /** How the phone can confirm who is holding it, which the lock's switch is named for. */
+    unlockMethod: UnlockMethodKind,
     modifier: Modifier = Modifier,
 ) {
     val settings by presenter.settings.collectAsStateWithLifecycle()
-    val memories by presenter.memories.collectAsStateWithLifecycle()
-    val test by presenter.connectionTest.collectAsStateWithLifecycle()
     val page by presenter.page.collectAsStateWithLifecycle()
     val photo by presenter.photo.collectAsStateWithLifecycle()
     val taskDraft by presenter.taskDraft.collectAsStateWithLifecycle()
@@ -55,6 +54,11 @@ fun SettingsScreen(
     val title = when (page) {
         SettingsPageKind.MAIN -> R.string.drawer_settings
         SettingsPageKind.PROFILE -> R.string.profile_title
+        SettingsPageKind.MEMORY -> R.string.memory_title
+        SettingsPageKind.WEB_SEARCH -> R.string.composer_search
+        SettingsPageKind.VOICE -> R.string.settings_voice
+        SettingsPageKind.PICTURES -> R.string.picture_section
+        SettingsPageKind.SERVERS -> R.string.settings_servers
         SettingsPageKind.NOTIFICATIONS -> R.string.notifications_title
         SettingsPageKind.SYNC -> R.string.sync_title
         SettingsPageKind.TASKS -> R.string.tasks_title
@@ -76,22 +80,13 @@ fun SettingsScreen(
         key(page) {
             SettingsPage(if (page == SettingsPageKind.MAIN) listScroll else rememberScrollState()) {
                 when (page) {
-                    SettingsPageKind.MAIN -> {
-                        ProfileCard(settings.profile, avatar, presenter)
-                        ServerCard(settings, presenter)
-                        SearchCard(settings, presenter)
-                        ConnectionCard(test, presenter)
-                        VoiceCard(settings, presenter)
-                        PictureCard(settings, presenter)
-                        MemoryCard(settings, memories, presenter)
-                        NotificationsCard(settings, presenter)
-                        SyncCard(presenter)
-                        TasksCard(presenter)
-                        PrivacyCard(settings, presenter, authenticate)
-                        HapticsCard(settings, presenter)
-                        ThemeCard(settings, presenter)
-                    }
+                    SettingsPageKind.MAIN -> SettingsList(settings, avatar, presenter, authenticate, unlockMethod)
                     SettingsPageKind.PROFILE -> ProfilePage(settings, avatar, presenter, photos)
+                    SettingsPageKind.MEMORY -> MemoryPage(settings, presenter)
+                    SettingsPageKind.WEB_SEARCH -> WebSearchPage(settings, presenter)
+                    SettingsPageKind.VOICE -> VoicePage(settings, presenter)
+                    SettingsPageKind.PICTURES -> PicturesPage(settings, presenter)
+                    SettingsPageKind.SERVERS -> ServersPage(settings, presenter)
                     SettingsPageKind.NOTIFICATIONS -> NotificationsPage(settings, presenter)
                     SettingsPageKind.SYNC -> SyncPage(presenter)
                     SettingsPageKind.TASKS -> TasksPage(presenter)

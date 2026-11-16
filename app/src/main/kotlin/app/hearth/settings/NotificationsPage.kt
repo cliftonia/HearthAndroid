@@ -7,14 +7,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -23,26 +21,10 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
-import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthPermissionNotice
 import app.hearth.designsystem.HearthSwitchRow
-import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.integrations.openNotificationSettings
-
-/** The row in the settings that leads to the notification switches, saying whether any is on. */
-@Composable
-internal fun NotificationsCard(settings: ServerSettings, presenter: SettingsPresenter) {
-    val colors = HearthTheme.colors
-    val isAnyOn = settings.isReplyNotificationsEnabled || settings.isTaskNotificationsEnabled
-    val state = stringResource(if (isAnyOn) R.string.notifications_on else R.string.notifications_off)
-    HearthCard {
-        HearthPageRow(stringResource(R.string.notifications_open, state), presenter::notificationsAction) {
-            Text(stringResource(R.string.notifications_title), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(state, color = colors.mute, style = HearthTheme.type.subhead)
-        }
-    }
-}
 
 /**
  * What Hearth may tell the user about while it is not on screen: one switch for each thing it can do today.

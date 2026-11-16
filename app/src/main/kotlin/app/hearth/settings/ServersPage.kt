@@ -8,47 +8,61 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.shared.errorMessage
 
-/** The addresses of the chat, search, speech and picture servers. */
+/**
+ * The addresses of the chat, search, speech and picture servers, and the test of the chat server's directly beneath
+ * them. Each address is kept as it is typed; the chat server is tested once the page is left with its address changed,
+ * not at each key.
+ */
 @Composable
-internal fun ServerCard(settings: ServerSettings, presenter: SettingsPresenter) {
-    HearthCard(stringResource(R.string.settings_servers), stringResource(R.string.settings_servers_footer)) {
+internal fun ServersPage(settings: ServerSettings, presenter: SettingsPresenter) {
+    val test by presenter.connectionTest.collectAsStateWithLifecycle()
+    HearthCard(footer = stringResource(R.string.settings_servers_footer)) {
         AddressField(stringResource(R.string.settings_ollama), settings.ollamaAddress) { text -> presenter.updateAction { it.copy(ollamaAddress = text) } }
         AddressField(stringResource(R.string.settings_search), settings.searchAddress) { text -> presenter.updateAction { it.copy(searchAddress = text) } }
         AddressField(stringResource(R.string.settings_speech), settings.speechAddress) { text -> presenter.updateAction { it.copy(speechAddress = text) } }
         AddressField(stringResource(R.string.settings_image), settings.imageAddress) { text -> presenter.updateAction { it.copy(imageAddress = text) } }
+        ConnectionRow(test, presenter)
     }
 }
 
-/** A button that tries the chat server's address, and how the last try went. */
+/** A button that tries the chat server's address, and how the last try went, announced as it changes. */
 @Composable
-internal fun ConnectionCard(test: ConnectionTest?, presenter: SettingsPresenter) {
+private fun ConnectionRow(test: ConnectionTest?, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
-    HearthCard {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xl)) {
-            OutlinedButton(onClick = presenter::testConnectionAction, enabled = test != ConnectionTest.Checking) {
-                Text(stringResource(R.string.settings_test))
-            }
-            val (message, colour) = when (test) {
-                null -> "" to colors.mute
-                is ConnectionTest.Checking -> stringResource(R.string.settings_checking) to colors.mute
-                is ConnectionTest.Succeeded -> pluralStringResource(R.plurals.settings_test_ok, test.modelCount, test.modelCount) to colors.online
-                is ConnectionTest.InvalidAddress -> stringResource(R.string.settings_invalid_address) to colors.danger
-                is ConnectionTest.Failed -> errorMessage(test.error) to colors.danger
-            }
-            Text(message, color = colour, style = HearthTheme.type.footnoteSnug, modifier = Modifier.weight(1f))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xl)) {
+        OutlinedButton(onClick = presenter::testConnectionAction, enabled = test != ConnectionTest.Checking) {
+            Text(stringResource(R.string.settings_test))
         }
+        val (message, colour) = when (test) {
+            null -> "" to colors.mute
+            is ConnectionTest.Checking -> stringResource(R.string.settings_checking) to colors.mute
+            is ConnectionTest.Succeeded -> pluralStringResource(R.plurals.settings_test_ok, test.modelCount, test.modelCount) to colors.online
+            is ConnectionTest.InvalidAddress -> stringResource(R.string.settings_invalid_address) to colors.danger
+            is ConnectionTest.Failed -> errorMessage(test.error) to colors.danger
+        }
+        Text(
+            message,
+            color = colour,
+            style = HearthTheme.type.footnoteSnug,
+            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 }
 

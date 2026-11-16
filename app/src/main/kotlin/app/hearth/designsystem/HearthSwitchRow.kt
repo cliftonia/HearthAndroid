@@ -3,6 +3,7 @@ package app.hearth.designsystem
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Switch
@@ -14,13 +15,13 @@ import androidx.compose.ui.semantics.Role
 
 /**
  * A label with a switch at its end, and beneath the label, where given, one line on what the switch does. The
- * whole row is the switch, so it is one thing to tap and one thing to hear. Throwing it is felt as a light tap.
+ * whole row is the switch, at least a finger high, so it is one thing to tap and one thing to hear. Throwing it is felt as a light tap.
  * While it is not [enabled] it is drawn faint and cannot be thrown.
  */
 @Composable
 fun HearthSwitchRow(label: String, isOn: Boolean, detail: String? = null, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().toggleable(
+        Modifier.fillMaxWidth().heightIn(min = HearthTheme.sizes.touchTarget).toggleable(
             isOn,
             enabled = enabled,
             role = Role.Switch,

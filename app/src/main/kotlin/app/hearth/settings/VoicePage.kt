@@ -26,6 +26,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
@@ -35,14 +38,17 @@ import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 
-/** Which voice reads replies, chosen from those the speech server offers or typed by hand. Hidden with no speech server. */
+/**
+ * Which voice reads replies, chosen from those the speech server offers or typed by hand, a sample of it, and whether
+ * replies are read aloud. Reached only while there is a speech server; the voices are asked for as the page opens,
+ * since the address can no longer be changing.
+ */
 @Composable
-internal fun VoiceCard(settings: ServerSettings, presenter: SettingsPresenter) {
-    if (settings.speechUrl == null) return
+internal fun VoicePage(settings: ServerSettings, presenter: SettingsPresenter) {
     val voices by presenter.voices.collectAsStateWithLifecycle()
     var isOpen by remember { mutableStateOf(false) }
     LaunchedEffect(settings.speechUrl) { presenter.loadVoicesAction() }
-    HearthCard(stringResource(R.string.settings_voice)) {
+    HearthCard {
         Box {
             OutlinedTextField(
                 value = settings.voice,
@@ -52,7 +58,7 @@ internal fun VoiceCard(settings: ServerSettings, presenter: SettingsPresenter) {
                 keyboardOptions = KeyboardOptions(autoCorrect = false, capitalization = KeyboardCapitalization.None),
                 trailingIcon = {
                     if (voices.isNotEmpty()) {
-                        HearthIconButton(Icons.Outlined.ExpandMore, stringResource(R.string.settings_voice), tint = HearthTheme.colors.mute) { isOpen = true }
+                        HearthIconButton(Icons.Outlined.ExpandMore, stringResource(R.string.settings_voice_choose), tint = HearthTheme.colors.mute) { isOpen = true }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -95,13 +101,12 @@ private fun VoicePreviewRow(presenter: SettingsPresenter) {
                 Modifier.padding(start = HearthTheme.spacing.s),
             )
         }
-        if (preview == VoicePreviewKind.FAILED) {
-            Text(
-                stringResource(R.string.settings_voice_sample_failed),
-                color = colors.danger,
-                style = HearthTheme.type.footnoteSnug,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        // Always there, so that TalkBack hears the failure as it is written into it.
+        Text(
+            if (preview == VoicePreviewKind.FAILED) stringResource(R.string.settings_voice_sample_failed) else "",
+            color = colors.danger,
+            style = HearthTheme.type.footnoteSnug,
+            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 }

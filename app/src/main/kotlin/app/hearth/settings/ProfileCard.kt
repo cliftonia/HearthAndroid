@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -38,12 +37,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
-import app.hearth.designsystem.HapticKind
-import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthAvatar
 import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthPageRow
-import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.UserProfile
@@ -73,11 +69,10 @@ internal fun ProfileCard(profile: UserProfile, avatar: ImageBitmap?, presenter: 
     }
 }
 
-/** Who the user is and how they like to be answered, and the way to erase everything. */
+/** Who the user is and how they like to be answered: the photo, the names and the instructions. */
 @Composable
 internal fun ProfilePage(settings: ServerSettings, avatar: ImageBitmap?, presenter: SettingsPresenter, photos: ProfilePhotoLoader) {
     val error by presenter.profileError.collectAsStateWithLifecycle()
-    val isErasing by presenter.isErasing.collectAsStateWithLifecycle()
     AvatarSection(avatar, settings.profile.initials, presenter, photos)
     HearthCard(footer = stringResource(R.string.profile_names_footer)) {
         NameField(stringResource(R.string.profile_full_name), settings.fullName) { text -> presenter.updateAction { it.copy(fullName = text) } }
@@ -96,12 +91,7 @@ internal fun ProfilePage(settings: ServerSettings, avatar: ImageBitmap?, present
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = instructionsTitle },
         )
     }
-    HearthCard(footer = stringResource(R.string.profile_follow_ups_footer)) {
-        HearthSwitchRow(stringResource(R.string.settings_follow_ups), settings.isFollowUpsEnabled) { isOn ->
-            presenter.updateAction { it.copy(isFollowUpsEnabled = isOn) }
-        }
-    }
-    EraseSection(error, isErasing, presenter)
+    if (error == ProfileErrorKind.PHOTO_FAILED) ProblemLine(stringResource(R.string.profile_photo_failed))
 }
 
 /** The avatar, with the control beneath it that chooses a photo or takes it away. */
@@ -150,46 +140,16 @@ private fun NameField(label: String, value: String, onChange: (String) -> Unit) 
     )
 }
 
-/**
- * There are no accounts to delete, so what is offered is to erase what the device holds, after asking once more.
- * Anything that goes wrong on the page is said beneath it.
- */
+/** A problem on a page, said beneath what went wrong and announced as it appears. */
 @Composable
-private fun EraseSection(error: ProfileErrorKind?, isErasing: Boolean, presenter: SettingsPresenter) {
+internal fun ProblemLine(message: String) {
     val colors = HearthTheme.colors
-    var isConfirming by remember { mutableStateOf(false) }
-    HearthCard(footer = stringResource(R.string.profile_erase_all_footer)) {
-        TextButton(onClick = { isConfirming = true }, enabled = !isErasing) {
-            Text(stringResource(R.string.profile_erase_all), color = if (isErasing) colors.mute else colors.danger)
-        }
-    }
-    error?.let { kind ->
-        val message = when (kind) {
-            ProfileErrorKind.PHOTO_FAILED -> R.string.profile_photo_failed
-            ProfileErrorKind.ERASE_FAILED -> R.string.profile_erase_all_failed
-        }
-        Row(
-            Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m),
-        ) {
-            Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.danger, modifier = Modifier.size(HearthTheme.sizes.iconS))
-            Text(stringResource(message), color = colors.danger, style = HearthTheme.type.footnoteSnug)
-        }
-    }
-    if (isConfirming) {
-        AlertDialog(
-            onDismissRequest = { isConfirming = false },
-            title = { Text(stringResource(R.string.profile_erase_all_question)) },
-            text = { Text(stringResource(R.string.profile_erase_all_message)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    isConfirming = false
-                    Haptics.play(HapticKind.WARNING)
-                    presenter.eraseAction()
-                }) { Text(stringResource(R.string.profile_erase_all_confirm), color = colors.danger) }
-            },
-            dismissButton = { TextButton(onClick = { isConfirming = false }) { Text(stringResource(R.string.settings_cancel)) } },
-        )
+    Row(
+        Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m),
+    ) {
+        Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = colors.danger, modifier = Modifier.size(HearthTheme.sizes.iconS))
+        Text(message, color = colors.danger, style = HearthTheme.type.footnoteSnug)
     }
 }

@@ -36,14 +36,14 @@ app/src/main/kotlin/app/hearth/
 ├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
 ├── project/                 The sheet that makes, edits and deletes a project: presenter, view model, sheet
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
-├── settings/                Settings: presenter, screen, one file per card, the profile, notifications, sync and scheduled tasks pages
+├── settings/                Settings: presenter, screen, the list and what each row says, one file per page (profile, memory, web search, scheduled tasks, voice, pictures, notifications, servers, sync)
 ├── sync/                    When to sync (`SyncScheduler`), the background job (`BackgroundSync`), task notifications, and the hooks sync is given into the chat
 ├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
 ├── shared/                  The little that more than one feature needs and is not styling
 ├── widget/                  The home screen widgets
-└── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications, the hub token's keystore seal
+└── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications, the hub token's keystore seal, what the phone can unlock with, whether it can vibrate
 
 domain/src/main/kotlin/app/hearth/domain/
 ├── Conversation.kt, Message.kt, Project.kt, ScheduledTask.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, VoiceCamera.kt, …   Models, one concept a file
@@ -96,10 +96,24 @@ through beside a few small ones, and `LockPresenter` is a single `Boolean`.
 calls its actions. Screens hold only view-local state: whether a menu is open, what is typed in a dialog.
 A screen-level composable ends in `Screen`; a part of one ends in `Section`, `Card`, `Row`, `Menu` and so on.
 
-**Pages inside a screen.** The settings have pages of their own: the profile, the notifications, sync, the scheduled
-tasks and the task editor the tasks page leads to. Which
+**Pages inside a screen.** The settings are a list of rows in groups (Chats, Voice & pictures, Notifications,
+Appearance & privacy, Servers & sync), most of which lead to a page of their own: the profile, memory, web search,
+the scheduled tasks and the task editor they lead to, voice, pictures, notifications, servers and sync. Which
 is showing is the settings presenter's own state (`page`), not the coordinator's: nothing outside the settings
-cares, and the back button asks the presenter, which steps back a page before it leaves.
+cares, and the back button asks the presenter, which steps back a page before it leaves. Each row says how things
+stand on its page ("On · 12 saved", "Connected · 14 models"); what it says is worked out by plain functions in
+`SettingsRows.kt` from the stores' values, and only put into words by the list, so it is tested without drawing.
+Leaving a page is where typing is taken to have ended: the sync page keeps the hub address typed, and the servers
+page tests the chat server if its address changed, rather than at every key. The voice row is shown but cannot be
+tapped while there is no speech server. The composer's **Schedule a task** opens the task editor over a new draft
+asking what is written in the composer (or, without sync, the tasks page, which says why); leaving either goes
+straight back to the chat.
+
+**The lock** is asked for when the app is unlocked and when the lock is turned on, never when it is turned off:
+whoever sees the switch has unlocked the app already (`lockAction`, as on the iPhone). The switch and the lock
+screen's button are named for what the phone has set up (`UnlockMethodKind`, from `BiometricManager` and the
+keyguard): a fingerprint or a face (Android cannot reliably say which) with the screen lock, or the screen lock alone.
+With nothing set up the lock cannot be turned on.
 
 **Coordinator.** `AppCoordinator` creates every presenter, implements every delegate, and holds the navigation
 state: which `Screen` is showing, whether the drawer is open, and which project sheet is up, if either. It is also
@@ -119,8 +133,8 @@ what lets a reply keep streaming while the phone is rotated or the app is in the
 **Large presenters are split by concern.** `ChatPresenter` keeps its core in one file and its other actions as
 extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`, `ChatPresenterResearch.kt`,
 `ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
-`ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its two pages
-(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), and `VoicePresenter` for its camera
+`ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its pages
+(`SettingsPresenterPages.kt`, `SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), and `VoicePresenter` for its camera
 (`VoicePresenterCamera.kt`). The state they share is
 `internal` for that reason.
 
@@ -368,7 +382,8 @@ app rule for rule, with the same wording.
 `profile` gives a `UserProfile` with them tidied into names: trimmed, on one line. Everything that uses a name
 goes through `UserProfile` (the initials on the avatar, the name in the greeting, the line in the prompt), so a
 space typed at the end of a name is not taken away under the cursor. The instructions are the same
-`customInstructions` setting they always were; only the field moved, from a card of its own to the profile page.
+`customInstructions` setting they always were, on the profile page. The profile page holds only the photo, the
+names and the instructions; the follow-up questions switch is in the Chats group and erasing is last on the list.
 
 **The photo is a file.** `ProfileStore` holds it and `ProfilePhotoProvider` keeps it as `Profile/photo.jpg` in the
 app's private files. `ProfilePhotoLoader` in `integrations` makes it from the picture the user chooses: the
@@ -438,7 +453,7 @@ app, with the same wording.
   "Scheduled task" under such a chat.
 - **Automatic or cloud.** The editor offers "Automatic" first (wire value `auto`, the default, which leaves the choice to the hub), then the chat server's models whose names end in `:cloud` or `-cloud`, in any case
   (`TaskModels`), and says so when there are none.
-- **The pages** are the settings presenter's (`SettingsPresenterTasks.kt`, `TasksCard.kt`, `TaskEditorPage.kt`): the
+- **The pages** are the settings presenter's (`SettingsPresenterTasks.kt`, `TasksPage.kt`, `TaskEditorPage.kt`): the
   list, each task with its schedule, its last run and a switch; and the editor over a `TaskDraft`. A task is saved
   with the device's time zone. Tasks need sync: without it the page says so, leads to the sync page, and Add is off.
 

@@ -2,6 +2,7 @@ package app.hearth.settings
 
 import android.util.Log
 import app.hearth.domain.ChatError
+import app.hearth.domain.ChatModel
 import app.hearth.domain.EraseInteractor
 import app.hearth.domain.ImageCapabilities
 import app.hearth.domain.ImageInteractor
@@ -12,6 +13,7 @@ import app.hearth.domain.MemoryStore
 import app.hearth.domain.ModelStore
 import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProfileStore
+import app.hearth.domain.ServerReachability
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechInteractor
@@ -37,10 +39,10 @@ interface SettingsPresenterDelegate {
     fun settingsPresenterDidErase()
 }
 
-/** The pages of the settings: the list of them all, the four it leads to, and the task editor the tasks page leads to. */
-enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS, SYNC, TASKS, TASK }
+/** The pages of the settings: the list of them all, the pages it leads to, and the task editor the tasks page leads to. */
+enum class SettingsPageKind { MAIN, PROFILE, MEMORY, WEB_SEARCH, TASKS, TASK, VOICE, PICTURES, NOTIFICATIONS, SERVERS, SYNC }
 
-/** What went wrong on the profile page, for the page to put into words. */
+/** What went wrong with the photo on the profile page, or with erasing on the list, for the page to put into words. */
 enum class ProfileErrorKind { PHOTO_FAILED, ERASE_FAILED }
 
 /** How the last test of the connection went. */
@@ -67,9 +69,9 @@ enum class VoicePreviewKind { IDLE, PLAYING, FAILED }
  * It has no view model of its own to assemble: the settings and memories are the stores' flows, passed
  * straight through, beside a few small flows for what only this screen knows.
  *
- * The profile, notifications, sync and scheduled tasks pages have their actions in the files beside this one
- * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), which is why
- * some of its state is `internal` and not `private`.
+ * Moving between the pages, and the profile, notifications, sync and scheduled tasks pages, have their actions in the
+ * files beside this one (`SettingsPresenterPages.kt`, `SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`,
+ * `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), which is why some of its state is `internal` and not `private`.
  */
 class SettingsPresenter(internal val scope: CoroutineScope, internal val dependencies: Dependencies) {
     /** What the settings are run with. */
@@ -103,7 +105,13 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     internal val syncTokenDraftState = MutableStateFlow("")
     internal val syncCheckState = MutableStateFlow<SyncCheck?>(null)
     internal val taskDraftState = MutableStateFlow<TaskDraft?>(null)
-    private val testState = MutableStateFlow<ConnectionTest?>(null)
+
+    /** Whether the tasks pages were opened from the chat's composer, which leaving them goes back to. */
+    internal var isTaskFromChat = false
+
+    /** The chat server's address as the servers page was opened, to tell on leaving whether it changed. */
+    internal var serversOpenedWith: String? = null
+    internal val testState = MutableStateFlow<ConnectionTest?>(null)
     private val voiceState = MutableStateFlow<List<String>>(emptyList())
     private val previewState = MutableStateFlow(VoicePreviewKind.IDLE)
     private var previewJob: Job? = null
@@ -114,6 +122,12 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     val voices: StateFlow<List<String>> = voiceState.asStateFlow()
     val settings: StateFlow<ServerSettings> = settingsStore.settings
     val memories: StateFlow<List<Memory>> = memoryStore.memories
+
+    /** Whether the chat server answered when the chat last asked it for its models. */
+    val reachability: StateFlow<ServerReachability> = modelStore.reachability
+
+    /** The models the chat server offers, as last asked. */
+    val models: StateFlow<List<ChatModel>> = modelStore.models
     val connectionTest: StateFlow<ConnectionTest?> = testState.asStateFlow()
     val voicePreview: StateFlow<VoicePreviewKind> = previewState.asStateFlow()
 
@@ -136,31 +150,6 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     val notificationsAllowed: StateFlow<Boolean?> = notificationsAllowedState.asStateFlow()
     var delegate: SettingsPresenterDelegate? = null
 
-    /** Opens the profile page. */
-    fun profileAction() {
-        profileErrorState.value = null
-        pageState.value = SettingsPageKind.PROFILE
-    }
-
-    /** Opens the notifications page. */
-    fun notificationsAction() {
-        pageState.value = SettingsPageKind.NOTIFICATIONS
-    }
-
-    /**
-     * Goes back: from the task editor to the tasks, unsaved, from a page to the list of settings, and from the list out
-     * of the settings. The hub address typed is kept on the way.
-     */
-    fun backAction() {
-        if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
-        taskDraftState.value = null
-        pageState.value = when (pageState.value) {
-            SettingsPageKind.MAIN -> return doneAction()
-            SettingsPageKind.TASK -> SettingsPageKind.TASKS
-            SettingsPageKind.PROFILE, SettingsPageKind.NOTIFICATIONS, SettingsPageKind.SYNC, SettingsPageKind.TASKS -> SettingsPageKind.MAIN
-        }
-    }
-
     /**
      * Every change is kept at once; there is nothing to save or discard on the way out.
      *
@@ -175,7 +164,10 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         scope.launch(start = CoroutineStart.UNDISPATCHED) { settingsStore.update(changed) }
     }
 
-    /** Asks the chat server for its models, as proof that the address works. */
+    /**
+     * Asks the chat server for its models, as proof that the address works. The models it finds are the chat's from
+     * then on, as when the chat asks for them itself.
+     */
     fun testConnectionAction() {
         val current = settingsStore.settings.value
         if (current.ollamaUrl == null) {
@@ -292,11 +284,11 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         }
     }
 
-    /** Leaves the settings, silencing any sample on the way out. */
+    /** Leaves the settings, keeping what was typed on the page showing and silencing any sample on the way out. */
     fun doneAction() {
-        if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
+        leavePage()
         pageState.value = SettingsPageKind.MAIN
-        taskDraftState.value = null
+        isTaskFromChat = false
         stopVoicePreviewAction()
         delegate?.settingsPresenterDidFinish()
     }

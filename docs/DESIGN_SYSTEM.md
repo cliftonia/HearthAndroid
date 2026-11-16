@@ -145,8 +145,9 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
-| `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, with a line beneath the label on what it does, where given |
-| `HearthPageRow(description, onClick) { … }` | A settings row that opens a page, ending in an arrow; TalkBack hears it as one button, by its description |
+| `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, at least `touchTarget` high, with a line beneath the label on what it does, where given |
+| `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, ending in an arrow; TalkBack hears it as one button, by its description. Unavailable, it has no arrow and is heard as such |
+| `HearthPageRow(title, status, onClick, enabled)` | The common page row: a title and, at its end, how things stand on the page; unavailable, the status is the reason, beneath the title. Heard as "Memory, On, 12 saved" |
 | `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
 | `HearthSheetHeader(title) { … }` | The title of a sheet that offers a choice, with the button that closes it |
 | `HearthPermissionNotice(icon, message, actionTitle) { … }` | A card saying that the phone is holding something back, with a button that leads to where that is changed; the button is left out where there is nowhere to send the user |
@@ -174,7 +175,9 @@ with the line numbers in `mute`.
 
 - Every button has a label. A symbol that only decorates has `null` for its description.
 - Group titles are marked as headings; a row that is a switch is one switch to a screen reader, and a row that
-  leads to a page is one button.
+  leads to a page is one button, heard with how things stand on that page.
+- Results that arrive by themselves (a connection test, a voice sample that could not play, a problem on a page)
+  are live regions, so a screen reader announces them.
 - What only decorates is hidden from a screen reader: the avatar beside a name, the dots that swell with a voice,
   the line numbers beside code in the canvas. The card of a piece of work is one button that says what it is and
   where it leads.

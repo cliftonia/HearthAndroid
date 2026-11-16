@@ -54,12 +54,13 @@ two share a design and a feature list, not code.
 - **Scheduled tasks**: a question and a time ("Every day at 7:30", "Every Friday at 18:00", "Once, 20 Nov at
   9:00"); your Hearth Hub asks a cloud model at that time, searching the web first if you like, and files the answer
   as a new chat marked "Scheduled task", which reaches every device through sync. They need sync
-- **Haptics**: a light tap when a message is sent, a reply finishes or something is switched, with one switch
-  that silences them all
+- **Vibration**: a light tap when a message is sent, a reply finishes or something is switched, with one switch
+  that silences them all (not offered on a device with nothing to tap with)
 - **Projects**: gather chats round a subject, with instructions and reference files (PDFs and text files)
   that every chat in the project is given
 - **History**: pin, rename, share as Markdown, delete, search
-- **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
+- **Lock** with fingerprint, face or screen lock, named for what the phone has set up, and asked for when the lock is
+  turned on, not off; light and dark themes; a side-by-side layout on wide screens
 - **Sync** through a Hearth Hub of your own (a small server, kept in a separate repository): ordinary chats, projects
   memories and scheduled tasks kept in step with your other phones, tablets and Macs running Hearth, on Android or Apple's systems.
   Off until you turn it on; private chats, settings, addresses and your profile never leave the phone
@@ -105,16 +106,19 @@ two share a design and a feature list, not code.
   saved: it is read out of the reply each time.
 - **Private chat** is the padlock at the top right of a chat that has not yet begun. Once the chat has begun,
   the padlock only shows that it is private.
-- **Settings** begin with your **Profile**, a page of its own: your photo, names and instructions, whether
-  follow-up questions are suggested, and **Erase all data on this device**. Below it come the server addresses,
-  web search, **Test connection**, the voice and its **Hear this voice** button, pictures, your memories,
-  **Notifications** (a page with switches for replies and scheduled tasks), **Sync** and **Scheduled tasks** (pages
-  of their own), the lock, haptics and the theme.
-  Changes are kept as you make them.
-- **Sync** has the hub's address, an optional access token, the **Sync this device** switch (which needs an address
+- **Settings** begin with your **Profile**, a page of its own: your photo, names and instructions. Below it are
+  groups of rows, each saying how things stand on the page it opens: **Chats** (**Memory**, the follow-up questions
+  switch, **Web search**, **Scheduled tasks**), **Voice & pictures** (**Voice**, shown but unavailable until there is a
+  speech server, and **Pictures**), **Notifications**, **Appearance & privacy** (the theme, vibration and the lock) and
+  **Servers & sync** (**Servers**, with the four addresses and **Test connection** beneath them, and **Sync**). Last,
+  in red, is **Erase all data on this device**, which also turns sync off; the hub and your other devices keep their
+  copies. Changes are kept as you make them; a changed chat server address is tested once you leave the Servers page.
+- **Schedule a task** in the composer's **+** menu opens a new scheduled task asking what you have written, leaving
+  the message where it was; without sync it explains that tasks need it and leads to **Set up sync**.
+- **Sync** has the hub's address, an optional access key, the **Sync this device** switch (which needs an address
   first), **Sync now**, **Test connection** and a status line saying when it last synced or what went wrong. Once on,
   it syncs when Hearth opens, when it comes back to the front, every minute while it stays there, a few seconds
-  after a change, at once when a token is saved or the hub changes, when asked, and about every fifteen minutes in
+  after a change, at once when a key is saved or the hub changes, when asked, and about every fifteen minutes in
   the background through the phone's job scheduler, one sync at a time. A chat open on screen takes in a change made elsewhere, or gives way to a new chat if it was deleted
   elsewhere; a reply still being written is never replaced, and is sent once it is finished.
 - **Scheduled tasks** lists each task with its schedule, how its last run went and a switch, and leads to an editor:

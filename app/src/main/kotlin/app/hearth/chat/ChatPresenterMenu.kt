@@ -56,6 +56,12 @@ internal val ChatPresenter.chatProject: Project?
     get() = chatProject(state.value.conversation, conversations.value, projects.value)
 
 /** Asks which project the open chat should go in. */
+/**
+ * Asks for a scheduled task that asks what is written in the composer. The draft stays as it is: the task is made
+ * elsewhere, and the message may still be sent.
+ */
+fun ChatPresenter.scheduleTaskAction() = delegate?.chatPresenterDidRequestTask(state.value.draft) ?: Unit
+
 fun ChatPresenter.projectAction() = delegate?.chatPresenterDidRequestProject(state.value.conversation.id) ?: Unit
 
 /**

@@ -49,6 +49,9 @@ interface ChatPresenterDelegate {
 
     /** A piece of a reply is to be opened in the canvas. */
     fun chatPresenterDidRequestCanvas(reference: CanvasReference)
+
+    /** A scheduled task is to be made, asking [question]. */
+    fun chatPresenterDidRequestTask(question: String)
 }
 
 /**

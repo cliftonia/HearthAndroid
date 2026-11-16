@@ -29,6 +29,7 @@ import app.hearth.designsystem.HapticsHost
 import app.hearth.designsystem.HearthTheme
 import app.hearth.designsystem.isDark
 import app.hearth.domain.ConversationId
+import app.hearth.integrations.rememberUnlockMethod
 import app.hearth.lock.LockScreen
 
 /**
@@ -59,6 +60,7 @@ class MainActivity : FragmentActivity() {
         val settings by coordinator.settingsStore.settings.collectAsStateWithLifecycle()
         val isLocked by coordinator.lock.isLocked.collectAsStateWithLifecycle()
         val isDark = settings.appearance.isDark()
+        val unlockMethod = rememberUnlockMethod()
         // Every haptic in the app asks this one switch, and is played through this window.
         HapticsHost(settings.isHapticsEnabled)
         // The clock and battery icons must stay readable over whichever theme the user chose.
@@ -76,10 +78,11 @@ class MainActivity : FragmentActivity() {
             // While locked nothing else is drawn at all, so no menu or dialog can sit above the lock.
             if (isLocked) {
                 LockScreen(
+                    unlockMethod,
                     onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } },
                 )
             } else {
-                RootView(coordinator) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
+                RootView(coordinator, unlockMethod) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
             }
         }
     }
@@ -168,7 +171,10 @@ class MainActivity : FragmentActivity() {
         runCatching { ShortcutManagerCompat.setDynamicShortcuts(this, listOf(shortcut)) }
     }
 
-    /** Asks for a fingerprint, a face or the phone's own PIN. A phone with none of these set up cannot confirm anyone. */
+    /**
+     * Asks for a fingerprint, a face or the phone's own screen lock. A phone with none of these set up cannot confirm
+     * anyone. Only unlocking and turning the lock on ask; turning it off does not.
+     */
     private fun authenticate(reason: Int, onResult: (Boolean) -> Unit) {
         val authenticators = BIOMETRIC_WEAK or DEVICE_CREDENTIAL
         if (BiometricManager.from(this).canAuthenticate(authenticators) != BiometricManager.BIOMETRIC_SUCCESS) {

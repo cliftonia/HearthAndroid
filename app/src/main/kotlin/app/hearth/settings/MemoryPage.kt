@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
@@ -26,7 +28,6 @@ import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
-import app.hearth.domain.Memory
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.clipped
 
@@ -34,28 +35,24 @@ import app.hearth.domain.clipped
 private const val MAXIMUM_MEMORY_LENGTH = 200
 
 /**
- * Whether anything is remembered and, while it is, what: each memory with a way to forget it, a field to add
- * one by hand, and a way to forget the lot.
+ * Whether anything is remembered and, while it is, a field to add a memory by hand, each memory with a way to forget
+ * it, and a way to forget the lot.
  */
 @Composable
-internal fun MemoryCard(settings: ServerSettings, memories: List<Memory>, presenter: SettingsPresenter) {
+internal fun MemoryPage(settings: ServerSettings, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
+    val memories by presenter.memories.collectAsStateWithLifecycle()
     var draft by rememberSaveable { mutableStateOf("") }
     var isConfirmingClear by remember { mutableStateOf(false) }
-    HearthCard(stringResource(R.string.memory_title), stringResource(R.string.memory_footer)) {
-        HearthSwitchRow(stringResource(R.string.memory_toggle), settings.isMemoryEnabled) { isOn -> presenter.updateAction { it.copy(isMemoryEnabled = isOn) } }
+    val footer = if (settings.isMemoryEnabled) {
+        stringResource(R.string.memory_footer) + " " + stringResource(R.string.memory_list_footer)
+    } else {
+        stringResource(R.string.memory_footer)
     }
-    if (!settings.isMemoryEnabled) return
-    HearthCard(stringResource(R.string.memory_title), stringResource(R.string.memory_list_footer)) {
-        if (memories.isEmpty()) Text(stringResource(R.string.memory_none), color = colors.mute, style = HearthTheme.type.callout)
-        memories.forEach { memory ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(memory.text, color = colors.ink, style = HearthTheme.type.subheadSnug, modifier = Modifier.weight(1f))
-                HearthIconButton(Icons.Outlined.Close, stringResource(R.string.memory_delete, memory.text), tint = colors.mute) {
-                    presenter.deleteMemoryAction(memory.id)
-                }
-            }
-        }
+    HearthCard(footer = footer) {
+        HearthSwitchRow(stringResource(R.string.memory_toggle), settings.isMemoryEnabled) { isOn -> presenter.updateAction { it.copy(isMemoryEnabled = isOn) } }
+        if (!settings.isMemoryEnabled) return@HearthCard
+        HorizontalDivider(color = colors.line)
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = draft,
@@ -68,6 +65,15 @@ internal fun MemoryCard(settings: ServerSettings, memories: List<Memory>, presen
             HearthIconButton(Icons.Outlined.Add, stringResource(R.string.memory_add), tint = colors.pine) {
                 if (draft.isNotBlank()) presenter.addMemoryAction(draft)
                 draft = ""
+            }
+        }
+        if (memories.isEmpty()) Text(stringResource(R.string.memory_none), color = colors.mute, style = HearthTheme.type.callout)
+        memories.forEach { memory ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(memory.text, color = colors.ink, style = HearthTheme.type.subheadSnug, modifier = Modifier.weight(1f))
+                HearthIconButton(Icons.Outlined.Close, stringResource(R.string.memory_delete, memory.text), tint = colors.mute) {
+                    presenter.deleteMemoryAction(memory.id)
+                }
             }
         }
         if (memories.isNotEmpty()) {

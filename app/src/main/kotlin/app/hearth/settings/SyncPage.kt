@@ -29,26 +29,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
-import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.SyncFailureKind
 
-/** The row in the settings that leads to the sync page, saying whether sync is on. */
-@Composable
-internal fun SyncCard(presenter: SettingsPresenter) {
-    val colors = HearthTheme.colors
-    val settings by presenter.syncSettings.collectAsStateWithLifecycle()
-    val state = stringResource(if (settings.isEnabled) R.string.sync_on else R.string.sync_off)
-    HearthCard {
-        HearthPageRow(stringResource(R.string.sync_open, state), presenter::syncAction) {
-            Text(stringResource(R.string.sync_title), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(state, color = colors.mute, style = HearthTheme.type.subhead)
-        }
-    }
-}
-
-/** Where the hub is, its access token, the switch, syncing now, and how the last sync went. Everything here takes effect at once. */
+/** Where the hub is, its access key, the switch, syncing now, and how the last sync went. Everything here takes effect at once. */
 @Composable
 internal fun SyncPage(presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
@@ -126,7 +111,7 @@ internal fun SyncPage(presenter: SettingsPresenter) {
     }
 }
 
-/** A field for a new token, never filled with the saved one, and the buttons that keep or forget it. */
+/** A field for a new access key, never filled with the saved one, and the buttons that keep or forget it. */
 @Composable
 private fun TokenField(presenter: SettingsPresenter, draft: String, hasToken: Boolean) {
     OutlinedTextField(

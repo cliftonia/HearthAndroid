@@ -37,6 +37,8 @@ import app.hearth.drawer.DrawerContent
 import app.hearth.project.ProjectSheet
 import app.hearth.projectpicker.ProjectPickerSheet
 import app.hearth.settings.SettingsScreen
+import app.hearth.settings.backAction
+import app.hearth.shared.UnlockMethodKind
 import app.hearth.voice.VoiceScreen
 
 /**
@@ -45,10 +47,11 @@ import app.hearth.voice.VoiceScreen
  * The canvas, when it is open, is a column beside the chat on anything wide and a page over it on a phone.
  * Also decides what the back button does, and raises the project sheets over it all.
  *
- * [authenticate] asks the phone to confirm who is holding it, and reports whether it did.
+ * [authenticate] asks the phone to confirm who is holding it, and reports whether it did; [unlockMethod] is what it
+ * will ask for.
  */
 @Composable
-internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boolean) -> Unit) -> Unit) {
+internal fun RootView(coordinator: AppCoordinator, unlockMethod: UnlockMethodKind, authenticate: (onResult: (Boolean) -> Unit) -> Unit) {
     val screen by coordinator.screen.collectAsStateWithLifecycle()
     val isDrawerOpen by coordinator.isDrawerOpen.collectAsStateWithLifecycle()
     val isSideListShown by coordinator.isSideListShown.collectAsStateWithLifecycle()
@@ -97,7 +100,7 @@ internal fun RootView(coordinator: AppCoordinator, authenticate: (onResult: (Boo
                     coordinator.pictures,
                     modifier,
                 )
-                Screen.SETTINGS -> SettingsScreen(coordinator.settings, coordinator.profilePhotos, authenticate, modifier)
+                Screen.SETTINGS -> SettingsScreen(coordinator.settings, coordinator.profilePhotos, authenticate, unlockMethod, modifier)
                 Screen.VOICE -> VoiceScreen(coordinator.voice, coordinator.deviceCamera, coordinator.cameraLeave, modifier)
             }
         }

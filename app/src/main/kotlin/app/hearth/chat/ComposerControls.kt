@@ -16,9 +16,14 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.Text
@@ -84,8 +89,8 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
 }
 
 /**
- * The ways to add a photo or a file to the message being written, and, where there is a picture server, the
- * switch that makes the next message ask for a picture.
+ * The ways to add a photo or a file to the message being written, the way to make what is written a scheduled task,
+ * and, where there is a picture server, the switch that makes the next message ask for a picture.
  */
 @Composable
 internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode: Boolean, presenter: ChatPresenter, attachments: AttachmentLoader) {
@@ -127,6 +132,37 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
     Box {
         HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
         DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.composer_choose_file)) },
+                leadingIcon = { Icon(Icons.Outlined.Description, null, Modifier.size(HearthTheme.sizes.iconS)) },
+                onClick = {
+                    isOpen = false
+                    files.launch(ATTACHABLE_FILE_TYPES)
+                },
+            )
+            // Photos are offered only where they can be used: by a model that can look at them, or by the picture server.
+            if (canSee) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.composer_take_photo)) },
+                    leadingIcon = { Icon(Icons.Outlined.PhotoCamera, null, Modifier.size(HearthTheme.sizes.iconS)) },
+                    onClick = {
+                        isOpen = false
+                        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                        if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.composer_photo_library)) },
+                    leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, null, Modifier.size(HearthTheme.sizes.iconS)) },
+                    onClick = {
+                        isOpen = false
+                        library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                )
+            }
+            // Below the ways to attach, what Hearth makes: a picture, and last a task, offered whether or not sync is on;
+            // without it, the tasks page says why none can be added.
+            HorizontalDivider(color = HearthTheme.colors.line)
             if (canMakePictures) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.picture_mode)) },
@@ -139,30 +175,13 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                 )
             }
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.composer_choose_file)) },
+                text = { Text(stringResource(R.string.composer_schedule_task)) },
+                leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(HearthTheme.sizes.iconS)) },
                 onClick = {
                     isOpen = false
-                    files.launch(ATTACHABLE_FILE_TYPES)
+                    presenter.scheduleTaskAction()
                 },
             )
-            // Photos are offered only where they can be used: by a model that can look at them, or by the picture server.
-            if (canSee) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.composer_take_photo)) },
-                    onClick = {
-                        isOpen = false
-                        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                        if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.composer_photo_library)) },
-                    onClick = {
-                        isOpen = false
-                        library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
-                )
-            }
         }
     }
 }

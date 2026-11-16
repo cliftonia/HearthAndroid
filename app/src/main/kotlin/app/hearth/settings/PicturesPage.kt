@@ -24,6 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -35,12 +40,15 @@ import app.hearth.domain.ImageModelKind
 import app.hearth.domain.ServerSettings
 import app.hearth.shared.title
 
-/** Which model new pictures are made with, and what else the picture server can do. */
+/**
+ * Which model new pictures are made with, and what else the picture server can do. The server is asked as the page
+ * opens, since the address can no longer be changing.
+ */
 @Composable
-internal fun PictureCard(settings: ServerSettings, presenter: SettingsPresenter) {
+internal fun PicturesPage(settings: ServerSettings, presenter: SettingsPresenter) {
     val capabilities by presenter.pictureCapabilities.collectAsStateWithLifecycle()
     LaunchedEffect(settings.imageUrl) { presenter.loadPictureCapabilitiesAction() }
-    HearthCard(stringResource(R.string.picture_section), stringResource(R.string.picture_footer)) {
+    HearthCard(footer = stringResource(R.string.picture_footer)) {
         if (capabilities.models.isEmpty()) {
             Text(stringResource(R.string.picture_no_models), color = HearthTheme.colors.mute, style = HearthTheme.type.subhead)
         } else {
@@ -51,18 +59,33 @@ internal fun PictureCard(settings: ServerSettings, presenter: SettingsPresenter)
     }
 }
 
-/** The model new pictures are made with, opening a menu of those the server has. Automatic leaves the choice to the app. */
+/**
+ * The model new pictures are made with, opening a menu of those the server has. Automatic leaves the choice to the app.
+ * TalkBack hears the button as the picture model's, with the one chosen.
+ */
 @Composable
 private fun ModelRow(chosen: ImageModelKind?, models: List<ImageModelKind>, onSelect: (ImageModelKind?) -> Unit) {
     var isOpen by remember { mutableStateOf(false) }
     val colors = HearthTheme.colors
     // A model chosen earlier that this server lacks is shown as it will be treated: the choice is the app's.
     val shown = chosen?.takeIf { it in models }
+    val shownName = shown?.title() ?: stringResource(R.string.picture_model_automatic)
+    val buttonDescription = stringResource(R.string.picture_model_button, shownName)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(stringResource(R.string.picture_model), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
         Box {
-            TextButton(onClick = { isOpen = true }) {
-                Text(shown?.title() ?: stringResource(R.string.picture_model_automatic), color = colors.pine, style = HearthTheme.type.control)
+            TextButton(
+                onClick = { isOpen = true },
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = buttonDescription
+                    role = Role.Button
+                    onClick {
+                        isOpen = true
+                        true
+                    }
+                },
+            ) {
+                Text(shownName, color = colors.pine, style = HearthTheme.type.control)
                 Icon(Icons.Outlined.ExpandMore, null, tint = colors.mute, modifier = Modifier.padding(start = HearthTheme.spacing.xs).size(HearthTheme.sizes.iconS))
             }
             DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
