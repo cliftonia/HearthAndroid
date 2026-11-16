@@ -49,7 +49,10 @@ object BackgroundSync {
             // Kept across a restart of the phone, which is why the app asks to hear that the phone has started.
             .setPersisted(true)
             .build()
-        if (scheduler.schedule(job) != JobScheduler.RESULT_SUCCESS) Log.w(TAG, "The background sync could not be scheduled")
+        // Background sync is a convenience: if the phone refuses the job, the app carries on without it.
+        val result = runCatching { scheduler.schedule(job) }
+        result.exceptionOrNull()?.let { Log.w(TAG, "The background sync could not be scheduled: ${it.javaClass.simpleName}") }
+        if (result.getOrNull() != JobScheduler.RESULT_SUCCESS) Log.w(TAG, "The background sync could not be scheduled")
     }
 
     internal const val TAG = "BackgroundSync"

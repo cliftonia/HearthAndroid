@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Lets the background sync job, scheduled only while sync is on, carry on after the phone restarts. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- The background sync job waits for a network, which the phone allows only to an app that may see network state. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Only Android 9 asks for this to save a picture to the phone's Pictures; later versions need no leave. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
