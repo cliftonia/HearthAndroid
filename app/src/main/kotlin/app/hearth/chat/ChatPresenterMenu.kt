@@ -5,6 +5,7 @@ import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.Project
 import app.hearth.domain.ProjectId
+import app.hearth.domain.renamedTitle
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
@@ -13,9 +14,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 // What the menu at the top of the chat does to the open conversation.
-
-/** The longest title a chat may be given by hand. */
-private const val MAXIMUM_TITLE_LENGTH = 80
 
 /** The saved conversations, by which the header tells whether the open one is pinned and where it belongs. */
 val ChatPresenter.conversations: StateFlow<List<Conversation>>
@@ -27,10 +25,9 @@ fun ChatPresenter.togglePinAction() = changeChat { id ->
     dependencies.conversationStore.setPinned(!isPinned, id)
 }
 
-/** Gives the open chat a title of at most 80 characters; an empty one is ignored. */
+/** Gives the open chat the title as [renamedTitle] has it; an empty one is ignored. */
 fun ChatPresenter.renameChatAction(title: String) {
-    val trimmed = title.trim().take(MAXIMUM_TITLE_LENGTH)
-    if (trimmed.isEmpty()) return
+    val trimmed = renamedTitle(title) ?: return
     changeChat { id ->
         dependencies.conversationStore.rename(id, trimmed)
         conversationRenamed(id, trimmed)

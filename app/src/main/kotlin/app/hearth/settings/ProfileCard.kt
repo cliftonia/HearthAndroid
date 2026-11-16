@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -33,7 +31,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -45,10 +42,12 @@ import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthAvatar
 import app.hearth.designsystem.HearthCard
+import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.UserProfile
+import app.hearth.domain.clipped
 import app.hearth.integrations.ProfilePhotoLoader
 
 /** The most that can be typed as a name. */
@@ -62,24 +61,14 @@ internal fun rememberAvatar(photo: ByteArray?): ImageBitmap? = remember(photo) {
 @Composable
 internal fun ProfileCard(profile: UserProfile, avatar: ImageBitmap?, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
+    val name = profile.displayName ?: stringResource(R.string.profile_no_name)
     HearthCard {
-        Row(
-            Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = presenter::profileAction),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xl),
-        ) {
+        HearthPageRow(stringResource(R.string.profile_open, name), presenter::profileAction, spacing = HearthTheme.spacing.xl) {
             HearthAvatar(avatar, profile.initials, HearthTheme.sizes.avatarS)
             Column(Modifier.weight(1f)) {
-                Text(
-                    profile.displayName ?: stringResource(R.string.profile_no_name),
-                    color = colors.ink,
-                    style = HearthTheme.type.subheadStrong,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Text(name, color = colors.ink, style = HearthTheme.type.subheadStrong, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(stringResource(R.string.profile_title), color = colors.mute, style = HearthTheme.type.footnote)
             }
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconM))
         }
     }
 }
@@ -153,7 +142,7 @@ private fun AvatarSection(avatar: ImageBitmap?, initials: String, presenter: Set
 private fun NameField(label: String, value: String, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
-        onValueChange = { onChange(it.take(MAXIMUM_NAME_LENGTH)) },
+        onValueChange = { onChange(it.clipped(MAXIMUM_NAME_LENGTH)) },
         label = { Text(label) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(autoCorrect = false, capitalization = KeyboardCapitalization.Words),

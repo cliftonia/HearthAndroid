@@ -6,14 +6,7 @@ enum class CameraPositionKind {
     BACK,
 
     /** Towards the user. */
-    FRONT;
-
-    /** The camera on the other side. */
-    val flipped: CameraPositionKind
-        get() = when (this) {
-            BACK -> FRONT
-            FRONT -> BACK
-        }
+    FRONT,
 }
 
 /** What cameras the phone has. */

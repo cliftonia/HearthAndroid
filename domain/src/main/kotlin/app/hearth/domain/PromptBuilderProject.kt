@@ -28,7 +28,7 @@ internal fun projectParts(project: Project, fence: String): List<String> {
             omitted += fileName
             continue
         }
-        var excerpt = document.text.take(remaining)
+        var excerpt = document.text.clipped(remaining)
         if (excerpt.length < document.text.length) shortened += fileName
         remaining -= excerpt.length
         // Should the marker turn up in the file all the same, it is taken out, and taken out again for as

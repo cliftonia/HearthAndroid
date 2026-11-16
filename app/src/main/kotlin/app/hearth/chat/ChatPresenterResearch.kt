@@ -10,6 +10,7 @@ import app.hearth.domain.ResearchInteractor
 import app.hearth.domain.ResearchStepKind
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.startingNewVersion
+import app.hearth.domain.titleAfterSending
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
 import kotlinx.coroutines.CancellationException
@@ -71,7 +72,7 @@ internal suspend fun ChatPresenter.submitResearch(message: Message) {
     state.update {
         it.copy(
             conversation = conversation.copy(
-                title = if (isFirstMessage) message.text.take(48) else conversation.title,
+                title = conversation.titleAfterSending(message.text),
                 modelId = model.id,
                 messages = conversation.messages + message,
             ),

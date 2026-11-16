@@ -57,7 +57,11 @@ two share a design and a feature list, not code.
   that every chat in the project is given
 - **History**: pin, rename, share as Markdown, delete, search
 - **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
-- **Erase all data on this device**: there are no accounts, so one button removes everything the app holds
+- **Sync** through a Hearth Hub of your own (a small server, kept in a separate repository): ordinary chats, projects
+  and memories kept in step with your other phones, tablets and Macs running Hearth, on Android or Apple's systems.
+  Off until you turn it on; private chats, settings, addresses and your profile never leave the phone
+- **Erase all data on this device**: there are no accounts, so one button removes everything the app holds. With
+  sync on, erasing removes nothing anywhere else: it turns sync off first
 - **Home screen widgets** for a new chat and for a voice conversation
 
 ## Finding your way round
@@ -101,8 +105,13 @@ two share a design and a feature list, not code.
 - **Settings** begin with your **Profile**, a page of its own: your photo, names and instructions, whether
   follow-up questions are suggested, and **Erase all data on this device**. Below it come the server addresses,
   web search, **Test connection**, the voice and its **Hear this voice** button, pictures, your memories,
-  **Notifications** (a page with a switch for replies), the lock, haptics and the theme. Changes are kept as you
-  make them.
+  **Notifications** (a page with a switch for replies), **Sync** (a page of its own), the lock, haptics and the theme.
+  Changes are kept as you make them.
+- **Sync** has the hub's address, an optional access token, the **Sync this device** switch (which needs an address
+  first), **Sync now**, **Test connection** and a status line saying when it last synced or what went wrong. Once on,
+  it syncs when Hearth opens, when it comes back to the front, a few seconds after a change and when asked, one sync
+  at a time. A chat open on screen takes in a change made elsewhere, or gives way to a new chat if it was deleted
+  elsewhere; a reply still being written is never replaced, and is sent once it is finished.
 - **Notifications** ask the phone for leave only when you turn the **Replies** switch on. If the phone refuses,
   the switch stays on and the page shows where leave is given. Tapping a notification opens its chat.
 
@@ -113,8 +122,8 @@ Three Gradle modules, each seeing only the one below it:
 | Module | Holds | Depends on |
 |---|---|---|
 | `app` | Coordinator, presenters, Compose screens, the design system, the phone's own services (speech, the camera, files, biometrics, notifications) | `domain` |
-| `domain` | Models, the chat, research, speech, picture, project and erase interactors, stores, the prompt, research and text transformers, the greeting and notification planners | `data` |
-| `data` | HTTP services and DTOs for Ollama, SearXNG, Kokoro and web pages | nothing |
+| `domain` | Models, the chat, research, speech, picture, project, sync and erase interactors, stores, the prompt, research and text transformers, the greeting, notification and sync planners | `data` |
+| `data` | HTTP services and DTOs for Ollama, SearXNG, Kokoro, ComfyUI, Hearth Hub and web pages | nothing |
 
 Presenters own their state as a `StateFlow` and tell the coordinator what the user asked for through a
 delegate. Dependencies are passed as closures and small provider classes; there is no injection framework.
@@ -148,7 +157,10 @@ Inside `app` each screen has a package of its own, holding its presenter beside 
   every navigation is cancelled, so a link in it opens nothing, here or in the browser, and it is given no window,
   camera, microphone, place, file or download. Peer connections (WebRTC) are taken away from the page and from
   every frame it makes, the moment the frame is made, so it cannot send anything that way either; a packet capture
-  on the emulator shows none leaving. **Two things are not yet shut off**, because the phone's web view offers no
+  on the emulator shows none leaving. Where that cannot be done it fails closed: no frame is given a `sandbox`,
+  which would put it out of reach, and a frame that still cannot be reached is taken out of the page. A sandboxed
+  frame in a closed shadow root written in the page's own markup cannot be found; the web view seals it where it
+  can run the script in every frame, as it measured. **Two things are not yet shut off**, because the phone's web view offers no
   way to do it: a page can still have a name looked up (`dns-prefetch`) and can open a bare connection that
   carries no request (`preconnect`). Neither lets it load anything, but each can carry a little out. See "The
   canvas" in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -158,6 +170,10 @@ Inside `app` each screen has a package of its own, holding its presenter beside 
 - **The camera takes one picture at a time.** Nothing but the live picture on screen is fed while it is on; a
   still is taken only as a spoken turn ends, with no sound, and no video is ever recorded or sent. Turning it off
   closes the camera itself. A picture closes memory for the conversation, as any photo does.
+- **Sync sends only what it should.** Private chats never reach the hub, not even as a deletion; nor do settings,
+  addresses, the profile or the token. The token is sealed with a key the phone's keystore holds and goes only in
+  the request's `Authorization` header. A source from another device is kept only if it is an `http` or `https`
+  link. Erasing the phone sends no deletion. The log holds counts and kinds of failure only.
 - **A private chat stays private on the lock screen.** Its notification carries neither its title nor a word of
   the reply.
 
@@ -165,24 +181,27 @@ Inside `app` each screen has a package of its own, holding its presenter beside 
 
 ```sh
 cp local.example.properties local.properties   # then fill in your SDK path and server addresses
-./gradlew test assembleDebug
+./gradlew test lintDebug assembleDebug
 ```
 
-`local.properties` is ignored by git; your server addresses never enter the repository. The app also
+`local.properties` is ignored by git; your server addresses never enter the repository. `hearth.hubAddress` there
+fills in the Sync page's address on first launch; sync stays off until it is turned on. The app also
 runs with no addresses built in and asks for them in Settings.
 
 ## Status
 
-The data and domain modules are covered by unit tests, as are the grouping of the chat list, holding the composer
-to talk, what the chat announces when a reply finishes, what the settings do when everything is erased, and deep
-research: how it is chosen, run, stopped, kept and asked for again, and the camera of a voice conversation: when
-it runs, when it stops and what goes with a spoken turn, and the canvas: what counts as a piece, its versions, what
-its page may load, and how a wide screen is shared. The
-other presenters and the screens are not yet, and there is no lint or CI configuration. Differences from the
-iPhone app: dictation stops when you pause (Android's recogniser takes one utterance at a time), so a held
-composer stops listening at the first pause as well; and there is no background keep-alive, so a reply
-continues, and its notification is posted, only while Android leaves the app running; that holds for research too, which
-takes longer than a reply. A photo sent to a model, from the camera of a voice conversation as from anywhere else,
-is at most 1568 pixels on its longest side, where the iPhone app sends 1280. The canvas's page is shut in by the
-means Android has, which differ from the iPhone's and leave the two gaps listed under "What is guarded"; and
-turning the phone round starts a page in the canvas afresh.
+The domain and data modules are covered by unit tests, and so are most presenters' rules; the screens are not.
+`docs/ARCHITECTURE.md` says where each part lives, and the tests beside it say what is covered. Every push is
+built, tested and linted by `.github/workflows/android.yml`, which needs no `local.properties`.
+
+Test vectors shared with the iPhone app and Hearth Hub live in the iPhone repository's `Spec/` folder. Run
+`tools/sync-spec.sh` after it changes: it copies the folder into the test resources here, and `SpecCopyTests` fails
+while the copy differs (it is skipped where `../Hearth/Spec` is not beside this repository).
+
+Differences from the iPhone app: dictation stops when you pause (Android's recogniser takes one utterance at a
+time), so a held composer stops listening at the first pause as well; and there is no background keep-alive, so a
+reply continues, and its notification is posted, only while Android leaves the app running; that holds for
+research too, which takes longer than a reply. A photo sent to a model, from the camera of a voice conversation as
+from anywhere else, is at most 1568 pixels on its longest side, where the iPhone app sends 1280. The canvas's page
+is shut in by the means Android has, which differ from the iPhone's and leave the two gaps listed under "What is
+guarded"; and turning the phone round starts a page in the canvas afresh.

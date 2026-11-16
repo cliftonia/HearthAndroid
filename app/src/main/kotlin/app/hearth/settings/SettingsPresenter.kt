@@ -19,6 +19,7 @@ import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
@@ -36,8 +37,8 @@ interface SettingsPresenterDelegate {
     fun settingsPresenterDidErase()
 }
 
-/** The pages of the settings: the list of them all, and the two it leads to. */
-enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS }
+/** The pages of the settings: the list of them all, and the three it leads to. */
+enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS, SYNC }
 
 /** What went wrong on the profile page, for the page to put into words. */
 enum class ProfileErrorKind { PHOTO_FAILED, ERASE_FAILED }
@@ -66,9 +67,9 @@ enum class VoicePreviewKind { IDLE, PLAYING, FAILED }
  * It has no view model of its own to assemble: the settings and memories are the stores' flows, passed
  * straight through, beside a few small flows for what only this screen knows.
  *
- * The profile page and the notifications page have their actions in the files beside this one
- * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`), which is why some of its state is
- * `internal` and not `private`.
+ * The profile, notifications and sync pages have their actions in the files beside this one
+ * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`), which is why
+ * some of its state is `internal` and not `private`.
  */
 class SettingsPresenter(internal val scope: CoroutineScope, internal val dependencies: Dependencies) {
     /** What the settings are run with. */
@@ -83,6 +84,8 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         val notifications: NotificationProvider,
         /** Stops whatever the chat is doing and returns once it has stopped, ahead of everything being erased. */
         val quietChat: suspend () -> Unit,
+        /** What the sync page is built from. */
+        val sync: SyncControls,
     )
 
     private val settingsStore = dependencies.settingsStore
@@ -94,6 +97,9 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     internal val profileErrorState = MutableStateFlow<ProfileErrorKind?>(null)
     internal val erasingState = MutableStateFlow(false)
     internal val notificationsAllowedState = MutableStateFlow<Boolean?>(null)
+    internal val syncAddressState = MutableStateFlow("")
+    internal val syncTokenDraftState = MutableStateFlow("")
+    internal val syncCheckState = MutableStateFlow<SyncCheck?>(null)
     private val testState = MutableStateFlow<ConnectionTest?>(null)
     private val voiceState = MutableStateFlow<List<String>>(emptyList())
     private val previewState = MutableStateFlow(VoicePreviewKind.IDLE)
@@ -138,8 +144,9 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         pageState.value = SettingsPageKind.NOTIFICATIONS
     }
 
-    /** Goes back: from a page to the list of settings, and from the list out of the settings. */
+    /** Goes back: from a page to the list of settings, and from the list out of the settings. The hub address typed is kept on the way. */
     fun backAction() {
+        if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
         if (pageState.value == SettingsPageKind.MAIN) doneAction() else pageState.value = SettingsPageKind.MAIN
     }
 
@@ -153,7 +160,8 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         if (changed.ollamaAddress != settingsStore.settings.value.ollamaAddress) testState.value = null
         // A sample of the voice that was chosen before is not left playing.
         if (changed.voice != settingsStore.settings.value.voice) stopVoicePreviewAction()
-        settingsStore.update(changed)
+        // Undispatched, so that the change is shown before this returns; only the write waits for the disk.
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { settingsStore.update(changed) }
     }
 
     /** Asks the chat server for its models, as proof that the address works. */
@@ -275,6 +283,7 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
 
     /** Leaves the settings, silencing any sample on the way out. */
     fun doneAction() {
+        if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
         pageState.value = SettingsPageKind.MAIN
         stopVoicePreviewAction()
         delegate?.settingsPresenterDidFinish()

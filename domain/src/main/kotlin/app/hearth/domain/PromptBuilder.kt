@@ -3,6 +3,7 @@ package app.hearth.domain
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 /** Turns a conversation, and any web results, into the messages sent to the model. */
@@ -18,6 +19,8 @@ class PromptBuilder(
     private val projectFence: String = makeFence("FILE"),
     /** The user's name and what they like to be called, as given in Settings. */
     private val profile: UserProfile = UserProfile(),
+    /** The time zone the date is told in: the device's. */
+    private val timeZone: TimeZone = TimeZone.getDefault(),
 ) {
     private val instructions = instructions.trim()
 
@@ -34,8 +37,8 @@ class PromptBuilder(
         style: ReplyStyle = ReplyStyle.CHAT,
     ): List<PromptMessage> {
         var system = systemText(sources, now, style)
-        if (offersSearch) system += "\n\n" + SEARCH_GUIDANCE
         if (offersMemory) system += "\n\n" + MEMORY_GUIDANCE
+        if (offersSearch) system += "\n\n" + SEARCH_GUIDANCE
         val turns = history.filterNot { it.isEmpty }.map { message ->
             val role = if (message.role == MessageRole.USER) PromptRole.USER else PromptRole.ASSISTANT
             // A picture the app made is not sent back to the chat model; only what the user showed it is.
@@ -46,14 +49,17 @@ class PromptBuilder(
 
     /** The message as the model reads it: any attached files first, then what was typed. */
     private fun text(message: Message): String {
-        val files = message.documents.map { "Attached file \"${it.name}\":\n${it.text.take(MAXIMUM_DOCUMENT_LENGTH)}" }
+        val files = message.documents.map { "Attached file \"${it.name}\":\n${it.text.clipped(MAXIMUM_DOCUMENT_LENGTH)}" }
         return (files + message.text).filter { it.isNotEmpty() }.joinToString("\n\n")
     }
 
-    /** The text to search the web for: the user's latest message, kept to a searchable length. */
+    /**
+     * The text to search the web for: the user's latest message on one line, its blank lines left out, kept to a
+     * searchable length; `null` when there is none or it is only white space.
+     */
     fun searchQuery(history: List<Message>): String? {
         val text = history.lastOrNull { it.role == MessageRole.USER }?.text ?: return null
-        return text.lines().joinToString(" ").take(200).ifBlank { null }
+        return text.lines().filter { it.isNotBlank() }.joinToString(" ").clipped(MAXIMUM_SEARCH_QUERY_LENGTH).ifBlank { null }
     }
 
     /**
@@ -112,7 +118,7 @@ class PromptBuilder(
      * project's instructions and files, and what it knows of the user.
      */
     private fun systemText(sources: List<SearchSource>, now: Long, style: ReplyStyle): String {
-        val today = SimpleDateFormat("EEEE d MMMM yyyy", Locale.ENGLISH).format(Date(now))
+        val today = dateText(now, timeZone)
         val parts = mutableListOf(
             "You are a helpful, direct assistant. Today is $today.",
             when (style) {
@@ -154,6 +160,16 @@ class PromptBuilder(
 
         /** The most text taken from a project's reference files altogether, so that they cannot crowd out the conversation. */
         const val MAXIMUM_PROJECT_DOCUMENTS_LENGTH = 60_000
+
+        /** The most characters of the user's message that are searched for. */
+        const val MAXIMUM_SEARCH_QUERY_LENGTH = 200
+
+        /**
+         * The date as the model is told it, such as "Monday 16 November 2026": in English, whatever the device's
+         * language, so that every prompt reads the same, and in the given time zone.
+         */
+        fun dateText(now: Long, timeZone: TimeZone = TimeZone.getDefault()): String =
+            SimpleDateFormat("EEEE d MMMM yyyy", Locale.ENGLISH).apply { this.timeZone = timeZone }.format(Date(now))
 
         /** A marker that no web page, and no file, can predict. */
         fun makeFence(prefix: String = "WEB"): String = "$prefix-" + UUID.randomUUID().toString().replace("-", "").take(16)

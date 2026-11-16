@@ -1,0 +1,144 @@
+package app.hearth.settings
+
+import app.hearth.domain.SyncFailureKind
+import app.hearth.domain.SyncHubCheck
+import app.hearth.domain.SyncSettings
+import app.hearth.domain.SyncStore
+import app.hearth.domain.SyncStoreProvider
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Test
+
+/** The sync page: the address, the token, the switch, and the status line. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class SyncSettingsTests {
+
+    private fun provider(saved: String?) = SyncStoreProvider(
+        loadSettings = { saved },
+        saveSettings = {},
+        loadJournal = { null },
+        saveJournal = {},
+        readToken = { null },
+        writeToken = {},
+    )
+
+    @Test
+    fun `a built-in hub address fills the page until one is saved, and leaves sync off`() = runTest {
+        val fresh = SyncStore(provider(saved = null), defaultHubAddress = "https://hub.example:8765").also { it.load() }
+        val savedText = """{"hubAddress":"https://other.example:8765","isEnabled":false}"""
+        val saved = SyncStore(provider(saved = savedText), defaultHubAddress = "https://hub.example:8765").also { it.load() }
+
+        assertEquals("https://hub.example:8765", fresh.settings.value.hubAddress)
+        assertFalse(fresh.settings.value.isEnabled)
+        assertEquals("https://other.example:8765", saved.settings.value.hubAddress)
+    }
+
+    @Test
+    fun `without a usable address the switch cannot be turned on`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        val subject = fixture.subject
+        subject.syncAction()
+
+        assertFalse(canEnableSync(subject.syncAddress.value))
+        subject.syncEnabledAction(true)
+        advanceUntilIdle()
+
+        assertFalse(fixture.syncStore.settings.value.isEnabled)
+        assertEquals(0, fixture.syncNowCount)
+    }
+
+    @Test
+    fun `turning sync on keeps the address and syncs at once`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        val subject = fixture.subject
+        subject.syncAction()
+
+        subject.syncAddressDraftAction(" http://hub.local:8765 ")
+        subject.syncEnabledAction(true)
+        advanceUntilIdle()
+
+        assertEquals(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true), fixture.syncStore.settings.value)
+        assertEquals(1, fixture.syncNowCount)
+    }
+
+    @Test
+    fun `clearing the address turns sync off, and leaving the page keeps what was typed`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        fixture.syncStore.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true))
+        val subject = fixture.subject
+        subject.syncAction()
+        assertEquals(SettingsPageKind.SYNC, subject.page.value)
+
+        subject.syncAddressDraftAction("")
+        subject.backAction()
+        advanceUntilIdle()
+
+        assertEquals(SyncSettings(), fixture.syncStore.settings.value)
+        assertEquals(SettingsPageKind.MAIN, subject.page.value)
+    }
+
+    @Test
+    fun `a token goes to the store and never stays in the form`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        val subject = fixture.subject
+        subject.syncAction()
+
+        subject.syncTokenDraftAction("  throwaway-value  ")
+        subject.saveSyncTokenAction()
+        advanceUntilIdle()
+        assertEquals("throwaway-value", fixture.token)
+        assertTrue(subject.hasSyncToken.value)
+        assertEquals("", subject.syncTokenDraft.value)
+
+        subject.syncAction()
+        assertEquals("", subject.syncTokenDraft.value)
+        subject.removeSyncTokenAction()
+        advanceUntilIdle()
+        assertNull(fixture.token)
+        assertFalse(subject.hasSyncToken.value)
+    }
+
+    @Test
+    fun `a check of the hub says what it found`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        val subject = fixture.subject
+        subject.syncAction()
+        subject.syncAddressDraftAction("http://hub.local:8765")
+
+        subject.checkHubAction()
+        advanceUntilIdle()
+        assertEquals(SyncCheck.Succeeded, subject.syncCheck.value)
+
+        fixture.checkAnswer = SyncHubCheck.Failed(SyncFailureKind.TokenNeeded)
+        subject.checkHubAction()
+        advanceUntilIdle()
+        assertEquals(SyncCheck.Failed(SyncFailureKind.TokenNeeded), subject.syncCheck.value)
+
+        subject.syncAddressDraftAction("")
+        subject.checkHubAction()
+        advanceUntilIdle()
+        assertEquals(SyncCheck.Failed(SyncFailureKind.NotConfigured), subject.syncCheck.value)
+    }
+
+    @Test
+    fun `the status line says when it last synced, or what went wrong`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        val store = fixture.syncStore
+        fun status() = syncStatus(store.isSyncing.value, store.failure.value, store.lastSyncedAt.value)
+        assertEquals(SyncStatusKind.Never, status())
+
+        store.syncDidBegin()
+        assertEquals(SyncStatusKind.Syncing, status())
+        store.syncDidEnd(SyncFailureKind.Unreachable, finished = false)
+        assertEquals(SyncStatusKind.Failed(SyncFailureKind.Unreachable), status())
+        store.syncDidEnd(null, finished = true)
+        assertTrue(status() is SyncStatusKind.LastSynced)
+        store.syncDidEnd(SyncFailureKind.TooLarge(2), finished = true)
+        assertEquals(SyncStatusKind.Failed(SyncFailureKind.TooLarge(2)), status())
+    }
+}

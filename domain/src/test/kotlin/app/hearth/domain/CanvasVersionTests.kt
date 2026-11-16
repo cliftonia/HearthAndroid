@@ -199,18 +199,29 @@ class CanvasWebPolicyTests {
 
     @Test
     fun `the script takes peer connections and beacons away and cannot end its own tag`() {
-        listOf("RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel", "sendBeacon").forEach { name -> assertTrue("'$name'" in policy.startScript, name) }
+        listOf("RTCPeerConnection", "webkitRTCPeerConnection", "RTCDataChannel", "RTCIceCandidate", "RTCSessionDescription", "sendBeacon").forEach { name ->
+            assertTrue("'$name'" in policy.startScript, name)
+        }
+        assertTrue("value: undefined, writable: false, configurable: false" in policy.startScript)
         assertFalse("</" in policy.startScript)
+    }
+
+    @Test
+    fun `the script is a single expression`() {
+        val script = policy.startScript.trim()
+
+        assertTrue(script.startsWith("(function () {"))
+        assertTrue(script.endsWith("})();"))
     }
 
     @Test
     fun `the script seals every frame the page makes or reaches, and is run at the start of every frame's document`() {
         listOf(
             // Reaching a frame's window.
-            "contentWindow", "contentDocument",
+            "contentWindow", "contentDocument", "getSVGDocument",
             // Putting a frame in the page, from script or from markup.
-            "appendChild", "insertBefore", "replaceChild", "append", "after", "replaceWith", "insertAdjacentHTML",
-            "innerHTML", "outerHTML", "write", "insertNode", "attachShadow", "open",
+            "appendChild", "insertBefore", "replaceChild", "append", "after", "replaceWith", "insertAdjacentElement", "insertAdjacentHTML",
+            "innerHTML", "outerHTML", "insertNode", "surroundContents", "write", "writeln", "execCommand", "attachShadow", "open",
         ).forEach { name -> assertTrue("'$name'" in policy.startScript, name) }
         // It walks the page's frames by an index the page cannot hide, and watches for the parser's.
         assertTrue("w[i]" in policy.startScript)
@@ -218,5 +229,24 @@ class CanvasWebPolicyTests {
         // What it relies on is taken before the page runs, so the page cannot swap it out afterwards.
         assertTrue("var call = Reflect.apply, describe = Object.getOwnPropertyDescriptor, define = Object.defineProperty;" in policy.startScript)
         assertEquals(setOf("*"), CanvasWebPolicy.START_SCRIPT_ORIGIN_RULES)
+    }
+
+    @Test
+    fun `the script gives no frame a sandbox and takes out a frame it cannot reach`() {
+        val script = policy.startScript
+        listOf("setAttribute", "setAttributeNS", "toggleAttribute", "setAttributeNode", "setAttributeNodeNS", "setNamedItem", "setNamedItemNS").forEach { name ->
+            assertTrue("'$name'" in script, name)
+        }
+        // The attribute itself, its list of flags, and a watch for it on the document.
+        assertTrue("wrap(w, 'HTMLIFrameElement', 'sandbox', 'set'" in script)
+        assertTrue("wrap(w, 'HTMLIFrameElement', 'sandbox', 'get'" in script)
+        assertTrue("attributeFilter: ['sandbox']" in script)
+        // A frame it cannot reach is removed, and markup cannot hide a frame in a shadow root.
+        assertTrue("call(removeNode, node, [])" in script)
+        assertTrue("'setHTMLUnsafe'" in script)
+        assertTrue("'parseHTMLUnsafe'" in script)
+        // The engine's older way to a shadow root from markup: a parser's options are not passed on.
+        assertTrue("wrap(w, 'DOMParser', 'parseFromString', 'value'" in script)
+        assertTrue("call(original, this, [markup, type])" in script)
     }
 }

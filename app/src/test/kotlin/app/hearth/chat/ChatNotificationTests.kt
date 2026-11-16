@@ -30,7 +30,7 @@ class ChatNotificationTests {
 
     /** Sends one message and waits for everything that follows from it. */
     private suspend fun TestScope.ask(fixture: ChatPresenterFixture, isPrivate: Boolean = false) {
-        fixture.subject.loadAction()
+        fixture.load()
         if (isPrivate) fixture.subject.togglePrivateAction()
         fixture.subject.draftAction("Capital of France?")
         fixture.subject.sendAction()

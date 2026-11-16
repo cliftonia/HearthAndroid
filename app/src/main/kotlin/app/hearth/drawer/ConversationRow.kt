@@ -33,7 +33,7 @@ import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
-import app.hearth.domain.ConversationExporter
+import app.hearth.shared.rememberConversationExporter
 import app.hearth.shared.share
 
 /**
@@ -49,7 +49,7 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
     val colors = HearthTheme.colors
     val context = LocalContext.current
     val title = conversation.title.ifEmpty { stringResource(R.string.untitled) }
-    val exporter = ConversationExporter(stringResource(R.string.export_user), stringResource(R.string.brand), stringResource(R.string.untitled))
+    val exporter = rememberConversationExporter()
     var isMenuOpen by remember { mutableStateOf(false) }
     Row(
         Modifier

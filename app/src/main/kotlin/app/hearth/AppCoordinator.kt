@@ -1,11 +1,14 @@
 package app.hearth
 
+import android.util.Log
 import app.hearth.canvas.CanvasLayout
 import app.hearth.canvas.CanvasPresenter
 import app.hearth.canvas.CanvasPresenterDelegate
 import app.hearth.chat.ChatPresenter
 import app.hearth.chat.ChatPresenterDelegate
 import app.hearth.chat.conversationMoved
+import app.hearth.chat.conversationsChangedRemotely
+import app.hearth.chat.isWriting
 import app.hearth.chat.openNotifiedConversationAction
 import app.hearth.chat.quietAction
 import app.hearth.chat.receiveSharedAction
@@ -16,6 +19,7 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.CanvasReference
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ProjectId
+import app.hearth.domain.conversationIds
 import app.hearth.drawer.DrawerPresenter
 import app.hearth.drawer.DrawerPresenterDelegate
 import app.hearth.lock.LockPresenter
@@ -26,6 +30,8 @@ import app.hearth.projectpicker.ProjectPickerPresenter
 import app.hearth.projectpicker.ProjectPickerPresenterDelegate
 import app.hearth.settings.SettingsPresenter
 import app.hearth.settings.SettingsPresenterDelegate
+import app.hearth.settings.SyncControls
+import app.hearth.sync.SyncScheduler
 import app.hearth.voice.VoicePresenter
 import app.hearth.voice.VoicePresenterDelegate
 import app.hearth.voice.closedAction
@@ -36,8 +42,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** The screens that can fill the window. The chat list is not one: it opens over, or sits beside, the chat. */
 enum class Screen { CHAT, SETTINGS, VOICE }
@@ -72,13 +80,20 @@ class AppCoordinator(
     private val drawerState = MutableStateFlow(false)
     private val projectSheetState = MutableStateFlow<ProjectSheetKind?>(null)
     private val sideList = dependencies.sideList
-    private val sideListState = MutableStateFlow(!sideList.isHidden())
+    private val sideListState = MutableStateFlow(true)
     private val canvasState = MutableStateFlow(false)
+    private val readyState = MutableStateFlow(false)
 
     /** Whether the window is wide enough for the chat list to sit beside the chat, and how wide it is in dp. Only the root view can tell. */
     private var isWide = false
     private var windowWidth = 0f
     val screen: StateFlow<Screen> = screenState.asStateFlow()
+
+    /**
+     * Whether the settings have been read. Until they have, the window draws nothing: the lock, the theme and the
+     * addresses all come from them, and a first frame drawn from the defaults would be wrong.
+     */
+    val isReady: StateFlow<Boolean> = readyState.asStateFlow()
 
     /** Whether the chat list should be open as a drawer. It has no meaning on a wide screen, where the list sits beside the chat. */
     val isDrawerOpen: StateFlow<Boolean> = drawerState.asStateFlow()
@@ -98,6 +113,8 @@ class AppCoordinator(
      */
     val isCanvasOpen: StateFlow<Boolean> = canvasState.asStateFlow()
     val settingsStore = dependencies.settingsStore
+    private val syncStore = dependencies.syncStore
+    private val savedData = dependencies.savedData
     val modelStore = dependencies.modelStore
     val attachments = dependencies.attachments
     val pictures = dependencies.pictures
@@ -139,6 +156,15 @@ class AppCoordinator(
         messages = { chat.viewModel.value.conversation.messages },
         streamingMessageId = { chat.viewModel.value.let { if (it.isStreaming) it.conversation.messages.lastOrNull()?.id else null } },
     )
+
+    /** Decides when to sync with the hub: at launch, on coming back, after a change, and when asked. */
+    private val syncScheduler = SyncScheduler(
+        scope,
+        dependencies.syncStore,
+        runSync = { dependencies.sync.sync() },
+        log = { Log.i("Sync", it) },
+    )
+    private val syncHooks = dependencies.syncHooks
     val drawer = DrawerPresenter(scope, dependencies.conversationStore, dependencies.projectStore)
     val project = ProjectPresenter(scope, dependencies.projectStore, dependencies.conversationStore, dependencies.projects)
     val projectPicker = ProjectPickerPresenter(scope, dependencies.projectStore, dependencies.conversationStore)
@@ -154,6 +180,11 @@ class AppCoordinator(
             eraser = dependencies.eraser,
             notifications = dependencies.notifications,
             quietChat = { chat.quietAction() },
+            sync = SyncControls(
+                store = dependencies.syncStore,
+                syncNow = { syncScheduler.syncNow() },
+                check = { url, token -> dependencies.sync.check(url, token) },
+            ),
         ),
     )
     val voice = VoicePresenter(
@@ -181,7 +212,8 @@ class AppCoordinator(
         project.delegate = this
         projectPicker.delegate = this
         canvas.delegate = this
-        scope.launch { chat.loadAction() }
+        connectSync()
+        scope.launch { load() }
         // The canvas follows the chat: a reply as it is written, and its piece going when the chat is changed.
         scope.launch {
             chat.viewModel
@@ -189,6 +221,46 @@ class AppCoordinator(
                 .distinctUntilChanged()
                 .collect { canvas.chatChangedAction() }
         }
+    }
+
+    /**
+     * Reads what was saved, off the main thread: first the settings and where the chat list was left, so that the
+     * window can draw, then the chats, projects and memories. Sync starts only if every one of those was read; then
+     * the server is asked for its models.
+     */
+    private suspend fun load() {
+        settingsStore.load()
+        syncStore.load()
+        sideListState.value = !withContext(Dispatchers.IO) { sideList.isHidden() }
+        lock.settingsLoadedAction()
+        readyState.value = true
+        if (savedData.load()) syncScheduler.appDidLoad()
+        chat.refreshModelsAction()
+    }
+
+    /** Runs [action] once the settings have been read: at once if they have, otherwise as soon as they are. */
+    fun whenReady(action: () -> Unit) {
+        if (readyState.value) {
+            action()
+        } else {
+            scope.launch {
+                readyState.first { it }
+                action()
+            }
+        }
+    }
+
+    /**
+     * Lets sync ask the chat whether a chat is being written to, and tells the chat of chats another device changed.
+     */
+    private fun connectSync() {
+        syncHooks.isBusy = { chat.isWriting(it) }
+        syncHooks.didApplyRemote = { keys ->
+            val ids = keys.conversationIds
+            if (ids.isNotEmpty()) chat.conversationsChangedRemotely(ids)
+        }
+        syncHooks.localChangeHappened = syncScheduler::localChangeHappened
+        syncHooks.stopAndReset = syncScheduler::stopAndReset
     }
 
     /** The drawer was opened or closed by hand. */
@@ -213,7 +285,10 @@ class AppCoordinator(
 
     /** The app's window came in front of the user, or went from in front of them. */
     fun foregroundChanged(isOnScreen: Boolean) {
+        val cameBack = isOnScreen && !this.isOnScreen
         this.isOnScreen = isOnScreen
+        // Back in front of the user: sync, if sync is on.
+        if (cameBack) syncScheduler.appBecameActive()
     }
 
     /** Goes straight to a chat, as a tapped notification asks. While the app is locked the chat opens behind the lock. */

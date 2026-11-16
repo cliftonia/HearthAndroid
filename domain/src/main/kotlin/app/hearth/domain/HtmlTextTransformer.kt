@@ -19,7 +19,7 @@ class HtmlTextTransformer {
             .map { line -> line.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ") }
             .filter { it.isNotEmpty() }
             .joinToString("\n")
-            .take(maximumLength)
+            .clipped(maximumLength)
     }
 
     /** The page's article or main region when it marks one, otherwise all of it. */

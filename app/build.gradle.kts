@@ -28,6 +28,8 @@ android {
         buildConfigField("String", "SPEECH_ADDRESS", quoted("hearth.speechAddress"))
         buildConfigField("String", "IMAGE_ADDRESS", quoted("hearth.imageAddress"))
         buildConfigField("String", "DEFAULT_MODEL", quoted("hearth.defaultModel"))
+        // Only fills in the Sync page's address; sync itself stays off until it is turned on there.
+        buildConfigField("String", "HUB_ADDRESS", quoted("hearth.hubAddress"))
     }
 
     compileOptions {
@@ -71,7 +73,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.kotlinx.coroutines.android)
@@ -84,7 +85,6 @@ dependencies {
     implementation(libs.pdfbox.android)
     // A script run at the start of every frame of the canvas's page, not only the page itself.
     implementation(libs.androidx.webkit)
-    debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)

@@ -170,9 +170,7 @@ class CanvasExtractor {
     /** A title on one line and of a sensible length; `null` when nothing is left of it. */
     private fun tidied(title: String): String? {
         val words = title.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
-        val cut = words.take(MAXIMUM_TITLE_LENGTH)
-        // A character that takes two places is not cut in half.
-        return (if (cut.lastOrNull()?.isHighSurrogate() == true) cut.dropLast(1) else cut).ifEmpty { null }
+        return words.clipped(MAXIMUM_TITLE_LENGTH).ifEmpty { null }
     }
 
     /** The few character references a title is likely to hold, as the characters they stand for. */

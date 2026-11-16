@@ -219,6 +219,7 @@
 
     <string name="profile_title">Profile</string>
     <string name="profile_no_name">Add your name</string>
+    <string name="profile_open">%1$s, Profile</string>
     <string name="profile_edit_photo">Edit photo</string>
     <string name="profile_choose_photo">Choose from library</string>
     <string name="profile_remove_photo">Remove photo</string>
@@ -244,6 +245,7 @@
     <string name="notifications_open_settings">Open the phone\'s Settings</string>
     <string name="notifications_on">On</string>
     <string name="notifications_off">Off</string>
+    <string name="notifications_open">Notifications, %1$s</string>
     <string name="notifications_reply_ready">A reply is ready.</string>
     <string name="notifications_picture_ready">Your picture is ready</string>
 
@@ -386,4 +388,38 @@
     <string name="widget_voice_name">Voice Conversation</string>
     <string name="widget_voice_description">Start talking to Hearth.</string>
     <string name="widget_voice_title">Talk</string>
+
+    <!-- Sync -->
+    <string name="sync_title">Sync</string>
+    <string name="sync_on">On</string>
+    <string name="sync_off">Off</string>
+    <string name="sync_open">Sync, %1$s</string>
+    <string name="sync_hub_address">Hub address</string>
+    <string name="sync_hub_footer">Your own Hearth Hub keeps your chats, projects and memories in step between your devices. Private chats, settings, server addresses and your profile are never synced.</string>
+    <string name="sync_token">Access token</string>
+    <string name="sync_token_placeholder">Optional</string>
+    <string name="sync_token_saved_placeholder">Saved. Type a new one to replace it</string>
+    <string name="sync_token_footer">Only if your hub asks for one. It is sealed with a key kept by this phone and is never synced.</string>
+    <string name="sync_save_token">Save token</string>
+    <string name="sync_remove_token">Remove token</string>
+    <string name="sync_switch">Sync this device</string>
+    <string name="sync_switch_detail">When Hearth opens, when it comes back, and shortly after a change.</string>
+    <string name="sync_needs_address">Add the hub\'s address to turn sync on.</string>
+    <string name="sync_now">Sync now</string>
+    <string name="sync_check">Test connection</string>
+    <string name="sync_check_succeeded">Connected to the hub.</string>
+    <string name="sync_status">Status</string>
+    <string name="sync_in_progress">Syncing…</string>
+    <string name="sync_never">Not synced yet.</string>
+    <string name="sync_last_synced">Last synced %1$s.</string>
+    <string name="sync_failed_not_configured">The hub address is not a usable address.</string>
+    <string name="sync_failed_unreachable">The hub could not be reached. Hearth will try again later.</string>
+    <string name="sync_failed_token_needed">The hub needs an access token.</string>
+    <string name="sync_failed_token_refused">The hub did not accept the access token.</string>
+    <string name="sync_failed_unreadable">The hub\'s answer could not be read. Is this the address of a Hearth Hub?</string>
+    <string name="sync_failed_hub">The hub ran into a problem (%1$d). Hearth will try again later.</string>
+    <plurals name="sync_too_large">
+        <item quantity="one">Synced, except %1$d item too large for the hub, which stays on this phone only.</item>
+        <item quantity="other">Synced, except %1$d items too large for the hub, which stay on this phone only.</item>
+    </plurals>
 </resources>

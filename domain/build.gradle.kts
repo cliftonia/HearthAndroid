@@ -16,3 +16,8 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+tasks.test {
+    // SpecCopyTests compares the copied vectors with the Spec folder beside this repository, so a change there runs the tests again.
+    inputs.files(fileTree(rootProject.file("../Hearth/Spec"))).withPropertyName("spec").withPathSensitivity(PathSensitivity.RELATIVE)
+}

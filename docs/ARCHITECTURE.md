@@ -36,27 +36,32 @@ app/src/main/kotlin/app/hearth/
 ├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
 ├── project/                 The sheet that makes, edits and deletes a project: presenter, view model, sheet
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
-├── settings/                Settings: presenter, screen, one file per card, the profile and notifications pages
+├── settings/                Settings: presenter, screen, one file per card, the profile, notifications and sync pages
+├── sync/                    When to sync (`SyncScheduler`), and the hooks sync is given into the chat
 ├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
 ├── shared/                  The little that more than one feature needs and is not styling
 ├── widget/                  The home screen widgets
-└── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications
+└── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications, the hub token's keystore seal
 
 domain/src/main/kotlin/app/hearth/domain/
 ├── Conversation.kt, Message.kt, Project.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, VoiceCamera.kt, …   Models, one concept a file
-├── ChatInteractor.kt, ResearchInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt, ProjectInteractor.kt, EraseInteractor.kt   Business logic
-├── ConversationStore.kt, ProjectStore.kt, MemoryStore.kt, ProfileStore.kt, ModelStore.kt, SettingsStore.kt   Shared state
+├── ChatInteractor.kt, ResearchInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt, ProjectInteractor.kt, EraseInteractor.kt, SyncInteractor.kt   Business logic
+├── ConversationStore.kt, ProjectStore.kt, MemoryStore.kt, ProfileStore.kt, ModelStore.kt, SettingsStore.kt, SyncStore.kt   Shared state
+├── SavedDataLoader.kt                                                             Reads the chats, projects and memories at launch
+├── Sync.kt, SyncJournal.kt, SyncMapping.kt, SyncPlanner.kt, SyncDataProvider.kt    Sync: its models, the journal, the wire mapping, the decisions
 ├── ChatDataProvider.kt, ProjectDataProvider.kt, ProfilePhotoProvider.kt, NotificationProvider.kt, CameraProvider.kt, …   The seams to the outside
 ├── GreetingPlanner.kt, ReplyNotificationPlanner.kt                                 Small decisions, kept pure
 ├── Research.kt, ResearchQueryParser.kt, ResearchSourceSelector.kt, ResearchPromptBuilder.kt, ResearchCitationTransformer.kt   Research: its models and pure steps
 ├── Canvas.kt, CanvasExtractor.kt, CanvasVersionMatcher.kt, CanvasWebPolicy.kt      The canvas: its models and pure decisions
+├── ConversationTitle.kt, TextLimit.kt                                              Titles (first message, renamed, from the model), and cutting text to a limit
 └── PromptBuilder.kt, PromptBuilderProject.kt, MarkdownTransformer.kt, …            Pure text work
 
 data/src/main/kotlin/app/hearth/data/
 ├── OllamaService.kt, SearchService.kt, SpeechService.kt, ImageService.kt, …       One service per server
-├── OllamaDtos.kt, OllamaTools.kt, ComfyDtos.kt, ImageGraph.kt                      What goes over the wire
+├── OllamaDtos.kt, OllamaTools.kt, ComfyDtos.kt, ImageGraph.kt, SyncDtos.kt         What goes over the wire
+├── SyncService.kt, SyncWire.kt, WireTime.kt                                        The hub: its requests, raw JSON and unknown fields, its times
 └── FileStoreService.kt, HearthHttp.kt, HearthJson.kt, PageAddressPolicy.kt         Plumbing
 ```
 
@@ -91,7 +96,7 @@ through beside a few small ones, and `LockPresenter` is a single `Boolean`.
 calls its actions. Screens hold only view-local state: whether a menu is open, what is typed in a dialog.
 A screen-level composable ends in `Screen`; a part of one ends in `Section`, `Card`, `Row`, `Menu` and so on.
 
-**Pages inside a screen.** The settings have two pages of their own, the profile and the notifications. Which
+**Pages inside a screen.** The settings have three pages of their own, the profile, the notifications and sync. Which
 is showing is the settings presenter's own state (`page`), not the coordinator's: nothing outside the settings
 cares, and the back button asks the presenter, which steps back a page before it leaves.
 
@@ -114,20 +119,30 @@ what lets a reply keep streaming while the phone is rotated or the app is in the
 extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`, `ChatPresenterResearch.kt`,
 `ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
 `ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its two pages
-(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`), and `VoicePresenter` for its camera
+(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`), and `VoicePresenter` for its camera
 (`VoicePresenterCamera.kt`). The state they share is
 `internal` for that reason.
 
 ## Below the presenters
 
-**Interactors** (`ChatInteractor`, `ResearchInteractor`, `SpeechInteractor`, `ImageInteractor`, `ProjectInteractor`, `EraseInteractor`) are concrete classes that carry out a piece of business
+**Interactors** (`ChatInteractor`, `ResearchInteractor`, `SpeechInteractor`, `ImageInteractor`, `ProjectInteractor`, `EraseInteractor`, `SyncInteractor`) are concrete classes that carry out a piece of business
 logic from the providers, or the stores, they are given. They hold no screen state.
 
-**Stores** (`ConversationStore`, `ProjectStore`, `MemoryStore`, `ProfileStore`, `ModelStore`, `SettingsStore`) hold what more than one screen
-needs, as `StateFlow`s with methods to change them. They are changed from the main thread only.
+**Stores** (`ConversationStore`, `ProjectStore`, `MemoryStore`, `ProfileStore`, `ModelStore`, `SettingsStore`, `SyncStore`) hold what more than one screen
+needs, as `StateFlow`s with methods to change them. They are changed from the main thread only, and never read or
+write the disk or the keystore on it: their providers do that work on `Dispatchers.IO`, as `FileStoreService` does.
 
-**Planners** (`GreetingPlanner`, `ReplyNotificationPlanner`) each make one small decision from plain values and
-touch nothing: which line an empty chat opens with, and whether a finished reply is announced and in what words.
+**Loading at launch.** Building `AppDependencies` reads nothing. `AppCoordinator.start()` launches the reading:
+first `SettingsStore.load()`, `SyncStore.load()` (its settings, journal and whether a token is kept) and where the
+chat list was left, after which the lock is set from the settings and `isReady` turns true; `MainActivity` draws
+nothing, holding the launch screen, until then, and intents from shortcuts, widgets and notifications wait for it
+too, so the first frame is never drawn from the defaults. Then `SavedDataLoader` reads the chats, projects and
+memories, each store on its own so that one unreadable store leaves the others full. Sync is started only if all
+three were read, so that it never weighs the hub against a list that only looks empty; then the models are asked for.
+
+**Planners** (`GreetingPlanner`, `ReplyNotificationPlanner`, `SyncPlanner`) each make decisions from plain values and
+touch nothing: which line an empty chat opens with, whether a finished reply is announced and in what words, and
+which copy of a synced item wins.
 
 **Data providers** are the seams. Each is a class of function-typed properties with a `live()` factory in its
 companion:
@@ -297,14 +312,33 @@ app rule for rule, with the same wording.
   `srcdoc` frames that report on themselves: before, every frame gave a working constructor and a capture
   showed STUN packets leaving; with `addDocumentStartJavaScript` alone, all but the loaded `srcdoc` frames still
   did; after, none did and the capture showed none.
-- **What is not shut off.** Checked with a packet capture on the emulator (WebView 113): a page can still cause a
-  DNS lookup with `<link rel="dns-prefetch">`, and a lookup and a bare connection with `<link rel="preconnect">`.
-  `android.webkit` and `androidx.webkit` have no setting for either, and nothing known closes them. No load
-  succeeds through either, but each can carry data out of a page. The frame sealing is a script that stands
-  between the page and the engine rather than a rule the engine enforces: it covers every way to make or reach a
-  frame that the probe tried, but a way it does not intercept (a newer one, such as declarative shadow roots
-  that WebView 113 does not yet parse, firing a frame's handlers inside a shadow root) would reopen it. So a page
-  should not be thought of as sealed.
+- **What fails closed.** The script can only seal a frame it can reach, and the one frame in a page it cannot reach
+  is one whose `sandbox` puts it in an origin of its own. So no frame is given a sandbox: the attribute is taken off
+  anything before it is put in the page, `setAttribute`, `setAttributeNS`, `toggleAttribute`, `setAttributeNode`,
+  `setNamedItem` and the `sandbox` property ignore it, and the list of flags the page is handed changes nothing; a
+  frame the sweep still cannot reach, such as one the parser made with a sandbox, is taken out of the page (so is a
+  frame left on an error page by a blocked address, which shows nothing anyway). Markup that would make a shadow
+  root from a script is read as plain markup, so a script cannot hide a frame in a closed one: `setHTMLUnsafe` and
+  `Document.parseHTMLUnsafe` where the engine has them (WebView 113 has neither), and a `DOMParser` asked to
+  `includeShadowRoots`, which WebView 113 has. Measured on the emulator (WebView 113) with the probe above extended
+  by 15 sandboxed frames that report on themselves (in the page's markup, in a declarative shadow root in it, by
+  `setAttribute` with and without `allow-same-origin`, the property, an attribute node, its list of flags, after
+  insertion, removed after insertion, by `innerHTML`, by `setHTMLUnsafe`, by `document.write` into a shadow root, by
+  a `DOMParser` shadow root, and with a `javascript:` address from script and from markup). With the web view as
+  shipped, `addDocumentStartJavaScript` already reached every sandboxed frame that loaded: `LEAKING: 0 of 61` before
+  and `0 of 59` after, and a capture showed no STUN packet and no lookup of the STUN server. With the start script
+  in the page alone, as on a web view without `DOCUMENT_START_SCRIPT`, the sandboxed frames were the gap: 12 of 61
+  before, every sandboxed frame without `allow-same-origin` able to make a peer connection; 2 of 59 after.
+- **What is not shut off.** Those two: a sandboxed frame inside a closed declarative shadow root written in the
+  page's own markup or by `document.write` cannot be found to be removed; where the web view has
+  `DOCUMENT_START_SCRIPT` the script still runs in it, and it measured sealed. Checked with a packet capture on the
+  emulator (WebView 113): a page can still cause a DNS lookup with `<link rel="dns-prefetch">`, and a lookup and a
+  bare connection with `<link rel="preconnect">`. `android.webkit` and `androidx.webkit` have no setting for
+  either, and nothing known closes them. No load succeeds through either, but each can carry data out of a page.
+  The frame sealing is a script that stands between the page and the engine rather than a rule the engine
+  enforces: it covers every way to make or reach a frame that the probe tried, but a way it does not intercept
+  (firing a frame's handlers inside a shadow root, or a newer API) would reopen it. So a page should not be
+  thought of as sealed.
 
 ## Profile, and erasing everything
 
@@ -323,7 +357,7 @@ adds it in a private chat too: the name is a setting, not a memory. Quotation ma
 apostrophes and the name is kept to one line, so that it cannot pass itself off as anything else.
 
 **Erasing.** `EraseInteractor` erases the chats, the projects, the memories and the profile photo, each through
-the store that keeps it, then what the app keeps outside the stores (a photo taken for a message, a picture lent
+the store that keeps it, after sync has been stopped and forgotten, then what the app keeps outside the stores (a photo taken for a message, a picture lent
 to another app, a memory file set aside), and the settings last. If anything fails, the failure is passed on
 with the settings still in place, so the user can try again. The settings presenter stops whatever the chat is
 doing first, through a closure the coordinator gives it, so that no reply is written back after it was erased.
@@ -443,11 +477,50 @@ respected, since the taps are played through the view.
    delegate, and add a case to `Screen`.
 6. **Root.** Draw the screen for that case in `RootView`, and say what the back button does while it shows.
 
+## Kept in step with iOS
+
+The iPhone app is a separate code base that must behave like this one. What the two have to agree on is written down
+as data in the iPhone repository's `Spec/` folder (its `README.md` says how it is laid out and how to add to it).
+`tools/sync-spec.sh` copies it into `domain/src/test/resources/spec` (vectors and wire examples) and
+`data/src/test/resources/spec` (wire examples); `SpecPromptTests`, `SpecTextTests` and `SpecWireMappingTests` in the
+domain and `SpecWireTests` in the data layer read the copy, and `SpecCopyTests` fails while it differs from
+`../Hearth/Spec`, and is skipped where that folder is not there. Hearth Hub round-trips the wire examples. So far
+the vectors cover pure functions only, and they settle these:
+
+- **The date** in the system message and in every research prompt is `PromptBuilder.dateText`: English, weekday
+  day month year with no commas (`Monday 16 November 2026`), whatever the phone's language, in its time zone. Both
+  builders take a `timeZone`, the phone's by default, so the tests can fix it.
+- **The tools** are explained in the system message memory first, then search.
+- **The search query** (`PromptBuilder.searchQuery`) is the latest user message on one line, blank lines left out,
+  joined by single spaces, cut to `MAXIMUM_SEARCH_QUERY_LENGTH` (200); white space alone is no query.
+- **A memory** is refused as already saved when one is the same whatever its case or accents: both are taken apart
+  (NFD), their combining marks dropped and the rest lowercased (`Locale.ROOT`) before they are compared.
+- **Titles.** A provisional title is `provisionalTitle`, the first `PROVISIONAL_TITLE_LENGTH` (48) characters; a title
+  typed by hand, in the drawer or the chat's menu, goes through `renamedTitle`, trimmed and cut to
+  `MAXIMUM_RENAMED_TITLE_LENGTH` (80); a title a model wrote goes through `generatedTitle`, its first line that is not
+  blank, unwrapped, cut to 60.
+- **Limits count characters as each platform sees them.** Every limit on text (a title, a rename, a memory, a file,
+  a page, a query, a name typed in Settings) is applied with `String.clipped` (`TextLimit.kt`), which counts UTF-16
+  units, as `take` does, but never ends between the two halves of a surrogate pair, so an emoji is never cut in
+  half. Swift counts whole characters, so an emoji with a skin tone or a letter with a combining accent is one
+  there. The same long text may be cut at a different place on each; no attempt is made to make the counts agree.
+- **The canvas start script** does three things the iOS one does not, each a Chromium matter: it has `sendBeacon`
+  answer that nothing was sent (on iOS the content rules block a beacon like any other load, so nothing leaves
+  either way); it replaces `Document.parseHTMLUnsafe` only where the engine has it (iOS puts it in place always,
+  the stricter choice); and it keeps a `DOMParser` from being asked to `includeShadowRoots`, an
+  option WebKit's parser does not have. The reasons are also beside the iOS script.
+
 ## Building and checking
 
 ```sh
-./gradlew assembleDebug testDebugUnitTest lintDebug
+./gradlew test lintDebug assembleDebug
 ```
+
+`test` runs the domain and data modules' tests and the app's for both build types. Continuous integration
+(`.github/workflows/android.yml`) runs the same checks for the debug build on every push and keeps the lint
+report. It needs no `local.properties`: `app/build.gradle.kts` reads that file only if it exists, and each key
+falls back to an empty address or the default application id. `app/lint.xml` silences one warning found in a
+library, not in the app's code.
 
 The app is launched through `app.hearth.MainActivity`. That name, the intent actions
 `app.hearth.action.VOICE` and `app.hearth.action.NEW_CHAT`, the shortcut id `voice` and the widget classes

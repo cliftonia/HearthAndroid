@@ -15,12 +15,14 @@ import androidx.compose.ui.semantics.Role
 /**
  * A label with a switch at its end, and beneath the label, where given, one line on what the switch does. The
  * whole row is the switch, so it is one thing to tap and one thing to hear. Throwing it is felt as a light tap.
+ * While it is not [enabled] it is drawn faint and cannot be thrown.
  */
 @Composable
-fun HearthSwitchRow(label: String, isOn: Boolean, detail: String? = null, onChange: (Boolean) -> Unit) {
+fun HearthSwitchRow(label: String, isOn: Boolean, detail: String? = null, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
     Row(
         Modifier.fillMaxWidth().toggleable(
             isOn,
+            enabled = enabled,
             role = Role.Switch,
             onValueChange = {
                 Haptics.play(HapticKind.LIGHT)
@@ -30,9 +32,9 @@ fun HearthSwitchRow(label: String, isOn: Boolean, detail: String? = null, onChan
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f).padding(end = HearthTheme.spacing.xl)) {
-            Text(label, color = HearthTheme.colors.ink, style = HearthTheme.type.subhead)
+            Text(label, color = if (enabled) HearthTheme.colors.ink else HearthTheme.colors.mute, style = HearthTheme.type.subhead)
             detail?.let { Text(it, color = HearthTheme.colors.mute, style = HearthTheme.type.footnoteSnug) }
         }
-        Switch(checked = isOn, onCheckedChange = null)
+        Switch(checked = isOn, onCheckedChange = null, enabled = enabled)
     }
 }

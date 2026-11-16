@@ -4,6 +4,8 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -12,6 +14,7 @@ import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,35 +44,61 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         publishVoiceShortcut()
+        holdFirstFrameUntilReady()
         if (savedInstanceState == null) handle(intent)
         setContent {
-            val settings by coordinator.settingsStore.settings.collectAsStateWithLifecycle()
-            val isLocked by coordinator.lock.isLocked.collectAsStateWithLifecycle()
-            val isDark = settings.appearance.isDark()
-            // Every haptic in the app asks this one switch, and is played through this window.
-            HapticsHost(settings.isHapticsEnabled)
-            // The clock and battery icons must stay readable over whichever theme the user chose.
-            DisposableEffect(isDark) {
-                val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDark }
-                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-                onDispose { }
-            }
-            // With the lock on, the conversations are also kept out of the recent apps list and out of screenshots.
-            LaunchedEffect(settings.isLockEnabled) {
-                val secure = WindowManager.LayoutParams.FLAG_SECURE
-                if (settings.isLockEnabled) window.addFlags(secure) else window.clearFlags(secure)
-            }
-            HearthTheme(isDark) {
-                // While locked nothing else is drawn at all, so no menu or dialog can sit above the lock.
-                if (isLocked) {
-                    LockScreen(
-                        onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } },
-                    )
-                } else {
-                    RootView(coordinator) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
-                }
+            val isReady by coordinator.isReady.collectAsStateWithLifecycle()
+            // Nothing is composed from the defaults: the lock and the theme wait for the saved settings.
+            if (isReady) Content()
+        }
+    }
+
+    /** The lock or the screens, in the theme the user chose, with the window kept private while the lock is on. */
+    @Composable
+    private fun Content() {
+        val settings by coordinator.settingsStore.settings.collectAsStateWithLifecycle()
+        val isLocked by coordinator.lock.isLocked.collectAsStateWithLifecycle()
+        val isDark = settings.appearance.isDark()
+        // Every haptic in the app asks this one switch, and is played through this window.
+        HapticsHost(settings.isHapticsEnabled)
+        // The clock and battery icons must stay readable over whichever theme the user chose.
+        DisposableEffect(isDark) {
+            val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { isDark }
+            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            onDispose { }
+        }
+        // With the lock on, the conversations are also kept out of the recent apps list and out of screenshots.
+        LaunchedEffect(settings.isLockEnabled) {
+            val secure = WindowManager.LayoutParams.FLAG_SECURE
+            if (settings.isLockEnabled) window.addFlags(secure) else window.clearFlags(secure)
+        }
+        HearthTheme(isDark) {
+            // While locked nothing else is drawn at all, so no menu or dialog can sit above the lock.
+            if (isLocked) {
+                LockScreen(
+                    onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } },
+                )
+            } else {
+                RootView(coordinator) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
             }
         }
+    }
+
+    /**
+     * Keeps the launch screen up until the saved settings have been read off the main thread, which takes a moment
+     * at most, so that the first frame drawn is already the right one.
+     */
+    private fun holdFirstFrameUntilReady() {
+        val content = findViewById<View>(android.R.id.content)
+        content.viewTreeObserver.addOnPreDrawListener(
+            object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    if (!coordinator.isReady.value) return false
+                    content.viewTreeObserver.removeOnPreDrawListener(this)
+                    return true
+                }
+            },
+        )
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -93,9 +122,9 @@ class MainActivity : FragmentActivity() {
 
     /**
      * Does what the app was opened for: a voice conversation or a fresh chat from a shortcut or a widget, or
-     * taking in what another app shared.
+     * taking in what another app shared. It waits for the saved settings, which say whether voice has a server.
      */
-    private fun handle(intent: Intent?) {
+    private fun handle(intent: Intent?) = coordinator.whenReady {
         when (intent?.action) {
             ACTION_VOICE -> coordinator.startVoice(isFromOutside = true)
             ACTION_NEW_CHAT -> coordinator.startNewChat()

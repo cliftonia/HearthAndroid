@@ -9,10 +9,17 @@ import kotlinx.coroutines.flow.asStateFlow
  * Every saved conversation, newest first, shared by the chat and the drawer.
  *
  * The stores are changed from the main thread only; their state is read anywhere through the flows.
+ *
+ * Every change made here is stamped with [now] for sync (`Conversation.modifiedAt`) and reported through
+ * [onLocalChange], except for a private chat, which nothing outside the device ever hears of. Changes from another
+ * device come in through `ConversationStoreSync.kt` and are neither stamped nor reported.
  */
-class ConversationStore(private val provider: ConversationDataProvider) {
-    private val state = MutableStateFlow<List<Conversation>>(emptyList())
+class ConversationStore(internal val provider: ConversationDataProvider, private val now: () -> Long = System::currentTimeMillis) {
+    internal val state = MutableStateFlow<List<Conversation>>(emptyList())
     val conversations: StateFlow<List<Conversation>> = state.asStateFlow()
+
+    /** Told of every change made on this device, for sync. Never told of a private chat, nor of erasing everything. */
+    var onLocalChange: (suspend (SyncLocalChange) -> Unit)? = null
 
     /** Reads the saved conversations from disk, once, when the app starts. */
     suspend fun load() {
@@ -31,9 +38,11 @@ class ConversationStore(private val provider: ConversationDataProvider) {
      */
     suspend fun save(conversation: Conversation) {
         val previous = conversation(conversation.id)
-        val saved = if (previous == null) conversation else conversation.copy(isPinned = previous.isPinned, projectId = previous.projectId)
+        val kept = if (previous == null) conversation else conversation.copy(isPinned = previous.isPinned, projectId = previous.projectId)
+        val saved = kept.copy(modifiedAt = SyncClock.stamp(now(), previous?.modifiedAt))
         state.value = listOf(saved) + state.value.filter { it.id != saved.id }
         provider.save(saved)
+        report(SyncLocalChange.Changed(SyncItemKey.conversation(saved.id)), saved)
     }
 
     /** Pins or unpins a conversation without counting it as activity: its place by date is unchanged. */
@@ -55,14 +64,17 @@ class ConversationStore(private val provider: ConversationDataProvider) {
         state.value.filter { it.projectId == from }.forEach { setProject(null, it.id) }
     }
 
-    /** Takes the conversation off the list and off the disk. */
+    /** Takes the conversation off the list and off the disk. Another device hears of it, unless it was private. */
     suspend fun delete(id: ConversationId) {
+        val removed = conversation(id)
         state.value = state.value.filter { it.id != id }
         provider.delete(id)
+        removed?.let { report(SyncLocalChange.Deleted(SyncItemKey.conversation(id), SyncClock.stamp(now(), it.modifiedAt)), it) }
     }
 
     /**
      * Removes every conversation from the list and from disk, as when the user erases everything on the device.
+     * Sync is not told: erasing this device deletes nothing anywhere else.
      * If that cannot be done the list is read again from what is left on disk, and the failure is passed on.
      */
     suspend fun deleteAll() {
@@ -82,7 +94,7 @@ class ConversationStore(private val provider: ConversationDataProvider) {
      */
     private suspend fun replace(id: ConversationId, change: (Conversation) -> Conversation) {
         val previous = conversation(id) ?: return
-        val changed = change(previous)
+        val changed = change(previous).copy(modifiedAt = SyncClock.stamp(now(), previous.modifiedAt))
         state.value = state.value.map { if (it.id == id) changed else it }
         try {
             provider.save(changed)
@@ -90,5 +102,11 @@ class ConversationStore(private val provider: ConversationDataProvider) {
             state.value = state.value.map { if (it.id == id) previous else it }
             throw failure
         }
+        report(SyncLocalChange.Changed(SyncItemKey.conversation(id)), changed)
+    }
+
+    /** Tells sync of a change, unless the conversation is private: nothing of a private chat ever leaves the device. */
+    private suspend fun report(change: SyncLocalChange, conversation: Conversation) {
+        if (!conversation.isPrivate) onLocalChange?.invoke(change)
     }
 }

@@ -146,6 +146,7 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, with a line beneath the label on what it does, where given |
+| `HearthPageRow(description, onClick) { … }` | A settings row that opens a page, ending in an arrow; TalkBack hears it as one button, by its description |
 | `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
 | `HearthSheetHeader(title) { … }` | The title of a sheet that offers a choice, with the button that closes it |
 | `HearthPermissionNotice(icon, message, actionTitle) { … }` | A card saying that the phone is holding something back, with a button that leads to where that is changed; the button is left out where there is nowhere to send the user |

@@ -21,6 +21,9 @@ import app.hearth.domain.SettingsDataProvider
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechDataProvider
 import app.hearth.domain.SpeechInteractor
+import app.hearth.domain.SyncHubCheck
+import app.hearth.domain.SyncStore
+import app.hearth.domain.SyncStoreProvider
 import java.io.IOException
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -37,8 +40,11 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsEraseTests {
 
-    /** The settings presenter over a device that holds one chat and saved settings, with a record of what happened in what order. */
-    private class Fixture(scope: CoroutineScope) : SettingsPresenterDelegate {
+    /**
+     * The settings presenter over a device that holds one chat and saved settings, with a record of what happened in
+     * what order. The sync page's tests use it too.
+     */
+    internal class Fixture(scope: CoroutineScope) : SettingsPresenterDelegate {
         val events = mutableListOf<String>()
         var failsConversations = false
         var isNotificationAllowed = false
@@ -59,6 +65,20 @@ class SettingsEraseTests {
         val memoryStore = MemoryStore(MemoryDataProvider(load = { emptyList() }, save = {}))
         val profileStore = ProfileStore(ProfilePhotoProvider(load = { photoFile }, save = { photoFile = it }, delete = { photoFile = null }))
         val projectStore = ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))
+        var syncSettingsFile: String? = null
+        var token: String? = null
+        var syncNowCount = 0
+        var checkAnswer: SyncHubCheck = SyncHubCheck.Reachable
+        val syncStore = SyncStore(
+            SyncStoreProvider(
+                loadSettings = { syncSettingsFile },
+                saveSettings = { syncSettingsFile = it },
+                loadJournal = { null },
+                saveJournal = {},
+                readToken = { token },
+                writeToken = { token = it },
+            ),
+        )
 
         val subject = SettingsPresenter(
             scope,
@@ -78,6 +98,11 @@ class SettingsEraseTests {
                 ),
                 notifications = NotificationProvider(isAllowed = { isNotificationAllowed }, post = {}),
                 quietChat = { events += "chat quietened" },
+                sync = SyncControls(
+                    store = syncStore,
+                    syncNow = { syncNowCount += 1 },
+                    check = { _, _ -> checkAnswer },
+                ),
             ),
         ).also { it.delegate = this }
 

@@ -5,15 +5,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.NotificationsOff
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,17 +14,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
+import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthPermissionNotice
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
@@ -42,19 +34,11 @@ import app.hearth.integrations.openNotificationSettings
 @Composable
 internal fun NotificationsCard(settings: ServerSettings, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
+    val state = stringResource(if (settings.isReplyNotificationsEnabled) R.string.notifications_on else R.string.notifications_off)
     HearthCard {
-        Row(
-            Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = presenter::notificationsAction),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m),
-        ) {
+        HearthPageRow(stringResource(R.string.notifications_open, state), presenter::notificationsAction) {
             Text(stringResource(R.string.notifications_title), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(
-                stringResource(if (settings.isReplyNotificationsEnabled) R.string.notifications_on else R.string.notifications_off),
-                color = colors.mute,
-                style = HearthTheme.type.subhead,
-            )
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconM))
+            Text(state, color = colors.mute, style = HearthTheme.type.subhead)
         }
     }
 }

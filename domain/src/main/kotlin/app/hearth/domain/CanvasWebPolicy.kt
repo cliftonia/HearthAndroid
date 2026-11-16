@@ -65,10 +65,16 @@ class CanvasWebPolicy {
      * to every frame the moment it is made or reached, before the page can use it: everything a script makes
      * a frame or reaches its window with (putting elements or markup into the page, `document.write`, a
      * frame's `contentWindow`, and the like) seals every frame in the page as it does so, frames within frames
-     * included, and puts the same script into each. A frame that the parser
-     * puts in the page is sealed before the next script runs, by a watch on the document's changes, and one
-     * whose loading runs the page's code at once, by listening ahead of the page. What it uses it takes before
-     * the page can change it.
+     * included, and puts the same script into each. A frame that the parser puts in the page is sealed before
+     * the next script runs, by a watch on the document's changes, and one whose loading runs the page's code at
+     * once, by listening ahead of the page.
+     *
+     * It fails closed. A frame it cannot reach cannot be sealed, and the only frame in a page that cannot be
+     * reached is one with a `sandbox` that keeps it apart, so a sandbox is never given: it is taken off a frame
+     * before the frame is put in the page, and setting one is ignored. A frame it still cannot reach is taken out
+     * of the page. Markup that would make a shadow root (`setHTMLUnsafe`, `Document.parseHTMLUnsafe` and a
+     * `DOMParser` asked to include shadow roots, where the engine has them) is read as plain markup, so a frame
+     * cannot be hidden in one. What it uses it takes before the page can change it.
      *
      * The web view also runs it at the start of every frame's document ([START_SCRIPT_ORIGIN_RULES]), where it
      * can.
@@ -79,20 +85,39 @@ class CanvasWebPolicy {
                 'use strict';
                 // Taken before the page can change them, so that nothing the page does later reaches into what follows.
                 var call = Reflect.apply, describe = Object.getOwnPropertyDescriptor, define = Object.defineProperty;
-                var lengthOf = (describe(window, 'length') || describe(Window.prototype, 'length')).get;
-                var root = window.top;
+                var toText = String, lower = String.prototype.toLowerCase, lastIndexOf = String.prototype.lastIndexOf;
+                var cut = String.prototype.slice, copy = Array.prototype.slice;
+                function getterOf(proto, name) { var held = describe(proto, name); return held && held.get; }
+                function setterOf(proto, name) { var held = describe(proto, name); return held && held.set; }
+                var lengthOf = getterOf(window, 'length') || getterOf(Window.prototype, 'length');
+                var countOf = getterOf(NodeList.prototype, 'length'), typeOf = getterOf(Node.prototype, 'nodeType');
+                var tagOf = getterOf(Element.prototype, 'localName'), attributeNameOf = getterOf(Attr.prototype, 'localName');
+                var markupInto = setterOf(Element.prototype, 'innerHTML'), markupIntoShadow = setterOf(ShadowRoot.prototype, 'innerHTML');
+                var hasAttribute = Element.prototype.hasAttribute, removeAttribute = Element.prototype.removeAttribute;
+                var removeNode = Element.prototype.remove, makeElement = Document.prototype.createElement;
+                var Parser = DOMParser, parse = DOMParser.prototype.parseFromString;
+                var iframeWindow = getterOf(HTMLIFrameElement.prototype, 'contentWindow');
+                var frameWindow = getterOf(HTMLFrameElement.prototype, 'contentWindow');
+                var objectWindow = getterOf(HTMLObjectElement.prototype, 'contentWindow');
+                var findAll = {
+                    1: Element.prototype.querySelectorAll,
+                    9: Document.prototype.querySelectorAll,
+                    11: DocumentFragment.prototype.querySelectorAll
+                };
+                var root = window.top, roots = [];
+                var FRAMES = 'iframe, frame, object, [sandbox]';
                 var NAMES = ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCIceCandidate', 'RTCSessionDescription'];
                 var EVENTS = ['load', 'error', 'readystatechange', 'DOMContentLoaded', 'focus', 'focusin', 'toggle', 'slotchange'];
                 // Each way a script reaches a frame's window, or puts a frame in the page.
                 var GETTERS = [
                     ['HTMLIFrameElement', ['contentWindow', 'contentDocument']],
                     ['HTMLFrameElement', ['contentWindow', 'contentDocument']],
-                    ['HTMLObjectElement', ['contentWindow', 'contentDocument']],
+                    ['HTMLObjectElement', ['contentWindow', 'contentDocument']]
                 ];
                 var METHODS = [
                     ['Node', ['appendChild', 'insertBefore', 'replaceChild']],
                     ['Element', ['append', 'prepend', 'before', 'after', 'replaceWith', 'replaceChildren']],
-                    ['Element', ['insertAdjacentElement', 'insertAdjacentHTML', 'setHTMLUnsafe']],
+                    ['Element', ['insertAdjacentElement', 'insertAdjacentHTML']],
                     ['CharacterData', ['before', 'after', 'replaceWith']],
                     ['DocumentType', ['before', 'after', 'replaceWith']],
                     ['DocumentFragment', ['append', 'prepend', 'replaceChildren']],
@@ -100,23 +125,58 @@ class CanvasWebPolicy {
                     ['Range', ['insertNode', 'surroundContents']],
                     ['HTMLIFrameElement', ['getSVGDocument']],
                     ['HTMLObjectElement', ['getSVGDocument']],
-                    ['HTMLEmbedElement', ['getSVGDocument']],
+                    ['HTMLEmbedElement', ['getSVGDocument']]
                 ];
                 var SETTERS = [['Element', ['innerHTML', 'outerHTML']], ['ShadowRoot', ['innerHTML']], ['Document', ['body']]];
+                // Each way to give an element a sandbox: by the attribute's name, at the given place, or by an attribute.
+                var SANDBOX_NAMED = [['Element', ['setAttribute', 'toggleAttribute'], 0], ['Element', ['setAttributeNS'], 1]];
+                var SANDBOX_NODES = [['Element', ['setAttributeNode', 'setAttributeNodeNS']], ['NamedNodeMap', ['setNamedItem', 'setNamedItemNS']]];
 
                 function sealed(w) {
                     var held = describe(w, 'RTCPeerConnection');
                     return !!held && held.value === undefined && !held.configurable;
                 }
+                // Takes the sandbox off a frame, and takes out of the page a frame that still cannot be reached.
+                function tidy(node) {
+                    try {
+                        if (call(hasAttribute, node, ['sandbox'])) call(removeAttribute, node, ['sandbox']);
+                        var tag = call(tagOf, node, []);
+                        var reach = tag === 'iframe' ? iframeWindow : tag === 'frame' ? frameWindow : tag === 'object' ? objectWindow : null;
+                        var w = reach && call(reach, node, []);
+                        if (w) describe(w, 'RTCPeerConnection');
+                    } catch (error) {
+                        try { call(removeNode, node, []); } catch (ignored) {}
+                    }
+                }
+                // Tidies a node and every frame or sandboxed element within it.
+                function tidyWithin(node) {
+                    try {
+                        var type = call(typeOf, node, []);
+                        if (type === 1) tidy(node);
+                        if (type !== 1 && type !== 9 && type !== 11) return;
+                        var found = call(findAll[type], node, [FRAMES]);
+                        var count = call(countOf, found, []);
+                        for (var k = 0; k < count; k++) tidy(found[k]);
+                    } catch (error) {}
+                }
                 // Seals every window in the page that is not sealed yet, frames within frames included.
                 function sweep(w) {
+                    var doc;
                     try {
                         if (!sealed(w)) seal(w);
+                        doc = w.document;
+                    } catch (error) { return; }
+                    tidyWithin(doc);
+                    try {
                         var count = call(lengthOf, w, []);
                         for (var i = 0; i < count; i++) sweep(w[i]);
                     } catch (error) {}
                 }
-                function sweepAll() { sweep(root); }
+                function sweepAll() {
+                    sweep(root);
+                    if (window !== root) sweep(window);
+                    for (var r = 0; r < roots.length; r++) tidyWithin(roots[r]);
+                }
                 function wrap(w, kind, name, part, make) {
                     var proto = w[kind] && w[kind].prototype;
                     var held = proto && describe(proto, name);
@@ -130,13 +190,44 @@ class CanvasWebPolicy {
                 function sweptBefore(original) {
                     return function () { sweepAll(); return call(original, this, arguments); };
                 }
+                // Takes the sandbox off whatever is about to be put in the page, then puts it in and seals what it made.
+                function tidiedAndSwept(original) {
+                    return function () {
+                        for (var a = 0; a < arguments.length; a++) tidyWithin(arguments[a]);
+                        try { return call(original, this, arguments); } finally { sweepAll(); }
+                    };
+                }
                 function each(list, part, make, w) {
                     for (var k = 0; k < list.length; k++) {
                         for (var n = 0; n < list[k][1].length; n++) wrap(w, list[k][0], list[k][1][n], part, make);
                     }
                 }
-                // Takes peer connections out of one window, has its beacons report that they were not sent, and has
-                // everything in it that makes a frame or reaches one seal the new frame before the page can use it.
+                function isSandbox(name) {
+                    var text = call(lower, name, []);
+                    return call(cut, text, [call(lastIndexOf, text, [':']) + 1]) === 'sandbox';
+                }
+                // Ignores a call that would set a sandbox by name; the name is read once, so it cannot change between.
+                function refusingName(at) {
+                    return function (original) {
+                        return function () {
+                            var args = call(copy, arguments, []);
+                            if (args.length > at) {
+                                args[at] = toText(args[at]);
+                                if (isSandbox(args[at])) return undefined;
+                            }
+                            return call(original, this, args);
+                        };
+                    };
+                }
+                function refusingNode(original) {
+                    return function (attribute) {
+                        try { if (isSandbox(call(attributeNameOf, attribute, []))) return null; } catch (error) {}
+                        return call(original, this, arguments);
+                    };
+                }
+                // Takes peer connections out of one window, has its beacons report that they were not sent, gives it no
+                // way to sandbox a frame, and has everything in it that makes a frame or reaches one seal the new frame
+                // before the page can use it.
                 function seal(w) {
                     for (var i = 0; i < NAMES.length; i++) {
                         try { define(w, NAMES[i], { value: undefined, writable: false, configurable: false }); } catch (error) {}
@@ -147,17 +238,48 @@ class CanvasWebPolicy {
                     } catch (error) {}
                     var listen = w.EventTarget.prototype.addEventListener, Observer = w.MutationObserver;
                     var observe = Observer.prototype.observe;
+                    var options = { childList: true, subtree: true, attributes: true, attributeFilter: ['sandbox'] };
                     var watch = function (node) {
                         for (var e = 0; e < EVENTS.length; e++) call(listen, node, [EVENTS[e], sweepAll, true]);
-                        call(observe, new Observer(sweepAll), [node, { childList: true, subtree: true }]);
+                        call(observe, new Observer(sweepAll), [node, options]);
                     };
                     each(GETTERS, 'get', sweptBefore, w);
-                    each(METHODS, 'value', sweptAfter, w);
+                    each(METHODS, 'value', tidiedAndSwept, w);
                     each(SETTERS, 'set', sweptAfter, w);
+                    for (var s = 0; s < SANDBOX_NAMED.length; s++) each([SANDBOX_NAMED[s]], 'value', refusingName(SANDBOX_NAMED[s][2]), w);
+                    each(SANDBOX_NODES, 'value', refusingNode, w);
+                    var spare = null;
+                    wrap(w, 'HTMLIFrameElement', 'sandbox', 'set', function () { return function () {}; });
+                    // A frame's own list of sandbox flags is never handed out: changes to the one given go nowhere.
+                    wrap(w, 'HTMLIFrameElement', 'sandbox', 'get', function (original) {
+                        return function () {
+                            spare = spare || call(makeElement, w.document, ['iframe']);
+                            return call(original, spare, []);
+                        };
+                    });
+                    wrap(w, 'Element', 'setHTMLUnsafe', 'value', function () {
+                        return function (markup) { try { call(markupInto, this, [markup]); } finally { sweepAll(); } };
+                    });
+                    wrap(w, 'ShadowRoot', 'setHTMLUnsafe', 'value', function () {
+                        return function (markup) { try { call(markupIntoShadow, this, [markup]); } finally { sweepAll(); } };
+                    });
+                    try {
+                        if (typeof w.Document.parseHTMLUnsafe === 'function') {
+                            define(w.Document, 'parseHTMLUnsafe', {
+                                value: function (markup) { return call(parse, new Parser(), [toText(markup), 'text/html']); },
+                                writable: false,
+                                configurable: false
+                            });
+                        }
+                    } catch (error) {}
+                    // The engine's older way to the same: a parser asked to include shadow roots is not given the request.
+                    wrap(w, 'DOMParser', 'parseFromString', 'value', function (original) {
+                        return function (markup, type) { return call(original, this, [markup, type]); };
+                    });
                     wrap(w, 'Element', 'attachShadow', 'value', function (original) {
                         return function () {
                             var shadow = call(original, this, arguments);
-                            try { watch(shadow); } catch (error) {}
+                            try { define(roots, roots.length, { value: shadow }); watch(shadow); } catch (error) {}
                             return shadow;
                         };
                     });

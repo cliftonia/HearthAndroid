@@ -7,6 +7,7 @@ import app.hearth.domain.ConversationStore
 import app.hearth.domain.Project
 import app.hearth.domain.ProjectId
 import app.hearth.domain.ProjectStore
+import app.hearth.domain.renamedTitle
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,10 +75,9 @@ class DrawerPresenter(
     /** Pins or unpins a conversation; its place by date is not disturbed. */
     fun pinAction(id: ConversationId, isPinned: Boolean) = change { conversationStore.setPinned(isPinned, id) }
 
-    /** Keeps a title of at most 80 characters; an empty one is ignored. */
+    /** Keeps the title as [renamedTitle] has it; an empty one is ignored. */
     fun renameAction(id: ConversationId, title: String) {
-        val trimmed = title.trim().take(80)
-        if (trimmed.isEmpty()) return
+        val trimmed = renamedTitle(title) ?: return
         change {
             conversationStore.rename(id, trimmed)
             delegate?.drawerPresenterDidRename(id, trimmed)

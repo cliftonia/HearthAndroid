@@ -28,8 +28,8 @@ import app.hearth.domain.SpeechInteractor
 import app.hearth.domain.ThinkingLevel
 import app.hearth.domain.showingVersion
 import app.hearth.shared.ErrorViewConfiguration
-import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,19 +101,7 @@ class ChatPresenter(
     /** The message being sent and answered, with the naming and suggestions that follow the answer. */
     private var turnJob: Job? = null
 
-    // Loading
-
-    /** Reads the saved conversations, projects and memories, then asks the server for its models. */
-    suspend fun loadAction() {
-        try {
-            dependencies.conversationStore.load()
-            dependencies.projectStore.load()
-            dependencies.memoryStore.load()
-        } catch (failure: IOException) {
-            Log.e(TAG, "Loading saved data failed: ${failure.javaClass.simpleName}")
-        }
-        refreshModelsAction()
-    }
+    // Models
 
     /** Asks the server for its models afresh and makes sure one that it still offers is selected. */
     suspend fun refreshModelsAction() {
@@ -289,7 +277,9 @@ class ChatPresenter(
 
     /** Writes a change to the settings the composer can reach: the model, the thinking level, reading aloud. */
     internal fun updateSettings(change: (ServerSettings) -> ServerSettings) {
-        dependencies.settingsStore.update(change(dependencies.settingsStore.settings.value))
+        val changed = change(dependencies.settingsStore.settings.value)
+        // Undispatched, so that the change is shown before this returns; only the write waits for the disk.
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { dependencies.settingsStore.update(changed) }
     }
 
     /** Puts a conversation on screen, stopping whatever the one before was doing. A half-written draft is kept. */

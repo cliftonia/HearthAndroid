@@ -1,5 +1,6 @@
 package app.hearth.domain
 
+import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /** One lasting fact remembered about the user, carried into every conversation. */
@@ -10,7 +11,13 @@ data class Memory(
     /** Whether the user wrote it by hand, rather than the model saving it. */
     val isFromUser: Boolean,
     val createdAt: Long,
+    /** When the memory last changed; sync compares it to decide which of two copies is newer. */
     val updatedAt: Long,
+    /**
+     * Names the memory between devices, a lowercase UUID. The short handle cannot, since every device counts its own
+     * from `m1`. A memory saved before sync is given one as it is read, and it is written back at once.
+     */
+    val syncId: String = UUID.randomUUID().toString(),
 )
 
 /** A change to what is remembered. */

@@ -46,7 +46,7 @@ class ChatResearchTests {
 
     /** The chat with its model chosen, over a server that has a search address unless told otherwise. */
     private suspend fun TestScope.fixture(settings: ServerSettings = settings(), model: ChatModel = thinker, stored: List<Conversation> = emptyList()): ChatPresenterFixture =
-        ChatPresenterFixture(this, settings, stored = stored, model = model).also { it.subject.loadAction() }
+        ChatPresenterFixture(this, settings, stored = stored, model = model).also { it.load() }
 
     private val ChatPresenterFixture.view: ChatViewModel get() = subject.viewModel.value
     private val ChatPresenterFixture.choice: EffortChoiceKind get() = view.effortChoice(settingsStore.settings.value)

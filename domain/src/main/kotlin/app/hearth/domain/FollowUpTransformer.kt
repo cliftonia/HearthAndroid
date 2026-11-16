@@ -8,8 +8,8 @@ class FollowUpTransformer {
         val reply = history.lastOrNull { it.role == MessageRole.ASSISTANT && it.text.isNotEmpty() } ?: return null
         val question = history.lastOrNull { it.role == MessageRole.USER } ?: return null
         return "Here is the latest exchange of a conversation.\n\n" +
-            "User: ${question.text.take(EXCERPT_LENGTH)}\n\n" +
-            "Assistant: ${reply.text.take(EXCERPT_LENGTH)}\n\n" +
+            "User: ${question.text.clipped(EXCERPT_LENGTH)}\n\n" +
+            "Assistant: ${reply.text.clipped(EXCERPT_LENGTH)}\n\n" +
             "Suggest $MAXIMUM_COUNT short follow-up questions the user might ask next. Write each on its own line, " +
             "worded as the user would ask it, in the user's language. No numbering, no quotes and no other text."
     }

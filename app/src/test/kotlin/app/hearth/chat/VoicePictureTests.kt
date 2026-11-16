@@ -25,7 +25,7 @@ class VoicePictureTests {
             val fixture = ChatPresenterFixture(this, model = vision)
             fixture.reply = listOf(ChatDelta.Text("A mug."))
             val subject = fixture.subject
-            subject.loadAction()
+            fixture.load()
             if (isPrivate) subject.togglePrivateAction()
             val heard = mutableListOf<String>()
 
@@ -51,7 +51,7 @@ class VoicePictureTests {
     @Test
     fun `a spoken turn with no picture is sent as words alone`() = runTest {
         val fixture = ChatPresenterFixture(this, model = vision)
-        fixture.subject.loadAction()
+        fixture.load()
 
         fixture.subject.submitSpoken("Hello.") {}
 

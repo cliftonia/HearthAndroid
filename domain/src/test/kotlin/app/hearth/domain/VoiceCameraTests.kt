@@ -138,8 +138,6 @@ class VoiceCameraTests {
         val front = running().face(CameraPositionKind.FRONT)
         assertEquals(CameraPositionKind.FRONT, front.position)
         assertEquals(CameraPositionKind.FRONT, front.turnOff()?.position)
-        assertEquals(CameraPositionKind.BACK, CameraPositionKind.FRONT.flipped)
-        assertEquals(CameraPositionKind.FRONT, CameraPositionKind.BACK.flipped)
 
         assertEquals(CameraPositionKind.BACK, VoiceCamera().face(CameraPositionKind.FRONT).position)
     }

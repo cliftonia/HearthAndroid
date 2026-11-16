@@ -149,9 +149,9 @@ class ChatInteractor(
     suspend fun title(userText: String, model: ChatModel, settings: ServerSettings): String {
         val baseUrl = settings.ollamaUrl ?: throw ChatError.ServerNotConfigured
         val prompt = "Write a title of at most five words for a conversation that begins with the message below. " +
-            "Reply with the title only, without quotes or a full stop.\n\n${userText.take(600)}"
+            "Reply with the title only, without quotes or a full stop.\n\n${userText.clipped(600)}"
         val answer = chat.complete(baseUrl, ChatRequest(model, listOf(PromptMessage(PromptRole.USER, prompt)), ThinkingLevel.OFF))
-        return answer.lines().firstOrNull { it.isNotBlank() }.orEmpty().trim('"', '\'', '*', '#', '.', ' ').take(60)
+        return generatedTitle(answer)
     }
 
     /** Questions the user might ask next, written by the model. Empty when there is nothing to go on. */

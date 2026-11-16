@@ -5,6 +5,8 @@ import app.hearth.data.hearthJson
 import java.io.File
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 
 /** Where what is remembered about the user is kept between launches, read and written whole. */
 class MemoryDataProvider(
@@ -13,6 +15,10 @@ class MemoryDataProvider(
 ) {
     companion object {
         private const val FILE_NAME = "memories.json"
+
+        /** Whether any memory in the saved text has no identifier for sync yet. */
+        private fun lacksSyncId(text: String): Boolean =
+            hearthJson.parseToJsonElement(text).jsonArray.any { "syncId" !in it.jsonObject }
 
         /**
          * Memories kept as one JSON file, on the device only.
@@ -27,7 +33,11 @@ class MemoryDataProvider(
                 load = {
                     val text = store.load(FILE_NAME)
                     try {
-                        text?.let { hearthJson.decodeFromString(serializer, it) }.orEmpty()
+                        val memories = text?.let { hearthJson.decodeFromString(serializer, it) }.orEmpty()
+                        // Memories saved before sync were each just given a new `syncId`; it is written back at once,
+                        // so that the next launch reads the same one.
+                        if (text != null && lacksSyncId(text)) store.save(hearthJson.encodeToString(serializer, memories), FILE_NAME)
+                        memories
                     } catch (failure: SerializationException) {
                         store.setAside(FILE_NAME)
                         emptyList()

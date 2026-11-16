@@ -87,6 +87,7 @@ class EraseTests {
             projects.load()
             memories.load()
             profile.load()
+            settings.load()
             return EraseInteractor(
                 EraseInteractor.Stores(conversations, projects, memories, profile, settings),
                 removeNotifications = {
@@ -142,7 +143,7 @@ class EraseTests {
         assertNull(fixture.photoFile)
         assertNull(fixture.settingsText)
         // A launch after erasing starts from the defaults, as a fresh install does.
-        val relaunched = SettingsStore(Fixture.DEFAULTS, fixture.settingsProvider)
+        val relaunched = loadedSettings(Fixture.DEFAULTS, fixture.settingsProvider)
         assertEquals(Fixture.DEFAULTS, relaunched.settings.value)
     }
 
@@ -242,9 +243,45 @@ class EraseTests {
             assertTrue(ConversationDataProvider.live(directory).loadAll().isEmpty())
             assertTrue(ProjectDataProvider.live(directory).loadAll().isEmpty())
             assertNull(ProfilePhotoProvider.live(directory).load())
-            assertEquals(defaults, SettingsStore(defaults, SettingsDataProvider.live(directory)).settings.value)
+            assertEquals(defaults, loadedSettings(defaults, SettingsDataProvider.live(directory)).settings.value)
         } finally {
             directory.deleteRecursively()
         }
+    }
+
+    @Test
+    fun `erasing a synced device sends no deletions, turns sync off and leaves the hub as it was`() = runTest {
+        val hub = FakeHub()
+        val device = SyncDevice(hub)
+        device.conversations.save(SyncSamples.conversation("Holiday"))
+        device.projects.save(Project(name = "Garden"))
+        device.memories.apply(MemoryRequest.Save("Likes tea"), isFromUser = true)
+        device.syncNow()
+        val reportedBefore = device.reported.size
+        val order = mutableListOf<String>()
+        val profile = ProfileStore(ProfilePhotoProvider(load = { null }, save = {}, delete = {}))
+        val settings = SettingsStore(ServerSettings(), SettingsDataProvider(load = { null }, save = {}))
+        val subject = EraseInteractor(
+            EraseInteractor.Stores(device.conversations, device.projects, device.memories, profile, settings),
+            removeNotifications = { order += "notifications" },
+            stopSync = {
+                order += "sync"
+                device.sync.reset()
+            },
+        )
+
+        subject.eraseAll()
+
+        assertEquals(listOf("notifications", "sync"), order)
+        assertTrue(device.conversations.conversations.value.isEmpty() && device.projects.projects.value.isEmpty())
+        assertTrue(device.memories.memories.value.isEmpty())
+        assertEquals(reportedBefore, device.reported.size)
+        assertTrue(device.sync.journal.tombstones.isEmpty())
+        assertEquals(SyncSettings(), device.sync.settings.value)
+        assertNull(device.journalFile)
+        assertNull(device.settingsFile)
+        assertEquals(SyncFailureKind.NotConfigured, assertFailsWith<SyncError> { device.syncNow() }.failure)
+        assertEquals(3, hub.all.size)
+        assertTrue(hub.all.none { it.deleted })
     }
 }

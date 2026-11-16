@@ -45,9 +45,9 @@ import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthIcons
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.Conversation
-import app.hearth.domain.ConversationExporter
 import app.hearth.domain.ServerSettings
 import app.hearth.shared.RenameDialog
+import app.hearth.shared.rememberConversationExporter
 import app.hearth.shared.share
 
 /**
@@ -183,7 +183,7 @@ private fun ChatMenu(
     val context = LocalContext.current
     val conversations by presenter.conversations.collectAsStateWithLifecycle()
     val isPinned = conversations.firstOrNull { it.id == conversation.id }?.isPinned == true
-    val exporter = ConversationExporter(stringResource(R.string.export_user), stringResource(R.string.brand), stringResource(R.string.untitled))
+    val exporter = rememberConversationExporter()
     // Each group of the menu, with a line drawn between one group and the next.
     val groups: List<List<Pair<Int, () -> Unit>>> = listOf(
         listOf(

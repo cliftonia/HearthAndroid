@@ -28,6 +28,7 @@ import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.Memory
 import app.hearth.domain.ServerSettings
+import app.hearth.domain.clipped
 
 /** The most that can be typed as one memory. */
 private const val MAXIMUM_MEMORY_LENGTH = 200
@@ -58,7 +59,7 @@ internal fun MemoryCard(settings: ServerSettings, memories: List<Memory>, presen
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = draft,
-                onValueChange = { draft = it.take(MAXIMUM_MEMORY_LENGTH) },
+                onValueChange = { draft = it.clipped(MAXIMUM_MEMORY_LENGTH) },
                 placeholder = { Text(stringResource(R.string.memory_placeholder)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),

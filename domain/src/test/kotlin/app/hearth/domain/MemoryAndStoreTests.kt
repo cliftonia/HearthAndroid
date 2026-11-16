@@ -106,17 +106,17 @@ class StoreTests {
     }
 
     @Test
-    fun `settings survive a round trip and bad data falls back`() {
+    fun `settings survive a round trip and bad data falls back`() = runTest {
         var stored: String? = null
         val provider = SettingsDataProvider(load = { stored }, save = { stored = it })
-        val store = SettingsStore(ServerSettings(ollamaAddress = "a.example"), provider)
+        val store = loadedSettings(ServerSettings(ollamaAddress = "a.example"), provider)
         store.update(store.settings.value.copy(thinkingLevel = ThinkingLevel.HIGH, isMemoryEnabled = false))
-        val reloaded = SettingsStore(ServerSettings(), provider).settings.value
+        val reloaded = loadedSettings(ServerSettings(), provider).settings.value
         assertEquals(ThinkingLevel.HIGH, reloaded.thinkingLevel)
         assertFalse(reloaded.isMemoryEnabled)
         assertEquals("https://a.example", reloaded.ollamaUrl)
         stored = "{not json"
-        assertEquals("", SettingsStore(ServerSettings(), provider).settings.value.ollamaAddress)
+        assertEquals("", loadedSettings(ServerSettings(), provider).settings.value.ollamaAddress)
     }
 
     @Test
@@ -204,3 +204,7 @@ class StoreTests {
         }
     }
 }
+
+/** A settings store that has read what the provider holds, as the app's has by the time anything is drawn. */
+internal suspend fun loadedSettings(defaults: ServerSettings, provider: SettingsDataProvider): SettingsStore =
+    SettingsStore(defaults, provider).also { it.load() }

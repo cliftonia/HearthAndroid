@@ -137,15 +137,15 @@ class ImageTests {
     }
 
     @Test
-    fun `saved settings with no picture server take the one the app was built with`() {
+    fun `saved settings with no picture server take the one the app was built with`() = runTest {
         var stored: String? = """{"ollamaAddress":"mine.example"}"""
         val provider = SettingsDataProvider(load = { stored }, save = { stored = it })
         val defaults = ServerSettings(ollamaAddress = "built.example", imageAddress = "http://built.example:8188")
-        val loaded = SettingsStore(defaults, provider).settings.value
+        val loaded = loadedSettings(defaults, provider).settings.value
         assertEquals("mine.example", loaded.ollamaAddress)
         assertEquals("http://built.example:8188", loaded.imageAddress)
         stored = """{"imageAddress":"http://mine.example:8188"}"""
-        assertEquals("http://mine.example:8188", SettingsStore(defaults, provider).settings.value.imageAddress)
+        assertEquals("http://mine.example:8188", loadedSettings(defaults, provider).settings.value.imageAddress)
     }
 
     @Test

@@ -10,6 +10,11 @@ class EraseInteractor(
      * a file that was set aside because it could not be read.
      */
     private val removeLeftovers: suspend () -> Unit = {},
+    /**
+     * Stops any sync under way, turns sync off and forgets everything it knew, so that nothing erased here is ever
+     * deleted from the hub or from another device.
+     */
+    private val stopSync: suspend () -> Unit = {},
 ) {
     /** Everything that holds something of the user's. */
     class Stores(
@@ -22,16 +27,18 @@ class EraseInteractor(
 
     /**
      * Erases the chats, the projects, the memories, the profile photo and the saved settings, server addresses
-     * included, each through the store that keeps it.
+     * included, each through the store that keeps it. This device only: sync is stopped and turned off first, and no
+     * deletion is sent anywhere.
      *
      * The settings go last: if anything before them cannot be erased the failure is passed on with the settings,
      * and whatever else is left, still in place to try again.
      */
     suspend fun eraseAll() {
         removeNotifications()
+        stopSync()
         stores.conversations.deleteAll()
         stores.projects.deleteAll()
-        stores.memories.clear()
+        stores.memories.eraseAll()
         stores.profile.removePhoto()
         removeLeftovers()
         stores.settings.reset()

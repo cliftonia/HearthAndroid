@@ -81,7 +81,7 @@ class ResearchQueryParser {
         .trim()
         .replace(LIST_MARKER, "")
         .trim { it in WRAPPING }
-        .take(ResearchLimits.MAXIMUM_QUERY_CHARACTERS)
+        .clipped(ResearchLimits.MAXIMUM_QUERY_CHARACTERS)
         .trim()
 
     private companion object {

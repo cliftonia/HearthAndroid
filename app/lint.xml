@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Found in the BouncyCastle jar that pdfbox-android brings, not in the app's own code, which never replaces how
+         certificates are checked. Every other trust manager is still checked. -->
+    <issue id="TrustAllX509TrustManager">
+        <ignore regexp="org\.bouncycastle" />
+    </issue>
+</lint>

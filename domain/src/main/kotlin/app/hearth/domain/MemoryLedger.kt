@@ -1,5 +1,8 @@
 package app.hearth.domain
 
+import java.text.Normalizer
+import java.util.Locale
+
 /** The rules for what may be remembered: short, few, and never the same thing twice. */
 class MemoryLedger {
 
@@ -35,17 +38,24 @@ class MemoryLedger {
     }
 
     /** One line, trimmed and cut to length. */
-    private fun normalised(text: String): String = text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ").take(MAXIMUM_LENGTH)
+    private fun normalised(text: String): String = text.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ").clipped(MAXIMUM_LENGTH)
 
-    /** Why the fact may not be kept alongside the given memories; `null` when it may. */
-    private fun refusal(fact: String, memories: List<Memory>): MemoryRefusal? = when {
-        fact.isEmpty() -> MemoryRefusal.EMPTY
-        memories.any { it.text.equals(fact, ignoreCase = true) } -> MemoryRefusal.ALREADY_SAVED
-        else -> null
+    /**
+     * Why the fact may not be kept alongside the given memories; `null` when it may. It may not when it is empty, or
+     * when it is already remembered, whatever its case or accents.
+     */
+    private fun refusal(fact: String, memories: List<Memory>): MemoryRefusal? {
+        if (fact.isEmpty()) return MemoryRefusal.EMPTY
+        val key = comparable(fact)
+        return if (memories.any { comparable(it.text) == key }) MemoryRefusal.ALREADY_SAVED else null
     }
 
+    /** The text with its accents taken off and in lower case, so that "Café" and "cafe" are the same fact. */
+    private fun comparable(text: String): String =
+        Normalizer.normalize(text, Normalizer.Form.NFD).replace(COMBINING_MARKS, "").lowercase(Locale.ROOT)
+
     /** Handles count upwards and are never reused, so a stale handle cannot point at a newer memory. */
-    private fun nextId(memories: List<Memory>): MemoryId {
+    internal fun nextId(memories: List<Memory>): MemoryId {
         val highest = memories.mapNotNull { it.id.raw.drop(1).toIntOrNull() }.maxOrNull() ?: 0
         return MemoryId("m${highest + 1}")
     }
@@ -56,5 +66,11 @@ class MemoryLedger {
 
         /** The most characters one fact may run to. */
         const val MAXIMUM_LENGTH = 200
+
+        /** Any run of white space, in any script. */
+        private val WHITESPACE = Regex("(?U)\\s+")
+
+        /** The marks Unicode puts on a letter, such as an accent, once the letter is taken apart. */
+        private val COMBINING_MARKS = Regex("\\p{M}+")
     }
 }

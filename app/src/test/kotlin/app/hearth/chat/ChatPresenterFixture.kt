@@ -25,6 +25,7 @@ import app.hearth.domain.ProjectDataProvider
 import app.hearth.domain.ProjectStore
 import app.hearth.domain.ReplyNotification
 import app.hearth.domain.ResearchInteractor
+import app.hearth.domain.SavedDataLoader
 import app.hearth.domain.SearchDataProvider
 import app.hearth.domain.SearchSource
 import app.hearth.domain.ServerSettings
@@ -166,6 +167,12 @@ internal class ChatPresenterFixture(
         ),
         now = { 0 },
     )
+
+    /** Reads the saved chats, projects and memories, then asks for the models, as the coordinator does at launch. */
+    suspend fun load() {
+        SavedDataLoader(conversationStore, projectStore, memoryStore).load()
+        subject.refreshModelsAction()
+    }
 
     /** The recogniser hears this much so far. */
     fun hear(text: String) {

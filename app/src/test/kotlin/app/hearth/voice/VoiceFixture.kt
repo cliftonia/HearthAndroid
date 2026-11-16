@@ -53,7 +53,7 @@ internal class CameraFixture {
         flip = {
             flipCount += 1
             if (!isRunning) throw CameraError.NotRunning
-            position = position.flipped
+            position = if (position == CameraPositionKind.FRONT) CameraPositionKind.BACK else CameraPositionKind.FRONT
             position
         },
         captureFrame = {

@@ -13,6 +13,7 @@ import app.hearth.domain.SearchMode
 import app.hearth.domain.SpokenReplyFeed
 import app.hearth.domain.droppingShownVersion
 import app.hearth.domain.startingNewVersion
+import app.hearth.domain.titleAfterSending
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
@@ -36,7 +37,7 @@ internal suspend fun ChatPresenter.submit(message: Message, style: ReplyStyle = 
     state.update {
         it.copy(
             conversation = conversation.copy(
-                title = if (isFirstMessage) text.take(48) else conversation.title,
+                title = conversation.titleAfterSending(text),
                 modelId = model.id,
                 messages = conversation.messages + message,
             ),

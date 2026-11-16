@@ -60,9 +60,6 @@ data class ServerSettings(
     val speechUrl: String? get() = normalised(speechAddress)
     val imageUrl: String? get() = normalised(imageAddress)
 
-    /** The host of the chat server, for display. */
-    val ollamaHost: String? get() = ollamaUrl?.let { runCatching { URI(it).host }.getOrNull() }
-
     /** Who the user is, as far as they have said, with the names tidied into names. */
     val profile: UserProfile get() = UserProfile(fullName, nickname)
 

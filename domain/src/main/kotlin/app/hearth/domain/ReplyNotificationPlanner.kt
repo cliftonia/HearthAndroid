@@ -40,7 +40,7 @@ class ReplyNotificationPlanner {
         fun excerpt(text: String): String {
             val line = text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
             if (line.length <= MAXIMUM_EXCERPT_LENGTH) return line
-            val cut = line.take(MAXIMUM_EXCERPT_LENGTH)
+            val cut = line.clipped(MAXIMUM_EXCERPT_LENGTH)
             return cut.substringBeforeLast(" ") + "…"
         }
     }

@@ -12,6 +12,7 @@ import app.hearth.domain.ImageRequestPlanner
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
 import app.hearth.domain.ServerSettings
+import app.hearth.domain.titleAfterSending
 import app.hearth.shared.ErrorViewConfiguration
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
@@ -91,7 +92,7 @@ internal suspend fun ChatPresenter.submitPicture(message: Message) {
     }
     val reply = Message(role = MessageRole.ASSISTANT, text = "", createdAt = now())
     // A chat that begins with a photo and no words is still given a name.
-    val title = if (conversation.messages.isEmpty()) message.text.ifEmpty { dependencies.pictureWords.title }.take(48) else conversation.title
+    val title = conversation.titleAfterSending(message.text.ifEmpty { dependencies.pictureWords.title })
     state.update {
         it.copy(
             conversation = conversation.copy(title = title, messages = conversation.messages + message + reply, updatedAt = now()),

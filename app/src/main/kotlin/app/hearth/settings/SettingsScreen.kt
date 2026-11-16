@@ -31,8 +31,8 @@ import app.hearth.integrations.ProfilePhotoLoader
 /**
  * Where the servers are named and the app's behaviour is chosen. Each group of settings is a card of its own.
  *
- * The profile and the notifications are pages of their own, reached from rows here; the back button leads from
- * either to this list, and from this list out of the settings.
+ * The profile, the notifications and sync are pages of their own, reached from rows here; the back button leads
+ * from any of them to this list, and from this list out of the settings.
  */
 @Composable
 fun SettingsScreen(
@@ -54,6 +54,7 @@ fun SettingsScreen(
         SettingsPageKind.MAIN -> R.string.drawer_settings
         SettingsPageKind.PROFILE -> R.string.profile_title
         SettingsPageKind.NOTIFICATIONS -> R.string.notifications_title
+        SettingsPageKind.SYNC -> R.string.sync_title
     }
     val spacing = HearthTheme.spacing
     // The list keeps its place while a page it led to is looked at; each such page starts at its own top.
@@ -80,12 +81,14 @@ fun SettingsScreen(
                         PictureCard(settings, presenter)
                         MemoryCard(settings, memories, presenter)
                         NotificationsCard(settings, presenter)
+                        SyncCard(presenter)
                         PrivacyCard(settings, presenter, authenticate)
                         HapticsCard(settings, presenter)
                         ThemeCard(settings, presenter)
                     }
                     SettingsPageKind.PROFILE -> ProfilePage(settings, avatar, presenter, photos)
                     SettingsPageKind.NOTIFICATIONS -> NotificationsPage(settings, presenter)
+                    SettingsPageKind.SYNC -> SyncPage(presenter)
                 }
             }
         }
