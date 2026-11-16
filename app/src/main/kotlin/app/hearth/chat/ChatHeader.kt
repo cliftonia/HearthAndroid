@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -52,7 +53,8 @@ import app.hearth.shared.share
 
 /**
  * The top of the chat: the way to the chat list at one end; at the other, the private chat button until the chat
- * begins, and from then on a new chat and the chat's own menu. Beneath it, for a chat in a project, the project's name.
+ * begins, and from then on a new chat and the chat's own menu. Beneath it, for a chat in a project, the project's name,
+ * and for a chat a scheduled task filed, a note saying so.
  *
  * The model is chosen from the composer, where the message it will answer is written.
  */
@@ -84,6 +86,26 @@ internal fun ChatHeader(viewModel: ChatViewModel, settings: ServerSettings, pres
             }
         }
         project?.let { ProjectMark(it.name) }
+        if (conversation.taskId != null) TaskMark()
+    }
+}
+
+/** Says that a scheduled task filed this chat: its question was asked by the hub, not typed here. */
+@Composable
+private fun TaskMark() {
+    val colors = HearthTheme.colors
+    val spacing = HearthTheme.spacing
+    val label = stringResource(R.string.chat_scheduled_task)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = spacing.xxxl, end = spacing.xxxl, bottom = spacing.xs)
+            .clearAndSetSemantics { contentDescription = label },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs, Alignment.CenterHorizontally),
+    ) {
+        Icon(Icons.Outlined.Schedule, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
+        Text(label, color = colors.mute, style = HearthTheme.type.caption, maxLines = 1)
     }
 }
 

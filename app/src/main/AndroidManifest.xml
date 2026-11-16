@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- Asked for only when the user turns on the Replies switch in Settings. Notifications are made on the phone itself. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Lets the background sync job, scheduled only while sync is on, carry on after the phone restarts. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Only Android 9 asks for this to save a picture to the phone's Pictures; later versions need no leave. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -88,6 +90,11 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_voice_info" />
         </receiver>
+        <!-- Syncs now and then while the app is closed, so that a scheduled task's answer arrives. Only the phone's job scheduler may start it. -->
+        <service
+            android:name=".sync.BackgroundSyncService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
         <!-- Lends the camera one file to write a photo into, and another app one picture the user chose to share. Nothing else. -->
         <provider
             android:name="androidx.core.content.FileProvider"

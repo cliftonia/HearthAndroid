@@ -11,7 +11,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Keeps this device's chats, projects and memories in step with a Hearth Hub: one sync is a pull of what changed on
+ * Keeps this device's chats, projects, memories and scheduled tasks in step with a Hearth Hub: one sync is a pull of what changed on
  * the hub, applied through the stores, then a push of what changed here.
  *
  * What to do with each item is [SyncPlanner]'s decision; this carries it out. Private chats are never read for
@@ -26,6 +26,11 @@ class SyncInteractor(
     internal val isBusy: (ConversationId) -> Boolean = { false },
     /** Told which items another device's changes were applied to, so a screen showing one can show the new copy. */
     internal val didApplyRemote: (Set<SyncItemKey>) -> Unit = {},
+    /**
+     * Told of chats a scheduled task filed that this device had never held, as they arrive. Not told on the first
+     * contact with a hub, when everything already there arrives at once.
+     */
+    internal val didReceiveTaskChats: (List<Conversation>) -> Unit = {},
     internal val log: (String) -> Unit = {},
     internal val background: CoroutineContext = Dispatchers.Default,
 ) {
@@ -35,6 +40,7 @@ class SyncInteractor(
         val projects: ProjectStore,
         val memories: MemoryStore,
         val sync: SyncStore,
+        val tasks: TaskStore,
     )
 
     internal val planner = SyncPlanner()
@@ -74,6 +80,8 @@ class SyncInteractor(
     /** Takes every change on the hub after the saved cursor, page by page, saving the cursor after each. */
     private suspend fun pull(url: String, token: String?) {
         var applied = 0
+        // Everything already on a hub arrives at once on first contact, which is no moment to announce any of it.
+        var isFirstContact = stores.sync.journal.cursor == 0L
         while (true) {
             val cursor = stores.sync.journal.cursor
             val page = provider.changes(url, token, cursor)
@@ -83,20 +91,28 @@ class SyncInteractor(
                 // Another hub, or this one started afresh: start again from nothing, as on first contact.
                 log("The hub's database changed; syncing from the start")
                 stores.sync.updateJournal { it.forgettingHub() }
+                isFirstContact = true
                 continue
             }
             stores.sync.updateJournal { it.copy(hubId = page.hubId) }
             val plan = planner.plan(page, cursor) { localState(it) }
+            val held = stores.conversations.conversations.value.map { it.id }.toSet()
             val changed = mutableSetOf<SyncItemKey>()
             page.items.zip(plan.decisions).forEach { (envelope, decision) -> carryOut(decision, envelope)?.let(changed::add) }
             applied += changed.size
             stores.sync.updateJournal { it.copy(cursor = plan.cursor) }
             stores.sync.persistJournal()
             if (changed.isNotEmpty()) didApplyRemote(changed)
+            val taskChats = newTaskChats(changed, held)
+            if (!isFirstContact && taskChats.isNotEmpty()) didReceiveTaskChats(taskChats)
             if (!page.hasMore || plan.isHeldBack) break
         }
         log("Pulled changes; applied $applied")
     }
+
+    /** The chats among [changed] that a task filed and that were not among the chats [held] before. */
+    private fun newTaskChats(changed: Set<SyncItemKey>, held: Set<ConversationId>): List<Conversation> =
+        changed.conversationIds.filter { it !in held }.mapNotNull { stores.conversations.conversation(it) }.filter { it.taskId != null }
 
     internal companion object {
         /** The error to report for one that ended a sync. */

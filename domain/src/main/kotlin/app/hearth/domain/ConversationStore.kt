@@ -38,7 +38,7 @@ class ConversationStore(internal val provider: ConversationDataProvider, private
      */
     suspend fun save(conversation: Conversation) {
         val previous = conversation(conversation.id)
-        val kept = if (previous == null) conversation else conversation.copy(isPinned = previous.isPinned, projectId = previous.projectId)
+        val kept = if (previous == null) conversation else conversation.copy(isPinned = previous.isPinned, projectId = previous.projectId, taskId = previous.taskId)
         val saved = kept.copy(modifiedAt = SyncClock.stamp(now(), previous?.modifiedAt))
         state.value = listOf(saved) + state.value.filter { it.id != saved.id }
         provider.save(saved)

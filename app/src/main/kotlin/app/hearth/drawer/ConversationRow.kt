@@ -2,7 +2,9 @@ package app.hearth.drawer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -68,7 +71,16 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
                 modifier = Modifier.padding(end = HearthTheme.spacing.s).size(HearthTheme.sizes.iconXs),
             )
         }
-        Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // A chat a scheduled task filed says so, under its title.
+            if (conversation.taskId != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xs)) {
+                    Icon(Icons.Outlined.Schedule, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
+                    Text(stringResource(R.string.chat_scheduled_task), color = colors.mute, style = HearthTheme.type.caption, maxLines = 1)
+                }
+            }
+        }
         if (row.isInProject && hasProjectMark) {
             Icon(
                 Icons.Outlined.Folder,

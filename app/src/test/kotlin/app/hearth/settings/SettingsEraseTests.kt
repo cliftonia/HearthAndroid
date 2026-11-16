@@ -1,6 +1,12 @@
 package app.hearth.settings
 
 import app.hearth.domain.AudioPlaybackProvider
+import app.hearth.domain.ChatModel
+import app.hearth.domain.ScheduledTask
+import app.hearth.domain.TaskDataProvider
+import app.hearth.domain.TaskId
+import app.hearth.domain.TaskStore
+import java.time.ZoneId
 import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationDataProvider
 import app.hearth.domain.ConversationStore
@@ -65,6 +71,23 @@ class SettingsEraseTests {
         val memoryStore = MemoryStore(MemoryDataProvider(load = { emptyList() }, save = {}))
         val profileStore = ProfileStore(ProfilePhotoProvider(load = { photoFile }, save = { photoFile = it }, delete = { photoFile = null }))
         val projectStore = ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))
+        val taskFiles = mutableMapOf<TaskId, ScheduledTask>()
+        var failsTasks = false
+
+        /** The clock the task editor reads: Monday 16 November 2026, 10:00 in Brisbane. */
+        var now = 1_794_787_200_000L
+        var models = listOf<ChatModel>()
+        val modelStore = ModelStore { models }
+        val taskStore = TaskStore(
+            TaskDataProvider(
+                loadAll = { taskFiles.values.toList() },
+                save = {
+                    if (failsTasks) throw IOException("disk full")
+                    taskFiles[it.id] = it
+                },
+                delete = { taskFiles.remove(it) },
+            ),
+        )
         var syncSettingsFile: String? = null
         var token: String? = null
         var syncNowCount = 0
@@ -84,7 +107,7 @@ class SettingsEraseTests {
             scope,
             SettingsPresenter.Dependencies(
                 settingsStore = settingsStore,
-                modelStore = ModelStore { emptyList() },
+                modelStore = modelStore,
                 memoryStore = memoryStore,
                 profileStore = profileStore,
                 speech = SpeechInteractor(
@@ -93,11 +116,12 @@ class SettingsEraseTests {
                 ),
                 image = ImageInteractor(ImageDataProvider(fetchCapabilities = { ImageCapabilities() }, render = { _, _, _, _ -> awaitCancellation() })),
                 eraser = EraseInteractor(
-                    EraseInteractor.Stores(conversationStore, projectStore, memoryStore, profileStore, settingsStore),
+                    EraseInteractor.Stores(conversationStore, projectStore, memoryStore, profileStore, settingsStore, taskStore),
                     removeNotifications = { events += "notifications removed" },
                 ),
                 notifications = NotificationProvider(isAllowed = { isNotificationAllowed }, post = {}),
                 quietChat = { events += "chat quietened" },
+                tasks = TaskControls(taskStore, zone = { ZoneId.of("Australia/Brisbane") }, now = { now }),
                 sync = SyncControls(
                     store = syncStore,
                     syncNow = { syncNowCount += 1 },

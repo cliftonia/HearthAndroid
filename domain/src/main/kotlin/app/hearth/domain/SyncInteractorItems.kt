@@ -8,6 +8,7 @@ import app.hearth.data.SyncPutDto
 import app.hearth.data.SyncPutResultDto
 import app.hearth.data.SyncUnknownFieldsDto
 import app.hearth.data.SyncWire
+import app.hearth.data.TaskBodyDto
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -58,6 +59,7 @@ internal fun SyncInteractor.localItems(): Map<SyncItemKey, Long> {
     stores.conversations.conversations.value.filter { !it.isPrivate }.forEach { items[SyncItemKey.conversation(it.id)] = it.modifiedAt }
     stores.projects.projects.value.forEach { items[SyncItemKey.project(it.id)] = it.updatedAt }
     stores.memories.memories.value.forEach { items[SyncItemKey.memory(it.syncId)] = it.updatedAt }
+    stores.tasks.tasks.value.forEach { items[SyncItemKey.task(it.id)] = it.updatedAt }
     return items.filterKeys { it.isUuid }
 }
 
@@ -71,7 +73,7 @@ private suspend fun SyncInteractor.change(entry: SyncPlanner.PushEntry): SyncPut
     val written: JsonObject = when (entry.key.kind) {
         SyncItemKind.CONVERSATION -> {
             val conversation = stores.conversations.conversation(ConversationId(entry.key.id))?.takeIf { !it.isPrivate } ?: return null
-            withContext(background) { SyncWire.toJson(ConversationBodyDto.serializer(), conversationBody(conversation)) }
+            withContext(background) { conversationJson(conversation) }
         }
         SyncItemKind.PROJECT -> {
             val project = stores.projects.project(ProjectId(entry.key.id)) ?: return null
@@ -80,6 +82,10 @@ private suspend fun SyncInteractor.change(entry: SyncPlanner.PushEntry): SyncPut
         SyncItemKind.MEMORY -> {
             val memory = stores.memories.memories.value.firstOrNull { it.syncId == entry.key.id } ?: return null
             SyncWire.toJson(MemoryBodyDto.serializer(), memoryBody(memory))
+        }
+        SyncItemKind.TASK -> {
+            val task = stores.tasks.task(TaskId(entry.key.id)) ?: return null
+            SyncWire.toJson(TaskBodyDto.serializer(), taskBody(task))
         }
     }
     return SyncPutDto(entry.stamp.milliseconds, entry.stamp.writer, deleted = false, body = unknown?.mergedInto(written) ?: written)
@@ -104,6 +110,7 @@ internal fun SyncInteractor.localState(envelope: SyncEnvelopeDto): SyncPlanner.L
         }
         SyncItemKind.PROJECT -> stores.projects.project(ProjectId(key.id))?.updatedAt
         SyncItemKind.MEMORY -> stores.memories.memories.value.firstOrNull { it.syncId == key.id }?.updatedAt
+        SyncItemKind.TASK -> stores.tasks.task(TaskId(key.id))?.updatedAt
     }
     val stamp = modifiedAt?.let { planner.localStamp(it, journal.seen[key], journal.installId) }
     return SyncPlanner.LocalState(stamp = stamp, tombstone = journal.tombstones[key], isBusy = isBusy)
@@ -150,6 +157,7 @@ private suspend fun SyncInteractor.delete(key: SyncItemKey) {
             stores.projects.deleteRemote(ProjectId(key.id))
         }
         SyncItemKind.MEMORY -> stores.memories.deleteRemote(key.id)
+        SyncItemKind.TASK -> stores.tasks.deleteRemote(TaskId(key.id))
     }
 }
 
@@ -175,6 +183,7 @@ private suspend fun SyncInteractor.apply(envelope: SyncEnvelopeDto, key: SyncIte
         is ReceivedItem.Chat -> stores.conversations.applyRemote(received.conversation)
         is ReceivedItem.Folder -> stores.projects.applyRemote(received.project)
         is ReceivedItem.Fact -> stores.memories.applyRemote(received.memory)
+        is ReceivedItem.Job -> stores.tasks.applyRemote(received.task)
     }
     val unknown = SyncUnknownFieldsDto.from(body, ReceivedItem.knownFields(key.kind))
     stores.sync.updateJournal {
@@ -195,19 +204,25 @@ private sealed interface ReceivedItem {
 
     class Fact(val memory: Memory) : ReceivedItem
 
+    class Job(val task: ScheduledTask) : ReceivedItem
+
     companion object {
         fun read(key: SyncItemKey, body: JsonObject, updatedAt: Long): ReceivedItem = when (key.kind) {
-            SyncItemKind.CONVERSATION ->
-                Chat(conversationFrom(SyncWire.fromJson(ConversationBodyDto.serializer(), body), ConversationId(key.id), updatedAt))
+            SyncItemKind.CONVERSATION -> Chat(
+                conversationFrom(SyncWire.fromJson(ConversationBodyDto.serializer(), body), ConversationId(key.id), updatedAt)
+                    .copy(taskId = SyncWire.taskId(body)),
+            )
             SyncItemKind.PROJECT -> Folder(projectFrom(SyncWire.fromJson(ProjectBodyDto.serializer(), body), ProjectId(key.id), updatedAt))
             // The handle is the store's to give; this one is a stand-in.
             SyncItemKind.MEMORY -> Fact(memoryFrom(SyncWire.fromJson(MemoryBodyDto.serializer(), body), MemoryId(""), key.id, updatedAt))
+            SyncItemKind.TASK -> Job(taskFrom(SyncWire.fromJson(TaskBodyDto.serializer(), body), TaskId(key.id), updatedAt))
         }
 
         fun knownFields(kind: SyncItemKind): Set<String> = when (kind) {
             SyncItemKind.CONVERSATION -> SyncWire.conversationFields
             SyncItemKind.PROJECT -> SyncWire.projectFields
             SyncItemKind.MEMORY -> SyncWire.memoryFields
+            SyncItemKind.TASK -> SyncWire.taskFields
         }
     }
 }

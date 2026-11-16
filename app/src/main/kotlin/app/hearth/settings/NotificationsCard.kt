@@ -34,7 +34,8 @@ import app.hearth.integrations.openNotificationSettings
 @Composable
 internal fun NotificationsCard(settings: ServerSettings, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
-    val state = stringResource(if (settings.isReplyNotificationsEnabled) R.string.notifications_on else R.string.notifications_off)
+    val isAnyOn = settings.isReplyNotificationsEnabled || settings.isTaskNotificationsEnabled
+    val state = stringResource(if (isAnyOn) R.string.notifications_on else R.string.notifications_off)
     HearthCard {
         HearthPageRow(stringResource(R.string.notifications_open, state), presenter::notificationsAction) {
             Text(stringResource(R.string.notifications_title), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
@@ -62,32 +63,42 @@ internal fun NotificationsPage(settings: ServerSettings, presenter: SettingsPres
     LaunchedEffect(Unit) { presenter.refreshNotificationPermissionAction() }
     // The user may have been to the phone's own settings and back.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { presenter.refreshNotificationPermissionAction() }
-    HearthCard(footer = stringResource(R.string.notifications_footer)) {
-        HearthSwitchRow(
-            stringResource(R.string.notifications_replies),
-            settings.isReplyNotificationsEnabled,
-            detail = stringResource(R.string.notifications_replies_detail),
-        ) { isOn ->
-            presenter.replyNotificationsAction(isOn)
-            // Only Android 13 and later have a question to ask; before it, notifications are allowed until turned off.
-            val mustAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-            if (isOn && mustAsk) {
-                isAsking = true
-                permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else {
-                presenter.refreshNotificationPermissionAction()
-            }
+    // Turning a switch on asks the phone for leave, where it has a question to ask: only Android 13 and later do;
+    // before it, notifications are allowed until turned off.
+    val ask: (Boolean) -> Unit = { isOn ->
+        val mustAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (isOn && mustAsk) {
+            isAsking = true
+            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            presenter.refreshNotificationPermissionAction()
         }
-        // A switch for each kind of notification still to come goes here, as a row of this card. None is shown
-        // until it does something.
+    }
+    HearthCard(footer = stringResource(R.string.notifications_footer)) {
+        NotificationSwitch(R.string.notifications_replies, R.string.notifications_replies_detail, settings.isReplyNotificationsEnabled, ask) {
+            presenter.replyNotificationsAction(it)
+        }
+        NotificationSwitch(R.string.notifications_tasks, R.string.notifications_tasks_detail, settings.isTaskNotificationsEnabled, ask) {
+            presenter.taskNotificationsAction(it)
+        }
+        // A switch for each kind of notification still to come goes here, as a row of this card.
     }
     // The phone's refusal only matters while a switch is on.
-    if (settings.isReplyNotificationsEnabled && isAllowed == false && !isAsking) {
+    if ((settings.isReplyNotificationsEnabled || settings.isTaskNotificationsEnabled) && isAllowed == false && !isAsking) {
         HearthPermissionNotice(
             Icons.Outlined.NotificationsOff,
             stringResource(R.string.notifications_denied),
             actionTitle = stringResource(R.string.notifications_open_settings),
         ) { openNotificationSettings(context) }
+    }
+}
+
+/** One kind of notification's switch, which asks the phone for leave as it is turned on. */
+@Composable
+private fun NotificationSwitch(label: Int, detail: Int, isOn: Boolean, ask: (Boolean) -> Unit, onChange: (Boolean) -> Unit) {
+    HearthSwitchRow(stringResource(label), isOn, detail = stringResource(detail)) { turnedOn ->
+        onChange(turnedOn)
+        ask(turnedOn)
     }
 }

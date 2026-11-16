@@ -36,8 +36,8 @@ app/src/main/kotlin/app/hearth/
 ├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
 ├── project/                 The sheet that makes, edits and deletes a project: presenter, view model, sheet
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
-├── settings/                Settings: presenter, screen, one file per card, the profile, notifications and sync pages
-├── sync/                    When to sync (`SyncScheduler`), and the hooks sync is given into the chat
+├── settings/                Settings: presenter, screen, one file per card, the profile, notifications, sync and scheduled tasks pages
+├── sync/                    When to sync (`SyncScheduler`), the background job (`BackgroundSync`), task notifications, and the hooks sync is given into the chat
 ├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
@@ -46,13 +46,13 @@ app/src/main/kotlin/app/hearth/
 └── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications, the hub token's keystore seal
 
 domain/src/main/kotlin/app/hearth/domain/
-├── Conversation.kt, Message.kt, Project.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, VoiceCamera.kt, …   Models, one concept a file
+├── Conversation.kt, Message.kt, Project.kt, ScheduledTask.kt, UserProfile.kt, ReplyVersion.kt, ImageModel.kt, VoiceCamera.kt, …   Models, one concept a file
 ├── ChatInteractor.kt, ResearchInteractor.kt, SpeechInteractor.kt, ImageInteractor.kt, ProjectInteractor.kt, EraseInteractor.kt, SyncInteractor.kt   Business logic
-├── ConversationStore.kt, ProjectStore.kt, MemoryStore.kt, ProfileStore.kt, ModelStore.kt, SettingsStore.kt, SyncStore.kt   Shared state
-├── SavedDataLoader.kt                                                             Reads the chats, projects and memories at launch
+├── ConversationStore.kt, ProjectStore.kt, MemoryStore.kt, TaskStore.kt, ProfileStore.kt, ModelStore.kt, SettingsStore.kt, SyncStore.kt   Shared state
+├── SavedDataLoader.kt                                                             Reads the chats, projects, memories and tasks at launch
 ├── Sync.kt, SyncJournal.kt, SyncMapping.kt, SyncPlanner.kt, SyncDataProvider.kt    Sync: its models, the journal, the wire mapping, the decisions
 ├── ChatDataProvider.kt, ProjectDataProvider.kt, ProfilePhotoProvider.kt, NotificationProvider.kt, CameraProvider.kt, …   The seams to the outside
-├── GreetingPlanner.kt, ReplyNotificationPlanner.kt                                 Small decisions, kept pure
+├── GreetingPlanner.kt, ReplyNotificationPlanner.kt, TaskNotificationPlanner.kt    Small decisions, kept pure
 ├── Research.kt, ResearchQueryParser.kt, ResearchSourceSelector.kt, ResearchPromptBuilder.kt, ResearchCitationTransformer.kt   Research: its models and pure steps
 ├── Canvas.kt, CanvasExtractor.kt, CanvasVersionMatcher.kt, CanvasWebPolicy.kt      The canvas: its models and pure decisions
 ├── ConversationTitle.kt, TextLimit.kt                                              Titles (first message, renamed, from the model), and cutting text to a limit
@@ -96,7 +96,8 @@ through beside a few small ones, and `LockPresenter` is a single `Boolean`.
 calls its actions. Screens hold only view-local state: whether a menu is open, what is typed in a dialog.
 A screen-level composable ends in `Screen`; a part of one ends in `Section`, `Card`, `Row`, `Menu` and so on.
 
-**Pages inside a screen.** The settings have three pages of their own, the profile, the notifications and sync. Which
+**Pages inside a screen.** The settings have pages of their own: the profile, the notifications, sync, the scheduled
+tasks and the task editor the tasks page leads to. Which
 is showing is the settings presenter's own state (`page`), not the coordinator's: nothing outside the settings
 cares, and the back button asks the presenter, which steps back a page before it leaves.
 
@@ -119,7 +120,7 @@ what lets a reply keep streaming while the phone is rotated or the app is in the
 extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`, `ChatPresenterResearch.kt`,
 `ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
 `ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its two pages
-(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`), and `VoicePresenter` for its camera
+(`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), and `VoicePresenter` for its camera
 (`VoicePresenterCamera.kt`). The state they share is
 `internal` for that reason.
 
@@ -128,7 +129,7 @@ extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPres
 **Interactors** (`ChatInteractor`, `ResearchInteractor`, `SpeechInteractor`, `ImageInteractor`, `ProjectInteractor`, `EraseInteractor`, `SyncInteractor`) are concrete classes that carry out a piece of business
 logic from the providers, or the stores, they are given. They hold no screen state.
 
-**Stores** (`ConversationStore`, `ProjectStore`, `MemoryStore`, `ProfileStore`, `ModelStore`, `SettingsStore`, `SyncStore`) hold what more than one screen
+**Stores** (`ConversationStore`, `ProjectStore`, `MemoryStore`, `TaskStore`, `ProfileStore`, `ModelStore`, `SettingsStore`, `SyncStore`) hold what more than one screen
 needs, as `StateFlow`s with methods to change them. They are changed from the main thread only, and never read or
 write the disk or the keystore on it: their providers do that work on `Dispatchers.IO`, as `FileStoreService` does.
 
@@ -136,13 +137,14 @@ write the disk or the keystore on it: their providers do that work on `Dispatche
 first `SettingsStore.load()`, `SyncStore.load()` (its settings, journal and whether a token is kept) and where the
 chat list was left, after which the lock is set from the settings and `isReady` turns true; `MainActivity` draws
 nothing, holding the launch screen, until then, and intents from shortcuts, widgets and notifications wait for it
-too, so the first frame is never drawn from the defaults. Then `SavedDataLoader` reads the chats, projects and
-memories, each store on its own so that one unreadable store leaves the others full. Sync is started only if all
-three were read, so that it never weighs the hub against a list that only looks empty; then the models are asked for.
+too, so the first frame is never drawn from the defaults. Then `SavedDataLoader` reads the chats, projects,
+memories and scheduled tasks, each store on its own so that one unreadable store leaves the others full. Sync is
+started only if all four were read, so that it never weighs the hub against a list that only looks empty; then the
+models are asked for. The background sync job keeps the same rule (below).
 
-**Planners** (`GreetingPlanner`, `ReplyNotificationPlanner`, `SyncPlanner`) each make decisions from plain values and
-touch nothing: which line an empty chat opens with, whether a finished reply is announced and in what words, and
-which copy of a synced item wins.
+**Planners** (`GreetingPlanner`, `ReplyNotificationPlanner`, `TaskNotificationPlanner`, `SyncPlanner`) each make decisions
+from plain values and touch nothing: which line an empty chat opens with, whether a finished reply or a task's answer
+is announced and in what words, and which copy of a synced item wins.
 
 **Data providers** are the seams. Each is a class of function-typed properties with a `live()` factory in its
 companion:
@@ -376,7 +378,7 @@ middle square, 320 pixels each way, as a JPEG.
 adds it in a private chat too: the name is a setting, not a memory. Quotation marks in a name are made into
 apostrophes and the name is kept to one line, so that it cannot pass itself off as anything else.
 
-**Erasing.** `EraseInteractor` erases the chats, the projects, the memories and the profile photo, each through
+**Erasing.** `EraseInteractor` erases the chats, the projects, the memories, the scheduled tasks and the profile photo, each through
 the store that keeps it, after sync has been stopped and forgotten, then what the app keeps outside the stores (a photo taken for a message, a picture lent
 to another app, a memory file set aside), and the settings last. If anything fails, the failure is passed on
 with the settings still in place, so the user can try again. The settings presenter stops whatever the chat is
@@ -393,9 +395,16 @@ memories, so there it comes from the profile alone. `chat/ChatGreeting.kt` puts 
 
 ## Notifications
 
-There is one kind: a reply or a picture finished while the app was not on screen. Nothing runs in the background
-for it and nothing comes from a server. The chat presenter, which is already running the reply, asks
-`ReplyNotificationPlanner` when the turn ends and posts through `NotificationProvider`.
+There are two kinds, each with its switch on the notifications page, and both are made on the phone; nothing comes
+from a server but what sync brings.
+
+- **A reply or a picture finished while the app was not on screen.** Nothing runs in the background for it. The chat
+  presenter, which is already running the reply, asks `ReplyNotificationPlanner` when the turn ends and posts through
+  `NotificationProvider`.
+- **A scheduled task's answer arrived** (below): `SyncInteractor` tells `didReceiveTaskChats` of chats with a
+  `taskId` that this device never held, never on first contact with a hub, when everything there arrives at once.
+  `TaskChatNotifier` (in `sync/`) asks `TaskNotificationPlanner`, which says nothing while the app is on screen or
+  the switch is off, and posts a reply's notification: the chat's title and the start of the answer.
 
 - The planner says nothing while the app is on screen, while the switch is off, and for a turn that failed or
   came to nothing. For a private chat it gives only `Discreet`: the app's name and "A reply is ready."
@@ -405,6 +414,51 @@ for it and nothing comes from a server. The chat presenter, which is already run
 - A notification carries its chat's identifier. Tapping it starts `MainActivity` with
   `app.hearth.action.OPEN_CHAT`, and the coordinator opens that chat, reading the chats from disk first if the
   tap is what launched the app.
+
+## Scheduled tasks
+
+A task is a question and a schedule. The user's Hearth Hub asks a cloud model at that time, searching the web first
+if asked to, and files the answer as a new chat in the user's account, which every device gets through sync. The
+app only makes, changes and deletes tasks and shows what they filed; it runs nothing itself. It mirrors the iPhone
+app, with the same wording.
+
+- **The model.** `ScheduledTask`, with a `TaskSchedule` that is `Daily(time, timeZone)`, `Weekly(time, weekday,
+  timeZone)` (1 for Monday) or `Once(atSeconds)`. `TaskSchedule.summary` gives the parts of its description (the time
+  as `7:30`, the weekday's name, a date as `20 Nov`), and the app's three templates make "Every day at 7:30", "Every
+  Friday at 18:00" and "Once, 20 Nov at 9:00". `lastRunAt` (seconds since 1970) and `lastRunFailed` are written by
+  the hub and reach the app as remote changes; the app sends them back as it received them.
+- **Kept** by `TaskStore`, one JSON file a task in `Tasks/`, read by `SavedDataLoader`, erased with everything else,
+  and synced exactly as projects and memories are: kind `task`, a lowercase UUID, stamps, tombstones, the journal and
+  unknown fields (`TaskBodyDto`, `taskFrom`, `taskBody`). A task whose schedule this app cannot read is passed over
+  and left on the hub as it is. The wire body is pinned by `Spec/wire/task.json` and `task-weekly-run.json`.
+- **The chats it files** carry `taskId`. The shared wire examples still count it among a conversation's unknown
+  fields, so `ConversationBodyDto` leaves it out: `SyncWire.taskId` reads it from the body into
+  `Conversation.taskId`, it is kept among the unknown fields as any other, and `conversationJson` writes it back from
+  the conversation too, so a hub that is new to this device still gets it. The chat list and the chat's header show
+  "Scheduled task" under such a chat.
+- **Automatic or cloud.** The editor offers "Automatic" first (wire value `auto`, the default, which leaves the choice to the hub), then the chat server's models whose names end in `:cloud` or `-cloud`, in any case
+  (`TaskModels`), and says so when there are none.
+- **The pages** are the settings presenter's (`SettingsPresenterTasks.kt`, `TasksCard.kt`, `TaskEditorPage.kt`): the
+  list, each task with its schedule, its last run and a switch; and the editor over a `TaskDraft`. A task is saved
+  with the device's time zone. Tasks need sync: without it the page says so, leads to the sync page, and Add is off.
+
+## When sync runs
+
+`SyncScheduler` runs one sync at a time, and a request made during one runs one more after it:
+
+- once the saved data has all been read, and each time the app comes back to the front;
+- every 60 seconds while the app stays in front with sync on, so that another device's changes show without asking.
+  These quiet passes stop when the app leaves the front or sync is turned off; one that falls due while a sync runs
+  is skipped, never queued (`foregroundIntervalMillis` can be changed for tests);
+- a few seconds after a change made here (`debounceMillis`), so a burst of changes is sent together;
+- at once when sync is turned on, when a token is saved, and when the address points at another hub, while sync is
+  on; and when the user asks;
+- in the background, through `BackgroundSync`: a periodic `JobScheduler` job (no WorkManager), needing a network,
+  every fifteen minutes at best, persisted across a restart. The coordinator schedules it when sync turns on and
+  cancels it when sync turns off or everything is erased. `BackgroundSyncService` asks the application
+  (`BackgroundSyncHost`), which asks the coordinator: it waits until `SavedDataLoader` has finished (starting the
+  process for the job starts the reading as at any launch), and syncs only if every store was read and sync is on,
+  joining a sync already under way rather than starting another.
 
 ## Hold to talk
 
@@ -519,6 +573,8 @@ the vectors cover pure functions only, and they settle these:
   typed by hand, in the drawer or the chat's menu, goes through `renamedTitle`, trimmed and cut to
   `MAXIMUM_RENAMED_TITLE_LENGTH` (80); a title a model wrote goes through `generatedTitle`, its first line that is not
   blank, unwrapped, cut to 60.
+- **A task's chat.** `taskId` on a conversation is read and written by name (above), since the wire examples still
+  list it as an unknown field of a schema 1 conversation.
 - **Limits count characters as each platform sees them.** Every limit on text (a title, a rename, a memory, a file,
   a page, a query, a name typed in Settings) is applied with `String.clipped` (`TextLimit.kt`), which counts UTF-16
   units, as `take` does, but never ends between the two halves of a surrogate pair, so an emoji is never cut in

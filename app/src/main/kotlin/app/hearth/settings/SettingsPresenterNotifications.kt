@@ -15,3 +15,6 @@ fun SettingsPresenter.refreshNotificationPermissionAction() {
  * when it is switched on; a refusal leaves the switch on, and the page says where leave is given.
  */
 fun SettingsPresenter.replyNotificationsAction(isEnabled: Boolean) = updateAction { it.copy(isReplyNotificationsEnabled = isEnabled) }
+
+/** Keeps the Scheduled tasks switch as it now stands; leave to notify is asked for as for Replies. */
+fun SettingsPresenter.taskNotificationsAction(isEnabled: Boolean) = updateAction { it.copy(isTaskNotificationsEnabled = isEnabled) }

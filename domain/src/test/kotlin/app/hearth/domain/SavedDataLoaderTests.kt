@@ -18,7 +18,8 @@ class SavedDataLoaderTests {
         val projects = ProjectStore(ProjectDataProvider(loadAll = { readProjects() }, save = {}, delete = {}))
         val memories = MemoryStore(MemoryDataProvider(load = { readMemories() }, save = {}))
         val logged = mutableListOf<String>()
-        val subject = SavedDataLoader(conversations, projects, memories, log = { logged += it })
+        val tasks = TaskStore(TaskDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))
+        val subject = SavedDataLoader(conversations, projects, memories, tasks, log = { logged += it })
     }
 
     @Test

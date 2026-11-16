@@ -24,6 +24,8 @@ data class Conversation(
      * conversation saved before sync takes it from when it was last active.
      */
     val modifiedAt: Long = maxOf(createdAt, updatedAt),
+    /** The scheduled task that filed this chat on the hub; `null` for a chat begun by the user. */
+    val taskId: String? = null,
 ) {
     /** A copy whose message with the same identifier is swapped for the given one. */
     fun replacing(message: Message): Conversation = copy(messages = messages.map { if (it.id == message.id) message else it })

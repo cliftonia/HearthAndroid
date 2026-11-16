@@ -33,6 +33,18 @@ object SyncWire {
     val conversationFields: Set<String> = fields(ConversationBodyDto.serializer())
     val projectFields: Set<String> = fields(ProjectBodyDto.serializer())
     val memoryFields: Set<String> = fields(MemoryBodyDto.serializer())
+    val taskFields: Set<String> = fields(TaskBodyDto.serializer())
+
+    /**
+     * The scheduled task a conversation was filed by, if the hub filed it. The field is not one of the conversation's
+     * own fields in schema 1 (`ConversationBodyDto` leaves it out), so it is also kept among the unknown fields and
+     * goes back to the hub unchanged; this only reads it. `null` when absent or not text.
+     */
+    fun taskId(body: JsonObject): String? =
+        (body[TASK_ID] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotEmpty() }
+
+    /** The name of the field that says which task filed a conversation. */
+    const val TASK_ID = "taskId"
     internal val messageFields: Set<String> = fields(MessageDto.serializer())
     internal val documentFields: Set<String> = fields(DocumentDto.serializer())
 

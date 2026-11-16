@@ -85,9 +85,12 @@ fun SettingsPresenter.syncTokenDraftAction(text: String) {
     syncTokenDraftState.value = text
 }
 
-/** Keeps the address as typed. With no usable address, sync is turned off. */
+/** Keeps the address as typed. With no usable address, sync is turned off; with another hub, it syncs with it at once. */
 fun SettingsPresenter.syncAddressAction() {
-    scope.launch { keepSyncSettings(syncStore.settings.value.isEnabled) }
+    scope.launch {
+        val isOtherHub = keepSyncSettings(syncStore.settings.value.isEnabled)
+        if (isOtherHub && syncStore.settings.value.canSync) dependencies.sync.syncNow()
+    }
 }
 
 /** Keeps the switch as it now stands, with the address typed, and syncs at once when it is turned on. */
@@ -106,7 +109,8 @@ fun SettingsPresenter.syncEnabledAction(isOn: Boolean) {
 fun SettingsPresenter.saveSyncTokenAction() {
     scope.launch {
         keepSyncSettings(syncStore.settings.value.isEnabled)
-        keepTypedToken()
+        // A new token may be what lets this device in, so it syncs at once.
+        if (keepTypedToken() && syncStore.settings.value.canSync) dependencies.sync.syncNow()
     }
 }
 
@@ -142,29 +146,34 @@ fun SettingsPresenter.checkHubAction() {
     }
 }
 
-/** Keeps the typed address with the switch as given; without a usable address the switch is off. */
-private suspend fun SettingsPresenter.keepSyncSettings(isEnabled: Boolean) {
+/**
+ * Keeps the typed address with the switch as given; without a usable address the switch is off. Returns whether that
+ * pointed sync at another hub.
+ */
+private suspend fun SettingsPresenter.keepSyncSettings(isEnabled: Boolean): Boolean {
     val address = syncAddressState.value.trim()
     val settings = SyncSettings(hubAddress = address, isEnabled = isEnabled && canEnableSync(address))
-    if (settings == syncStore.settings.value) return
-    if (settings.hubUrl != syncStore.settings.value.hubUrl) syncCheckState.value = null
+    if (settings == syncStore.settings.value) return false
+    val isOtherHub = settings.hubUrl != syncStore.settings.value.hubUrl
+    if (isOtherHub) syncCheckState.value = null
     syncStore.update(settings)
+    return isOtherHub
 }
 
-/** Keeps the token being typed, if there is one. */
-private suspend fun SettingsPresenter.keepTypedToken() {
+/** Keeps the token being typed, if there is one. Returns whether one was kept. */
+private suspend fun SettingsPresenter.keepTypedToken(): Boolean {
     val token = syncTokenDraftState.value.trim()
-    if (token.isNotEmpty()) keepToken(token)
+    return token.isNotEmpty() && keepToken(token)
 }
 
 /** Seals the token, or forgets it with `null`, off the main thread: the keystore and the preferences are slow. */
-private suspend fun SettingsPresenter.keepToken(token: String?) {
-    try {
-        syncStore.setToken(token)
-        syncTokenDraftState.value = ""
-        syncCheckState.value = null
-    } catch (failure: Exception) {
-        // Never the token itself, nor what the keystore said about it.
-        Log.e(SettingsPresenter.TAG, "Keeping the hub token failed: ${failure.javaClass.simpleName}")
-    }
+private suspend fun SettingsPresenter.keepToken(token: String?): Boolean = try {
+    syncStore.setToken(token)
+    syncTokenDraftState.value = ""
+    syncCheckState.value = null
+    true
+} catch (failure: Exception) {
+    // Never the token itself, nor what the keystore said about it.
+    Log.e(SettingsPresenter.TAG, "Keeping the hub token failed: ${failure.javaClass.simpleName}")
+    false
 }

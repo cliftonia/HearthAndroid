@@ -87,8 +87,8 @@ class SyncPlanner {
 
     /**
      * Everything to upload: each local item whose version is not the one the hub is known to hold, and each deletion
-     * not yet taken, leaving out anything being written. Projects go before chats, chats before memories, and
-     * deletions last, a project's after the chats it let go.
+     * not yet taken, leaving out anything being written. Projects go before chats, chats before memories,
+     * memories before tasks, and deletions last, a project's after the chats it let go.
      *
      * @param local When each local item last changed. Private chats must not be among them.
      */
@@ -109,12 +109,14 @@ class SyncPlanner {
         SyncItemKind.PROJECT -> 0
         SyncItemKind.CONVERSATION -> 1
         SyncItemKind.MEMORY -> 2
+        SyncItemKind.TASK -> 3
     }
 
     /** Deletions in order: chats, then memories, then projects, so a project goes after the chats it let go. */
     private fun deletionRank(kind: SyncItemKind): Int = when (kind) {
         SyncItemKind.CONVERSATION -> 0
         SyncItemKind.MEMORY -> 1
-        SyncItemKind.PROJECT -> 2
+        SyncItemKind.TASK -> 2
+        SyncItemKind.PROJECT -> 3
     }
 }

@@ -96,6 +96,7 @@ class SyncDevice(hub: FakeHub, var now: Long = 1_000_000) {
     val conversationFiles = mutableMapOf<ConversationId, Conversation>()
     val projectFiles = mutableMapOf<ProjectId, Project>()
     var memoryFile = listOf<Memory>()
+    val taskFiles = mutableMapOf<TaskId, ScheduledTask>()
     var journalFile: String? = null
     var settingsFile: String? = null
     var token: String? = null
@@ -123,6 +124,8 @@ class SyncDevice(hub: FakeHub, var now: Long = 1_000_000) {
         clock,
     )
     val memories = MemoryStore(MemoryDataProvider(load = { memoryFile }, save = { memoryFile = it }), clock)
+    val tasks = TaskStore(TaskDataProvider(loadAll = { taskFiles.values.toList() }, save = { taskFiles[it.id] = it }, delete = { taskFiles.remove(it) }), clock)
+    val receivedTaskChats = mutableListOf<List<Conversation>>()
     val storeProvider = SyncStoreProvider(
         loadSettings = { settingsFile },
         saveSettings = { settingsFile = it },
@@ -139,7 +142,7 @@ class SyncDevice(hub: FakeHub, var now: Long = 1_000_000) {
         // Read at once, as the app reads it before anything else happens.
         sync = SyncStore(storeProvider, now = clock).also { runBlocking { it.load() } }
         interactor = SyncInteractor(
-            SyncInteractor.Stores(conversations, projects, memories, sync),
+            SyncInteractor.Stores(conversations, projects, memories, sync, tasks),
             SyncDataProvider(
                 health = { this.hub.provider.health(it) },
                 changes = { url, token, since -> this.hub.provider.changes(url, token, since) },
@@ -147,6 +150,7 @@ class SyncDevice(hub: FakeHub, var now: Long = 1_000_000) {
             ),
             isBusy = { it in busy },
             didApplyRemote = { appliedRemotely += it },
+            didReceiveTaskChats = { receivedTaskChats += it },
             background = EmptyCoroutineContext,
         )
         val record: suspend (SyncLocalChange) -> Unit = { change ->
@@ -156,6 +160,7 @@ class SyncDevice(hub: FakeHub, var now: Long = 1_000_000) {
         conversations.onLocalChange = record
         projects.onLocalChange = record
         memories.onLocalChange = record
+        tasks.onLocalChange = record
     }
 
     suspend fun syncNow(): Int = interactor.sync()

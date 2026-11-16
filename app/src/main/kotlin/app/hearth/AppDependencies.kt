@@ -37,6 +37,9 @@ import app.hearth.domain.SyncInteractor
 import app.hearth.domain.SyncLocalChange
 import app.hearth.domain.SyncStore
 import app.hearth.domain.SyncStoreProvider
+import app.hearth.domain.TaskDataProvider
+import app.hearth.domain.TaskStore
+import app.hearth.sync.BackgroundSync
 import app.hearth.integrations.AttachmentLoader
 import app.hearth.integrations.HubTokenVault
 import app.hearth.sync.SyncHooks
@@ -61,7 +64,9 @@ class AppDependencies(
     val conversationStore: ConversationStore,
     val memoryStore: MemoryStore,
     val projectStore: ProjectStore,
-    /** Reads the chats, projects and memories as the app starts. */
+    /** The scheduled tasks, which the hub runs. */
+    val taskStore: TaskStore,
+    /** Reads the chats, projects, memories and scheduled tasks as the app starts. */
     val savedData: SavedDataLoader,
     val chat: ChatInteractor,
     val speech: SpeechInteractor,
@@ -89,6 +94,8 @@ class AppDependencies(
     val sync: SyncInteractor,
     /** Filled in by the coordinator once the chat and the scheduler exist. */
     val syncHooks: SyncHooks,
+    /** Schedules the phone's background sync job while sync is on, and cancels it while it is off. */
+    val backgroundSync: (Boolean) -> Unit,
 ) {
     companion object {
         /**
@@ -112,6 +119,7 @@ class AppDependencies(
             val conversationStore = ConversationStore(ConversationDataProvider.live(files))
             val projectStore = ProjectStore(ProjectDataProvider.live(files))
             val memoryStore = MemoryStore(MemoryDataProvider.live(files))
+            val taskStore = TaskStore(TaskDataProvider.live(files))
             val profileStore = ProfileStore(ProfilePhotoProvider.live(files))
             val notifications = NotificationProvider.live(application)
             val sideList = SideListPreference.live(application)
@@ -129,10 +137,11 @@ class AppDependencies(
                 log = { Log.w(SYNC_TAG, it) },
             )
             val sync = SyncInteractor(
-                SyncInteractor.Stores(conversationStore, projectStore, memoryStore, syncStore),
+                SyncInteractor.Stores(conversationStore, projectStore, memoryStore, syncStore, taskStore),
                 SyncDataProvider.live(),
                 isBusy = { syncHooks.isBusy(it) },
                 didApplyRemote = { syncHooks.didApplyRemote(it) },
+                didReceiveTaskChats = { syncHooks.didReceiveTaskChats(it) },
                 log = { Log.i(SYNC_TAG, it) },
             )
             // Each store tells sync of the changes made on this device: a deletion is noted at once, and a sync
@@ -144,13 +153,15 @@ class AppDependencies(
             conversationStore.onLocalChange = record
             projectStore.onLocalChange = record
             memoryStore.onLocalChange = record
+            taskStore.onLocalChange = record
             return AppDependencies(
                 settingsStore = settingsStore,
                 modelStore = ModelStore(chat.fetchModels),
                 conversationStore = conversationStore,
                 memoryStore = memoryStore,
                 projectStore = projectStore,
-                savedData = SavedDataLoader(conversationStore, projectStore, memoryStore, log = { Log.e("Stores", it) }),
+                taskStore = taskStore,
+                savedData = SavedDataLoader(conversationStore, projectStore, memoryStore, taskStore, log = { Log.e("Stores", it) }),
                 chat = ChatInteractor(chat, search),
                 speech = speech,
                 image = ImageInteractor(ImageDataProvider.live()),
@@ -159,7 +170,7 @@ class AppDependencies(
                 projects = ProjectInteractor(projectStore, conversationStore),
                 profileStore = profileStore,
                 eraser = EraseInteractor(
-                    EraseInteractor.Stores(conversationStore, projectStore, memoryStore, profileStore, settingsStore),
+                    EraseInteractor.Stores(conversationStore, projectStore, memoryStore, profileStore, settingsStore, taskStore),
                     removeNotifications = notifications.removeAll,
                     // Sync is stopped, turned off and forgotten first, so that nothing erased here is deleted anywhere else.
                     stopSync = { syncHooks.stopAndReset() },
@@ -185,6 +196,7 @@ class AppDependencies(
                 syncStore = syncStore,
                 sync = sync,
                 syncHooks = syncHooks,
+                backgroundSync = { isOn -> BackgroundSync.update(application, isOn) },
             )
         }
 

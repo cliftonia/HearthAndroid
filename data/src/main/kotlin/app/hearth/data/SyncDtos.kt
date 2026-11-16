@@ -129,3 +129,38 @@ data class MemoryBodyDto(
     val isFromUser: Boolean? = null,
     @Serializable(with = WireTimeSerializer::class) val createdAt: Long,
 )
+
+/**
+ * A scheduled task's body: a question the hub asks a cloud model on a schedule, filing each answer as a new chat.
+ * The apps write everything but `lastRunAt` and `lastRunFailed`, which the hub writes after each run. The hub reads
+ * no `schema`; the apps write one all the same.
+ */
+@Serializable
+data class TaskBodyDto(
+    val schema: Int? = null,
+    val title: String? = null,
+    val prompt: String? = null,
+    val model: String? = null,
+    val schedule: TaskScheduleDto? = null,
+    val isEnabled: Boolean? = null,
+    val usesWebSearch: Boolean? = null,
+    /** When the hub last ran it, in seconds since 1970. */
+    val lastRunAt: Double? = null,
+    val lastRunFailed: Boolean? = null,
+    @Serializable(with = WireTimeSerializer::class) val createdAt: Long? = null,
+)
+
+/**
+ * When a task runs. `kind` is `daily` (with `time` and `timeZone`), `weekly` (with `weekday` too, 1 for Monday to 7
+ * for Sunday) or `once` (with `at`, in seconds since 1970). It has no `id`, so it is written whole every time.
+ */
+@Serializable
+data class TaskScheduleDto(
+    val kind: String,
+    /** `HH:MM`, in 24 hours. */
+    val time: String? = null,
+    val weekday: Int? = null,
+    /** An IANA time zone, such as `Australia/Brisbane`. */
+    val timeZone: String? = null,
+    val at: Double? = null,
+)

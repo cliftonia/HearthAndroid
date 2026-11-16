@@ -53,6 +53,8 @@ data class ServerSettings(
     val isHapticsEnabled: Boolean = true,
     /** Whether a notification is posted when a reply or a picture finishes while the app is not on screen. */
     val isReplyNotificationsEnabled: Boolean = false,
+    /** Whether a notification is posted when a scheduled task's answer arrives while the app is not on screen. */
+    val isTaskNotificationsEnabled: Boolean = false,
 ) {
     /** Each address made ready to connect to. `null` while nothing usable has been typed. */
     val ollamaUrl: String? get() = normalised(ollamaAddress)

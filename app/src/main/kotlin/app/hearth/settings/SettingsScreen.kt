@@ -31,8 +31,9 @@ import app.hearth.integrations.ProfilePhotoLoader
 /**
  * Where the servers are named and the app's behaviour is chosen. Each group of settings is a card of its own.
  *
- * The profile, the notifications and sync are pages of their own, reached from rows here; the back button leads
- * from any of them to this list, and from this list out of the settings.
+ * The profile, the notifications, sync and the scheduled tasks are pages of their own, reached from rows here; the
+ * back button leads from any of them to this list (from the task editor to the tasks), and from this list out of the
+ * settings.
  */
 @Composable
 fun SettingsScreen(
@@ -48,6 +49,7 @@ fun SettingsScreen(
     val test by presenter.connectionTest.collectAsStateWithLifecycle()
     val page by presenter.page.collectAsStateWithLifecycle()
     val photo by presenter.photo.collectAsStateWithLifecycle()
+    val taskDraft by presenter.taskDraft.collectAsStateWithLifecycle()
     val avatar = rememberAvatar(photo)
     LaunchedEffect(Unit) { presenter.loadProfilePhotoAction() }
     val title = when (page) {
@@ -55,6 +57,8 @@ fun SettingsScreen(
         SettingsPageKind.PROFILE -> R.string.profile_title
         SettingsPageKind.NOTIFICATIONS -> R.string.notifications_title
         SettingsPageKind.SYNC -> R.string.sync_title
+        SettingsPageKind.TASKS -> R.string.tasks_title
+        SettingsPageKind.TASK -> if (taskDraft?.isExisting == true) R.string.task_edit else R.string.task_new
     }
     val spacing = HearthTheme.spacing
     // The list keeps its place while a page it led to is looked at; each such page starts at its own top.
@@ -82,6 +86,7 @@ fun SettingsScreen(
                         MemoryCard(settings, memories, presenter)
                         NotificationsCard(settings, presenter)
                         SyncCard(presenter)
+                        TasksCard(presenter)
                         PrivacyCard(settings, presenter, authenticate)
                         HapticsCard(settings, presenter)
                         ThemeCard(settings, presenter)
@@ -89,6 +94,8 @@ fun SettingsScreen(
                     SettingsPageKind.PROFILE -> ProfilePage(settings, avatar, presenter, photos)
                     SettingsPageKind.NOTIFICATIONS -> NotificationsPage(settings, presenter)
                     SettingsPageKind.SYNC -> SyncPage(presenter)
+                    SettingsPageKind.TASKS -> TasksPage(presenter)
+                    SettingsPageKind.TASK -> TaskEditorPage(presenter)
                 }
             }
         }

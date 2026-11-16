@@ -37,8 +37,8 @@ interface SettingsPresenterDelegate {
     fun settingsPresenterDidErase()
 }
 
-/** The pages of the settings: the list of them all, and the three it leads to. */
-enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS, SYNC }
+/** The pages of the settings: the list of them all, the four it leads to, and the task editor the tasks page leads to. */
+enum class SettingsPageKind { MAIN, PROFILE, NOTIFICATIONS, SYNC, TASKS, TASK }
 
 /** What went wrong on the profile page, for the page to put into words. */
 enum class ProfileErrorKind { PHOTO_FAILED, ERASE_FAILED }
@@ -67,8 +67,8 @@ enum class VoicePreviewKind { IDLE, PLAYING, FAILED }
  * It has no view model of its own to assemble: the settings and memories are the stores' flows, passed
  * straight through, beside a few small flows for what only this screen knows.
  *
- * The profile, notifications and sync pages have their actions in the files beside this one
- * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`), which is why
+ * The profile, notifications, sync and scheduled tasks pages have their actions in the files beside this one
+ * (`SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), which is why
  * some of its state is `internal` and not `private`.
  */
 class SettingsPresenter(internal val scope: CoroutineScope, internal val dependencies: Dependencies) {
@@ -84,6 +84,8 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         val notifications: NotificationProvider,
         /** Stops whatever the chat is doing and returns once it has stopped, ahead of everything being erased. */
         val quietChat: suspend () -> Unit,
+        /** What the scheduled tasks pages are built from. */
+        val tasks: TaskControls,
         /** What the sync page is built from. */
         val sync: SyncControls,
     )
@@ -100,6 +102,7 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     internal val syncAddressState = MutableStateFlow("")
     internal val syncTokenDraftState = MutableStateFlow("")
     internal val syncCheckState = MutableStateFlow<SyncCheck?>(null)
+    internal val taskDraftState = MutableStateFlow<TaskDraft?>(null)
     private val testState = MutableStateFlow<ConnectionTest?>(null)
     private val voiceState = MutableStateFlow<List<String>>(emptyList())
     private val previewState = MutableStateFlow(VoicePreviewKind.IDLE)
@@ -144,10 +147,18 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         pageState.value = SettingsPageKind.NOTIFICATIONS
     }
 
-    /** Goes back: from a page to the list of settings, and from the list out of the settings. The hub address typed is kept on the way. */
+    /**
+     * Goes back: from the task editor to the tasks, unsaved, from a page to the list of settings, and from the list out
+     * of the settings. The hub address typed is kept on the way.
+     */
     fun backAction() {
         if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
-        if (pageState.value == SettingsPageKind.MAIN) doneAction() else pageState.value = SettingsPageKind.MAIN
+        taskDraftState.value = null
+        pageState.value = when (pageState.value) {
+            SettingsPageKind.MAIN -> return doneAction()
+            SettingsPageKind.TASK -> SettingsPageKind.TASKS
+            SettingsPageKind.PROFILE, SettingsPageKind.NOTIFICATIONS, SettingsPageKind.SYNC, SettingsPageKind.TASKS -> SettingsPageKind.MAIN
+        }
     }
 
     /**
@@ -285,6 +296,7 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     fun doneAction() {
         if (pageState.value == SettingsPageKind.SYNC) syncAddressAction()
         pageState.value = SettingsPageKind.MAIN
+        taskDraftState.value = null
         stopVoicePreviewAction()
         delegate?.settingsPresenterDidFinish()
     }

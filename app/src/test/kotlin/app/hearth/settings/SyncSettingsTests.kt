@@ -182,4 +182,36 @@ class SyncSettingsTests {
         store.syncDidEnd(SyncFailureKind.TooLarge(2), finished = true)
         assertEquals(SyncStatusKind.Failed(SyncFailureKind.TooLarge(2)), status())
     }
+
+    @Test
+    fun `saving a token or pointing at another hub syncs at once while sync is on, and not while it is off`() = runTest {
+        val fixture = SettingsEraseTests.Fixture(this)
+        fixture.syncStore.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true))
+        val subject = fixture.subject
+        subject.syncAction()
+
+        subject.syncTokenDraftAction("a-token")
+        subject.saveSyncTokenAction()
+        advanceUntilIdle()
+        assertEquals(1, fixture.syncNowCount)
+
+        subject.syncAddressDraftAction("http://other.local:8765")
+        subject.syncAddressAction()
+        advanceUntilIdle()
+        assertEquals(2, fixture.syncNowCount)
+
+        // The same address kept again is no change, and is not synced for.
+        subject.syncAddressAction()
+        advanceUntilIdle()
+        assertEquals(2, fixture.syncNowCount)
+
+        subject.syncEnabledAction(false)
+        advanceUntilIdle()
+        subject.syncTokenDraftAction("another-token")
+        subject.saveSyncTokenAction()
+        subject.syncAddressDraftAction("http://third.local:8765")
+        subject.syncAddressAction()
+        advanceUntilIdle()
+        assertEquals(2, fixture.syncNowCount)
+    }
 }

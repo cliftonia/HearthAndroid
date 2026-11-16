@@ -42,3 +42,13 @@ value class ProjectId(val raw: String) {
 @Serializable
 @JvmInline
 value class MemoryId(val raw: String)
+
+/** Tells one scheduled task from another; it is also the name of the file the task is kept in. */
+@Serializable
+@JvmInline
+value class TaskId(val raw: String) {
+    companion object {
+        /** An identifier no other task has. */
+        fun new(): TaskId = TaskId(UUID.randomUUID().toString())
+    }
+}

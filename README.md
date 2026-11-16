@@ -49,8 +49,11 @@ two share a design and a feature list, not code.
   questions
 - **Profile**: your name and what you like to be called, a photo, and standing instructions for every conversation.
   A new chat greets you by name, a little differently each time, and the model is told who it is talking to
-- **Notifications**: told on the phone itself when a reply or a picture finishes while Hearth is not on screen;
-  a private chat's notification says only that a reply is ready
+- **Notifications**: told on the phone itself when a reply or a picture finishes while Hearth is not on screen,
+  or when a scheduled task's answer arrives; a private chat's notification says only that a reply is ready
+- **Scheduled tasks**: a question and a time ("Every day at 7:30", "Every Friday at 18:00", "Once, 20 Nov at
+  9:00"); your Hearth Hub asks a cloud model at that time, searching the web first if you like, and files the answer
+  as a new chat marked "Scheduled task", which reaches every device through sync. They need sync
 - **Haptics**: a light tap when a message is sent, a reply finishes or something is switched, with one switch
   that silences them all
 - **Projects**: gather chats round a subject, with instructions and reference files (PDFs and text files)
@@ -58,7 +61,7 @@ two share a design and a feature list, not code.
 - **History**: pin, rename, share as Markdown, delete, search
 - **Lock** with fingerprint, face or PIN; light and dark themes; a side-by-side layout on wide screens
 - **Sync** through a Hearth Hub of your own (a small server, kept in a separate repository): ordinary chats, projects
-  and memories kept in step with your other phones, tablets and Macs running Hearth, on Android or Apple's systems.
+  memories and scheduled tasks kept in step with your other phones, tablets and Macs running Hearth, on Android or Apple's systems.
   Off until you turn it on; private chats, settings, addresses and your profile never leave the phone
 - **Erase all data on this device**: there are no accounts, so one button removes everything the app holds. With
   sync on, erasing removes nothing anywhere else: it turns sync off first
@@ -105,14 +108,20 @@ two share a design and a feature list, not code.
 - **Settings** begin with your **Profile**, a page of its own: your photo, names and instructions, whether
   follow-up questions are suggested, and **Erase all data on this device**. Below it come the server addresses,
   web search, **Test connection**, the voice and its **Hear this voice** button, pictures, your memories,
-  **Notifications** (a page with a switch for replies), **Sync** (a page of its own), the lock, haptics and the theme.
+  **Notifications** (a page with switches for replies and scheduled tasks), **Sync** and **Scheduled tasks** (pages
+  of their own), the lock, haptics and the theme.
   Changes are kept as you make them.
 - **Sync** has the hub's address, an optional access token, the **Sync this device** switch (which needs an address
   first), **Sync now**, **Test connection** and a status line saying when it last synced or what went wrong. Once on,
-  it syncs when Hearth opens, when it comes back to the front, a few seconds after a change and when asked, one sync
-  at a time. A chat open on screen takes in a change made elsewhere, or gives way to a new chat if it was deleted
+  it syncs when Hearth opens, when it comes back to the front, every minute while it stays there, a few seconds
+  after a change, at once when a token is saved or the hub changes, when asked, and about every fifteen minutes in
+  the background through the phone's job scheduler, one sync at a time. A chat open on screen takes in a change made elsewhere, or gives way to a new chat if it was deleted
   elsewhere; a reply still being written is never replaced, and is sent once it is finished.
-- **Notifications** ask the phone for leave only when you turn the **Replies** switch on. If the phone refuses,
+- **Scheduled tasks** lists each task with its schedule, how its last run went and a switch, and leads to an editor:
+  title, what to ask, the model (Automatic, the default, leaves it to the hub; otherwise only models whose names end in `:cloud` or `-cloud` are offered), every day,
+  every week or once, the time, the day or the date, **Search the web first**, and **Delete task**. Times are kept
+  in the phone's time zone. Without sync the page says why and leads to the Sync page, and nothing can be added.
+- **Notifications** ask the phone for leave only when you turn a switch on. If the phone refuses,
   the switch stays on and the page shows where leave is given. Tapping a notification opens its chat.
 
 ## How it is built
@@ -198,7 +207,8 @@ Test vectors shared with the iPhone app and Hearth Hub live in the iPhone reposi
 `tools/sync-spec.sh` after it changes: it copies the folder into the test resources here, and `SpecCopyTests` fails
 while the copy differs (it is skipped where `../Hearth/Spec` is not beside this repository).
 
-Differences from the iPhone app: dictation stops when you pause (Android's recogniser takes one utterance at a
+Differences from the iPhone app: the background sync runs when Android's job scheduler lets it, about every
+fifteen minutes at best and only with a network. Dictation stops when you pause (Android's recogniser takes one utterance at a
 time), so a held composer stops listening at the first pause as well; and there is no background keep-alive, so a
 reply continues, and its notification is posted, only while Android leaves the app running; that holds for
 research too, which takes longer than a reply. A photo sent to a model, from the camera of a voice conversation as

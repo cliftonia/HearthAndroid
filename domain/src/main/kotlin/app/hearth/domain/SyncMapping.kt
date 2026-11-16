@@ -8,7 +8,11 @@ import app.hearth.data.ProjectBodyDto
 import app.hearth.data.ReplyVersionDto
 import app.hearth.data.SearchSourceDto
 import app.hearth.data.SyncWire
+import app.hearth.data.TaskBodyDto
+import app.hearth.data.TaskScheduleDto
 import java.util.Base64
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.UUID
 
 /** Why a received item could not be read into the app's models. */
@@ -22,6 +26,9 @@ class SyncMappingError(val kind: Kind) : Exception(kind.name) {
 
         /** A picture is not standard Base64. */
         MALFORMED_PICTURE,
+
+        /** A task's schedule is missing, of a kind this app does not know, or not complete. */
+        UNKNOWN_SCHEDULE,
     }
 }
 
@@ -122,7 +129,41 @@ internal fun memoryFrom(dto: MemoryBodyDto, handle: MemoryId, syncId: String, up
     syncId = syncId,
 )
 
+/** A scheduled task from its synced body. [updatedAt] is the envelope's. Fails on a schedule this app cannot read. */
+internal fun taskFrom(dto: TaskBodyDto, id: TaskId, updatedAt: Long) = ScheduledTask(
+    id = id,
+    title = dto.title.orEmpty(),
+    prompt = dto.prompt.orEmpty(),
+    model = dto.model.orEmpty(),
+    schedule = scheduleFrom(dto.schedule ?: throw SyncMappingError(SyncMappingError.Kind.UNKNOWN_SCHEDULE)),
+    isEnabled = dto.isEnabled ?: true,
+    usesWebSearch = dto.usesWebSearch ?: false,
+    lastRunAt = dto.lastRunAt,
+    lastRunFailed = dto.lastRunFailed ?: false,
+    createdAt = dto.createdAt ?: updatedAt,
+    updatedAt = updatedAt,
+)
+
+internal fun scheduleFrom(dto: TaskScheduleDto): TaskSchedule {
+    fun unreadable(): Nothing = throw SyncMappingError(SyncMappingError.Kind.UNKNOWN_SCHEDULE)
+    val time = dto.time?.let(TaskTime::parse)
+    val zone = dto.timeZone?.takeIf { it.isNotBlank() } ?: "UTC"
+    return when (dto.kind) {
+        "daily" -> TaskSchedule.Daily(time ?: unreadable(), zone)
+        "weekly" -> TaskSchedule.Weekly(time ?: unreadable(), dto.weekday?.takeIf { it in 1..7 } ?: unreadable(), zone)
+        "once" -> TaskSchedule.Once(dto.at?.toLong() ?: unreadable())
+        else -> unreadable()
+    }
+}
+
 // To the wire
+
+/** A conversation's body as JSON, with the task that filed it, which `ConversationBodyDto` does not carry. */
+internal fun conversationJson(conversation: Conversation): JsonObject {
+    val written = SyncWire.toJson(ConversationBodyDto.serializer(), conversationBody(conversation))
+    val taskId = conversation.taskId ?: return written
+    return JsonObject(written + (SyncWire.TASK_ID to JsonPrimitive(taskId)))
+}
 
 internal fun conversationBody(conversation: Conversation) = ConversationBodyDto(
     schema = SyncWire.SCHEMA,
@@ -178,3 +219,22 @@ internal fun memoryBody(memory: Memory) = MemoryBodyDto(
     isFromUser = memory.isFromUser,
     createdAt = memory.createdAt,
 )
+
+internal fun taskBody(task: ScheduledTask) = TaskBodyDto(
+    schema = SyncWire.SCHEMA,
+    title = task.title,
+    prompt = task.prompt,
+    model = task.model,
+    schedule = scheduleBody(task.schedule),
+    isEnabled = task.isEnabled,
+    usesWebSearch = task.usesWebSearch,
+    lastRunAt = task.lastRunAt,
+    lastRunFailed = task.lastRunFailed,
+    createdAt = task.createdAt,
+)
+
+internal fun scheduleBody(schedule: TaskSchedule) = when (schedule) {
+    is TaskSchedule.Daily -> TaskScheduleDto(kind = "daily", time = schedule.time.wire, timeZone = schedule.timeZone)
+    is TaskSchedule.Weekly -> TaskScheduleDto(kind = "weekly", time = schedule.time.wire, weekday = schedule.weekday, timeZone = schedule.timeZone)
+    is TaskSchedule.Once -> TaskScheduleDto(kind = "once", at = schedule.atSeconds.toDouble())
+}

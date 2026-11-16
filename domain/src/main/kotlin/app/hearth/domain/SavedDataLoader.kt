@@ -3,7 +3,7 @@ package app.hearth.domain
 import java.io.IOException
 
 /**
- * Reads the chats, projects and memories saved on this device, once, as the app starts. Each store is read on its
+ * Reads the chats, projects, memories and scheduled tasks saved on this device, once, as the app starts. Each store is read on its
  * own, so that one that cannot be read does not keep the others empty.
  *
  * @param log Told which store could not be read, and the kind of failure only.
@@ -12,6 +12,7 @@ class SavedDataLoader(
     private val conversations: ConversationStore,
     private val projects: ProjectStore,
     private val memories: MemoryStore,
+    private val tasks: TaskStore,
     private val log: (String) -> Unit = {},
 ) {
     /**
@@ -23,6 +24,7 @@ class SavedDataLoader(
             read("chats") { conversations.load() },
             read("projects") { projects.load() },
             read("memories") { memories.load() },
+            read("scheduled tasks") { tasks.load() },
         )
         return results.all { it }
     }

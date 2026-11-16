@@ -248,6 +248,8 @@
     <string name="notifications_open">Notifications, %1$s</string>
     <string name="notifications_reply_ready">A reply is ready.</string>
     <string name="notifications_picture_ready">Your picture is ready</string>
+    <string name="notifications_tasks">Scheduled tasks</string>
+    <string name="notifications_tasks_detail">When a scheduled task\'s answer arrives while Hearth is not on screen.</string>
 
     <string name="haptics_title">Haptics</string>
     <string name="haptics_footer">A light tap when a message is sent, a reply finishes or something is switched. It follows the phone\'s own touch feedback setting, and a device with nothing to tap with gives none.</string>
@@ -403,7 +405,7 @@
     <string name="sync_save_token">Save token</string>
     <string name="sync_remove_token">Remove token</string>
     <string name="sync_switch">Sync this device</string>
-    <string name="sync_switch_detail">When Hearth opens, when it comes back, and shortly after a change.</string>
+    <string name="sync_switch_detail">When Hearth opens, every minute while it is open, shortly after a change, and now and then in the background.</string>
     <string name="sync_needs_address">Add the hub\'s address to turn sync on.</string>
     <string name="sync_now">Sync now</string>
     <string name="sync_check">Test connection</string>
@@ -422,4 +424,56 @@
         <item quantity="one">Synced, except %1$d item too large for the hub, which stays on this phone only.</item>
         <item quantity="other">Synced, except %1$d items too large for the hub, which stay on this phone only.</item>
     </plurals>
+
+    <string name="tasks_title">Scheduled tasks</string>
+    <string name="tasks_open">Scheduled tasks, %1$s</string>
+    <string name="tasks_none">None</string>
+    <plurals name="tasks_count">
+        <item quantity="one">%1$d task</item>
+        <item quantity="other">%1$d tasks</item>
+    </plurals>
+    <string name="tasks_footer">Your hub asks a cloud model each question at the time you choose and files the answer as a new chat, which reaches all your devices.</string>
+    <string name="tasks_needs_sync">Scheduled tasks are run by your Hearth Hub, so they need sync. Turn sync on to add one.</string>
+    <string name="tasks_open_sync">Set up sync</string>
+    <string name="tasks_add">Add task</string>
+    <string name="tasks_empty">No scheduled tasks yet.</string>
+    <string name="tasks_not_run">Not run yet</string>
+    <string name="tasks_last_run">Last run %1$s</string>
+    <string name="tasks_last_run_failed">Last run failed %1$s</string>
+    <string name="tasks_switch">Run %1$s</string>
+    <string name="tasks_edit">Edit %1$s</string>
+    <string name="tasks_untitled">Untitled task</string>
+    <string name="task_schedule_daily">Every day at %1$s</string>
+    <string name="task_schedule_weekly">Every %1$s at %2$s</string>
+    <string name="task_schedule_once">Once, %1$s at %2$s</string>
+    <string name="task_new">New task</string>
+    <string name="task_edit">Edit task</string>
+    <string name="task_title">Title</string>
+    <string name="task_title_placeholder">Morning briefing</string>
+    <string name="task_prompt">What to ask</string>
+    <string name="task_prompt_placeholder">The three biggest news stories today</string>
+    <string name="task_model">Model</string>
+    <string name="task_model_footer">Tasks run on the hub: automatically, or with a cloud model, one whose name ends in :cloud or -cloud.</string>
+    <string name="task_model_automatic">Automatic</string>
+    <string name="task_model_automatic_detail">Kimi in the cloud, then your own model if the graphics card is free.</string>
+    <string name="task_model_none">The chat server offers no cloud models, so Automatic is the only choice.</string>
+    <string name="task_model_chosen">Model, %1$s</string>
+    <string name="task_repeat">Repeat</string>
+    <string name="task_repeat_daily">Every day</string>
+    <string name="task_repeat_weekly">Every week</string>
+    <string name="task_repeat_once">Once</string>
+    <string name="task_time">Time, %1$s</string>
+    <string name="task_date">Date, %1$s</string>
+    <string name="task_weekday">Day</string>
+    <string name="task_zone">Times are in %1$s, this device\'s time zone.</string>
+    <string name="task_in_past">Choose a time that has not passed yet.</string>
+    <string name="task_web_search">Search the web first</string>
+    <string name="task_web_search_detail">The hub searches the web and gives the model what it finds.</string>
+    <string name="task_save">Save</string>
+    <string name="task_save_failed">The task could not be saved. Try again.</string>
+    <string name="task_delete">Delete task</string>
+    <string name="task_delete_question">Delete this task?</string>
+    <string name="task_delete_message">It stops running on the hub and is deleted from all your devices. Chats it has already filed are kept.</string>
+    <string name="task_done">Done</string>
+    <string name="chat_scheduled_task">Scheduled task</string>
 </resources>

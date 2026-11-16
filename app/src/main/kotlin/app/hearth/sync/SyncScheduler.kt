@@ -1,5 +1,6 @@
 package app.hearth.sync
 
+import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.SyncError
 import app.hearth.domain.SyncFailureKind
@@ -17,14 +18,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Decides when to sync: once the app has read its data, each time it comes back to the front, a few seconds after a
- * change made here, and when the user asks. One sync runs at a time; asking during one runs one more after it. It
- * is changed from the main thread only.
+ * Decides when to sync: once the app has read its data, each time it comes back to the front, every minute or so
+ * while it stays there (so that what another device changed shows without asking), a few seconds after a change made
+ * here, and when the user asks. In the background a job of the phone's runs [backgroundPass] now and then. One sync
+ * runs at a time; asking during one runs one more after it. It is changed from the main thread only.
  *
  * A failure is only recorded in the [SyncStore] for the status line, never shown as an alert.
  *
  * @param runSync Runs one sync and returns how many items were too large for the hub.
  * @param debounceMillis How long after a change made here the sync waits, so a burst of changes is sent together.
+ * @param foregroundIntervalMillis How long the quiet passes made while the app is in front of the user are apart.
  * @param log Told how syncs end, in counts and kinds of failure only.
  */
 class SyncScheduler(
@@ -32,11 +35,14 @@ class SyncScheduler(
     private val store: SyncStore,
     private val runSync: suspend () -> Int,
     private val debounceMillis: Long = 3_000,
+    private val foregroundIntervalMillis: Long = 60_000,
     private val log: (String) -> Unit = {},
 ) {
     private var runJob: Job? = null
     private var debounceJob: Job? = null
     private var wantsAnotherPass = false
+    private var pollJob: Job? = null
+    private var isInForeground = false
 
     /**
      * Whether the app has read its chats, projects and memories. Nothing is synced before, so that what arrives is
@@ -50,13 +56,61 @@ class SyncScheduler(
     /** The app has read its data: sync for the first time, if sync is on. */
     fun appDidLoad() {
         isReady = true
-        appBecameActive()
+        if (isEnabled) scope.launch { syncNow() }
+        updatePolling()
     }
 
-    /** The app is back in front of the user. */
+    /** The app is back in front of the user: sync now, and quietly every so often while it stays there. */
     fun appBecameActive() {
-        if (!isEnabled || !isReady) return
-        scope.launch { syncNow() }
+        isInForeground = true
+        if (isEnabled && isReady) scope.launch { syncNow() }
+        updatePolling()
+    }
+
+    /** The app has left the front: the quiet passes stop. */
+    fun appWentToBackground() {
+        isInForeground = false
+        updatePolling()
+    }
+
+    /** Sync was turned on or off, or its hub changed: the quiet passes start or stop to match. */
+    fun settingsChanged() {
+        updatePolling()
+    }
+
+    /** Whether the quiet passes made while the app is in front of the user are running. */
+    val isPolling: Boolean get() = pollJob?.isActive == true
+
+    /**
+     * One sync for the phone's background job, which returns when it is done. If one is already running, as when
+     * the job's launching the app set one going, that one is waited for instead of running another.
+     */
+    suspend fun backgroundPass() {
+        runJob?.let {
+            it.join()
+            return
+        }
+        run()
+    }
+
+    /**
+     * Runs a pass every [foregroundIntervalMillis] while the app is in front of the user with sync on, and has the
+     * data read. A pass falls due while another runs is skipped, never queued behind it.
+     */
+    private fun updatePolling() {
+        val wanted = isInForeground && isReady && isEnabled
+        if (!wanted) {
+            pollJob?.cancel()
+            pollJob = null
+            return
+        }
+        if (isPolling) return
+        pollJob = scope.launch {
+            while (true) {
+                delay(foregroundIntervalMillis)
+                if (runJob == null) run()
+            }
+        }
     }
 
     /** Something changed on this device. A sync follows a few seconds later, unless another change comes first. */
@@ -78,6 +132,8 @@ class SyncScheduler(
 
     /** Stops any sync under way and any waiting to start, and waits for it to end. */
     suspend fun stop() {
+        pollJob?.cancel()
+        pollJob = null
         debounceJob?.cancel()
         debounceJob = null
         wantsAnotherPass = false
@@ -136,5 +192,8 @@ class SyncHooks {
     var isBusy: (ConversationId) -> Boolean = { false }
     var didApplyRemote: (Set<SyncItemKey>) -> Unit = {}
     var localChangeHappened: () -> Unit = {}
+
+    /** Chats a scheduled task filed that this device had never held, as sync brings them. */
+    var didReceiveTaskChats: (List<Conversation>) -> Unit = {}
     var stopAndReset: suspend () -> Unit = {}
 }

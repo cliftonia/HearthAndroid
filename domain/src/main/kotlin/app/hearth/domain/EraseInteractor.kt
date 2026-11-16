@@ -23,10 +23,11 @@ class EraseInteractor(
         val memories: MemoryStore,
         val profile: ProfileStore,
         val settings: SettingsStore,
+        val tasks: TaskStore,
     )
 
     /**
-     * Erases the chats, the projects, the memories, the profile photo and the saved settings, server addresses
+     * Erases the chats, the projects, the memories, the scheduled tasks, the profile photo and the saved settings, server addresses
      * included, each through the store that keeps it. This device only: sync is stopped and turned off first, and no
      * deletion is sent anywhere.
      *
@@ -39,6 +40,7 @@ class EraseInteractor(
         stores.conversations.deleteAll()
         stores.projects.deleteAll()
         stores.memories.eraseAll()
+        stores.tasks.deleteAll()
         stores.profile.removePhoto()
         removeLeftovers()
         stores.settings.reset()

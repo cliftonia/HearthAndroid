@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -38,7 +39,7 @@ class SpecWireTests {
     @Test
     fun `every example is read as the hub hands it over`() {
         val files = files()
-        assertTrue(files.size >= 8)
+        assertTrue(files.size >= 10)
         files.forEach { (name, file) ->
             val expect = file.getValue("expect").jsonObject
             val change = SyncWire.fromJson(SyncPutDto.serializer(), file.getValue("put").jsonObject)
@@ -70,6 +71,21 @@ class SpecWireTests {
                     assertEquals(expect.flag("isFromUser"), memory.isFromUser ?: false, name)
                     checkUnknown(body, SyncWire.memoryFields, expect, name)
                 }
+                "task" -> {
+                    val task = SyncWire.fromJson(TaskBodyDto.serializer(), body)
+                    val schedule = checkNotNull(task.schedule) { name }
+                    assertEquals(expect.text("title"), task.title.orEmpty(), name)
+                    assertEquals(expect.text("model"), task.model, name)
+                    assertEquals(expect.text("scheduleKind"), schedule.kind, name)
+                    assertEquals(expect.text("time"), schedule.time, name)
+                    assertEquals(expect["weekday"]?.jsonPrimitive?.intOrNull, schedule.weekday, name)
+                    assertEquals(expect.text("timeZone"), schedule.timeZone, name)
+                    assertEquals(expect.flag("isEnabled"), task.isEnabled ?: true, name)
+                    assertEquals(expect.flag("usesWebSearch"), task.usesWebSearch ?: false, name)
+                    assertEquals(expect["lastRunAt"]?.jsonPrimitive?.doubleOrNull, task.lastRunAt, name)
+                    assertEquals(expect.flag("lastRunFailed"), task.lastRunFailed ?: false, name)
+                    checkUnknown(body, SyncWire.taskFields, expect, name)
+                }
                 else -> error("$name is of a kind this app does not sync")
             }
         }
@@ -92,5 +108,27 @@ class SpecWireTests {
             SyncWire.fromJson(ConversationBodyDto.serializer(), body("conversation-missing-fields.json")),
             SyncWire.fromJson(ConversationBodyDto.serializer(), body("conversation-null-fields.json")),
         )
+    }
+
+    @Test
+    fun `a task written as a device writes it reads back the same, unknown fields and all`() {
+        val file = files().toMap().getValue("task-weekly-run.json")
+        val body = file.getValue("put").jsonObject.getValue("body").jsonObject
+        val task = SyncWire.fromJson(TaskBodyDto.serializer(), body)
+        val written = SyncUnknownFieldsDto.from(body, SyncWire.taskFields).mergedInto(SyncWire.toJson(TaskBodyDto.serializer(), task))
+
+        assertEquals(task, SyncWire.fromJson(TaskBodyDto.serializer(), written))
+        assertEquals(body["laterField"], written["laterField"])
+        assertEquals(body["createdAt"], written["createdAt"])
+    }
+
+    @Test
+    fun `the task that filed a conversation is read from its body, and is not one of its known fields`() {
+        val files = files().toMap()
+        fun body(name: String) = files.getValue(name).getValue("put").jsonObject.getValue("body").jsonObject
+
+        assertEquals("morning-news", SyncWire.taskId(body("conversation-unknown-fields.json")))
+        assertEquals(null, SyncWire.taskId(body("conversation.json")))
+        assertTrue(SyncWire.TASK_ID !in SyncWire.conversationFields)
     }
 }

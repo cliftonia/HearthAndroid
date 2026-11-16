@@ -4,13 +4,14 @@ import java.util.UUID
 import kotlinx.serialization.Serializable
 
 /**
- * The kinds of item kept in step between devices, by their names on the wire. Scheduled tasks are synced by the
- * hub but not yet read by this app; private chats, settings and the profile are never synced.
+ * The kinds of item kept in step between devices, by their names on the wire. Private chats, settings and the
+ * profile are never synced.
  */
 enum class SyncItemKind(val wireName: String) {
     CONVERSATION("conversation"),
     PROJECT("project"),
     MEMORY("memory"),
+    TASK("task"),
     ;
 
     companion object {
@@ -41,6 +42,8 @@ class SyncItemKey(val kind: SyncItemKind, id: String) {
         fun project(id: ProjectId) = SyncItemKey(SyncItemKind.PROJECT, id.raw)
 
         fun memory(syncId: String) = SyncItemKey(SyncItemKind.MEMORY, syncId)
+
+        fun task(id: TaskId) = SyncItemKey(SyncItemKind.TASK, id.raw)
 
         /** A key read back from [path]; `null` if it is not one. */
         fun fromPath(path: String): SyncItemKey? {

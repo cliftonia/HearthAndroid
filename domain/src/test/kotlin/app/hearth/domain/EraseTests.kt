@@ -89,7 +89,7 @@ class EraseTests {
             profile.load()
             settings.load()
             return EraseInteractor(
-                EraseInteractor.Stores(conversations, projects, memories, profile, settings),
+                EraseInteractor.Stores(conversations, projects, memories, profile, settings, emptyTasks()),
                 removeNotifications = {
                     order += "notifications"
                     removedNotificationsCount += 1
@@ -235,7 +235,7 @@ class EraseTests {
             settings.update(defaults.copy(ollamaAddress = "https://mine.example", nickname = "Sam"))
             assertEquals(listOf<Byte>(1, 2, 3), ProfilePhotoProvider.live(directory).load()?.toList())
 
-            EraseInteractor(EraseInteractor.Stores(conversations, projects, memories, profile, settings)).eraseAll()
+            EraseInteractor(EraseInteractor.Stores(conversations, projects, memories, profile, settings, emptyTasks())).eraseAll()
 
             val left = directory.walkTopDown().filter { it.isFile }.map { it.name to it.readText() }.toList()
             // The memories are one file, which now holds an empty list; nothing else is left at all.
@@ -262,7 +262,7 @@ class EraseTests {
         val profile = ProfileStore(ProfilePhotoProvider(load = { null }, save = {}, delete = {}))
         val settings = SettingsStore(ServerSettings(), SettingsDataProvider(load = { null }, save = {}))
         val subject = EraseInteractor(
-            EraseInteractor.Stores(device.conversations, device.projects, device.memories, profile, settings),
+            EraseInteractor.Stores(device.conversations, device.projects, device.memories, profile, settings, device.tasks),
             removeNotifications = { order += "notifications" },
             stopSync = {
                 order += "sync"
@@ -285,3 +285,6 @@ class EraseTests {
         assertTrue(hub.all.none { it.deleted })
     }
 }
+
+/** A task store with nothing in it, for tests that have no tasks. */
+internal fun emptyTasks() = TaskStore(TaskDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))

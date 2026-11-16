@@ -9,6 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,6 +87,10 @@ class SyncSchedulerTests {
         assertEquals(1, fixture.calls)
 
         fixture.subject.appBecameActive()
+        runCurrent()
+        assertEquals(2, fixture.calls)
+        // Left in front of the user it would go on syncing every minute; the test is over, so it leaves.
+        fixture.subject.appWentToBackground()
         advanceUntilIdle()
         assertEquals(2, fixture.calls)
     }
@@ -172,5 +177,87 @@ class SyncSchedulerTests {
         fixture.subject.stop()
         advanceUntilIdle()
         assertEquals(1, fixture.calls)
+    }
+
+    @Test
+    fun `while the app is in front with sync on, a quiet pass runs every minute, and stops when it leaves`() = runTest {
+        val fixture = Fixture(this)
+        fixture.subject.appBecameActive()
+        fixture.subject.appDidLoad()
+        runCurrent()
+        assertEquals(1, fixture.calls)
+        assertTrue(fixture.subject.isPolling)
+
+        advanceTimeBy(60_001)
+        assertEquals(2, fixture.calls)
+        advanceTimeBy(60_000)
+        assertEquals(3, fixture.calls)
+
+        fixture.subject.appWentToBackground()
+        assertFalse(fixture.subject.isPolling)
+        advanceTimeBy(600_000)
+        assertEquals(3, fixture.calls)
+    }
+
+    @Test
+    fun `the quiet passes stop when sync is turned off and start again when it is turned on`() = runTest {
+        val fixture = Fixture(this)
+        fixture.subject.appDidLoad()
+        fixture.subject.appBecameActive()
+        runCurrent()
+        val before = fixture.calls
+
+        fixture.store.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = false))
+        fixture.subject.settingsChanged()
+        advanceTimeBy(300_000)
+        assertEquals(before, fixture.calls)
+        assertFalse(fixture.subject.isPolling)
+
+        fixture.store.update(SyncSettings(hubAddress = "http://hub.local:8765", isEnabled = true))
+        fixture.subject.settingsChanged()
+        advanceTimeBy(60_001)
+        assertEquals(before + 1, fixture.calls)
+        fixture.subject.appWentToBackground()
+    }
+
+    @Test
+    fun `a quiet pass that falls due while one runs is skipped, never run beside it or queued`() = runTest {
+        val fixture = Fixture(this)
+        fixture.subject.appDidLoad()
+        runCurrent()
+        fixture.holds = true
+        fixture.subject.appBecameActive()
+        runCurrent()
+        val held = fixture.calls
+
+        advanceTimeBy(180_001)
+        assertEquals(held, fixture.calls)
+        fixture.gate.complete(Unit)
+        runCurrent()
+        assertEquals(1, fixture.mostAtOnce)
+        fixture.subject.appWentToBackground()
+        advanceUntilIdle()
+        assertEquals(held, fixture.calls)
+    }
+
+    @Test
+    fun `the background job's pass waits for one already running instead of starting another`() = runTest {
+        val fixture = Fixture(this)
+        fixture.holds = true
+        fixture.subject.appDidLoad()
+        runCurrent()
+        assertEquals(1, fixture.calls)
+
+        val pass = launch { fixture.subject.backgroundPass() }
+        runCurrent()
+        assertFalse(pass.isCompleted)
+        fixture.gate.complete(Unit)
+        advanceUntilIdle()
+        assertTrue(pass.isCompleted)
+        assertEquals(1, fixture.calls)
+
+        fixture.holds = false
+        fixture.subject.backgroundPass()
+        assertEquals(2, fixture.calls)
     }
 }
