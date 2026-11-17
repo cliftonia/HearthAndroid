@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Folder as FolderFilled
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Icon
@@ -37,20 +36,15 @@ import app.hearth.domain.Project
 // What stands above the dated groups: the projects, or the heading of the one whose chats are being looked at.
 
 /**
- * The projects under their own heading, and the row that makes a new one. While searching, only the projects
- * whose names match are listed, and the heading and the new project row give way to the results.
+ * The projects under their own heading, which is left out while there are none to list. While searching, only the
+ * projects whose names match are listed. New projects are made from the composer's plus menu.
  */
-internal fun LazyListScope.projectListItems(projects: List<Project>, isSearching: Boolean, presenter: DrawerPresenter) {
-    if (!isSearching || projects.isNotEmpty()) {
+internal fun LazyListScope.projectListItems(projects: List<Project>, presenter: DrawerPresenter) {
+    if (projects.isNotEmpty()) {
         item(key = "projects") { DrawerHeading(stringResource(R.string.project_title)) }
     }
     items(projects, key = { it.id.raw }) { project ->
         ProjectRow(project.name, Icons.Outlined.Folder, HearthTheme.colors.ink, HearthTheme.colors.mute) { presenter.selectProjectAction(project.id) }
-    }
-    if (!isSearching) {
-        item(key = "new project") {
-            ProjectRow(stringResource(R.string.project_new), Icons.Outlined.Add, HearthTheme.colors.mute, HearthTheme.colors.mute, presenter::newProjectAction)
-        }
     }
 }
 

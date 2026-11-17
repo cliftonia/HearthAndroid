@@ -52,6 +52,9 @@ interface ChatPresenterDelegate {
 
     /** A scheduled task is to be made, asking [question]. */
     fun chatPresenterDidRequestTask(question: String)
+
+    /** A new project is to be made. */
+    fun chatPresenterDidRequestNewProject()
 }
 
 /**

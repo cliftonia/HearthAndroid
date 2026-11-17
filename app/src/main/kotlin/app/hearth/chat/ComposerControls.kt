@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -160,8 +161,8 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                     },
                 )
             }
-            // Below the ways to attach, what Hearth makes: a picture, and last a task, offered whether or not sync is on;
-            // without it, the tasks page says why none can be added.
+            // Below the ways to attach, what Hearth makes: a picture, a task, offered whether or not sync is on (without it,
+            // the tasks page says why none can be added), and last a new project.
             HorizontalDivider(color = HearthTheme.colors.line)
             if (canMakePictures) {
                 DropdownMenuItem(
@@ -180,6 +181,14 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                 onClick = {
                     isOpen = false
                     presenter.scheduleTaskAction()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.project_new)) },
+                leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(HearthTheme.sizes.iconS)) },
+                onClick = {
+                    isOpen = false
+                    presenter.newProjectAction()
                 },
             )
         }

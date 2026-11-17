@@ -62,6 +62,9 @@ internal val ChatPresenter.chatProject: Project?
  */
 fun ChatPresenter.scheduleTaskAction() = delegate?.chatPresenterDidRequestTask(state.value.draft) ?: Unit
 
+/** Asks for a new project, from the plus menu. */
+fun ChatPresenter.newProjectAction() = delegate?.chatPresenterDidRequestNewProject() ?: Unit
+
 fun ChatPresenter.projectAction() = delegate?.chatPresenterDidRequestProject(state.value.conversation.id) ?: Unit
 
 /**

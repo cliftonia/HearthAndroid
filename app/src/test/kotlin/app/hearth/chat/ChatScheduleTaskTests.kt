@@ -26,6 +26,8 @@ class ChatScheduleTaskTests {
         override fun chatPresenterDidRequestTask(question: String) {
             questions += question
         }
+
+        override fun chatPresenterDidRequestNewProject() = Unit
     }
 
     @Test

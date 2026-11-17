@@ -31,7 +31,6 @@ interface DrawerPresenterDelegate {
 
     /** The scheduled tasks are to be looked after, in the settings. */
     fun drawerPresenterDidRequestTasks()
-    fun drawerPresenterDidRequestNewProject()
     fun drawerPresenterDidRequestEditing(projectId: ProjectId)
 
     /** A project is to be chosen for the chat. */
@@ -104,7 +103,6 @@ class DrawerPresenter(
     /** Goes back from a project's chats to every chat. */
     fun allChatsAction() = selectProjectAction(null)
 
-    fun newProjectAction() = delegate?.drawerPresenterDidRequestNewProject() ?: Unit
 
     /** Opens the settings of the project being looked at. */
     fun projectSettingsAction() {

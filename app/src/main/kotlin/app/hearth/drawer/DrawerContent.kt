@@ -90,7 +90,7 @@ fun DrawerContent(
                 if (selectedProject != null) {
                     projectHeaderItems(selectedProject, presenter)
                 } else {
-                    projectListItems(listedProjects, isSearching = query.isNotBlank(), presenter)
+                    projectListItems(listedProjects, presenter)
                 }
                 sections.forEach { section ->
                     item(key = section.kind.name) {

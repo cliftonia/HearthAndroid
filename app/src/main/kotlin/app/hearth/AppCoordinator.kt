@@ -486,7 +486,7 @@ class AppCoordinator(
         drawerState.value = false
     }
 
-    override fun drawerPresenterDidRequestNewProject() {
+    override fun chatPresenterDidRequestNewProject() {
         project.begin()
         projectSheetState.value = ProjectSheetKind.EDITOR
     }
