@@ -1,10 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One shortcut drawn for the home screen: its symbol at the top, then what it does and the app's name. -->
+<!--
+  One shortcut drawn for the home screen: its symbol at the top, then what it does and the app's name. The tile is
+  the launcher's background view, so that it is clipped to the launcher's own corners and grows from them as the app
+  opens.
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/widget_root"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    tools:targetApi="s"
     android:orientation="vertical"
     android:padding="@dimen/widget_padding">
 

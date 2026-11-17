@@ -14,7 +14,20 @@ data class ProjectViewModel(
     val documents: List<AttachedDocument> = emptyList(),
     /** That some of the files picked could not be read, or that the project could not be saved or deleted. */
     val error: ErrorViewConfiguration? = null,
+    /** The name, instructions and files as the sheet opened with them, against which a change is told. */
+    val openedName: String = "",
+    val openedInstructions: String = "",
+    val openedDocuments: List<AttachedDocument> = emptyList(),
+    /** Whether the user is being asked whether to throw their changes away, having tried to close the sheet. */
+    val isAskingToDiscard: Boolean = false,
 ) {
+    /**
+     * Whether anything was changed since the sheet opened, which closing it without Done would lose. Space typed
+     * round a name or the instructions is not a change: it would not be kept.
+     */
+    val hasChanges: Boolean
+        get() = name.trim() != openedName.trim() || instructions.trim() != openedInstructions.trim() || documents != openedDocuments
+
     /** Whether an existing project is being edited, which is what can be deleted. */
     val isExisting: Boolean get() = editingId != null
 

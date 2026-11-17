@@ -34,6 +34,7 @@ import app.hearth.settings.SyncControls
 import app.hearth.settings.TaskControls
 import app.hearth.settings.scheduleTaskAction
 import app.hearth.settings.tasksPageAction
+import app.hearth.shared.UndoPresenter
 import app.hearth.sync.SyncScheduler
 import app.hearth.sync.TaskChatNotifier
 import app.hearth.voice.VoicePresenter
@@ -134,6 +135,9 @@ class AppCoordinator(
     /** Whether the app's window is in front of the user. Only the window can tell. */
     private var isOnScreen = false
 
+    /** Holds the latest delete back while its snackbar offers to undo it. */
+    val undo = UndoPresenter()
+
     val lock = LockPresenter(isLockEnabled = { settingsStore.settings.value.isLockEnabled }, onLock = ::quieten)
 
     val chat = ChatPresenter(
@@ -155,6 +159,7 @@ class AppCoordinator(
             projectStore = dependencies.projectStore,
             isLocked = { lock.isLocked.value },
             isOnScreen = { isOnScreen },
+            undo = undo,
         ),
     )
 
@@ -181,7 +186,7 @@ class AppCoordinator(
         isOnScreen = { isOnScreen },
         brand = dependencies.noticeWords.brand,
     )
-    val drawer = DrawerPresenter(scope, dependencies.conversationStore, dependencies.projectStore)
+    val drawer = DrawerPresenter(scope, dependencies.conversationStore, dependencies.projectStore, undo)
     val project = ProjectPresenter(scope, dependencies.projectStore, dependencies.conversationStore, dependencies.projects)
     val projectPicker = ProjectPickerPresenter(scope, dependencies.projectStore, dependencies.conversationStore)
     val settings = SettingsPresenter(
@@ -202,6 +207,7 @@ class AppCoordinator(
                 syncNow = { syncScheduler.syncNow() },
                 check = { url, token -> dependencies.sync.check(url, token) },
             ),
+            undo = undo,
         ),
     )
     val voice = VoicePresenter(
@@ -336,7 +342,11 @@ class AppCoordinator(
         this.isOnScreen = isOnScreen
         // Back in front of the user: sync, if sync is on, and every so often while it stays there.
         if (cameBack) syncScheduler.appBecameActive()
-        if (!isOnScreen) syncScheduler.appWentToBackground()
+        if (!isOnScreen) {
+            // The app may be closed at any moment from here, so a delete waiting to be undone is carried out now.
+            undo.commitAction()
+            syncScheduler.appWentToBackground()
+        }
     }
 
     /** Goes straight to a chat, as a tapped notification asks. While the app is locked the chat opens behind the lock. */
@@ -548,6 +558,8 @@ class AppCoordinator(
      * forgotten, an empty chat, and the models of the server it was built to start with.
      */
     override fun settingsPresenterDidErase() {
+        // Whatever was waiting to be deleted is gone with everything else.
+        undo.dropAction()
         closeCanvas()
         screenState.value = Screen.CHAT
         drawerState.value = false

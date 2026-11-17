@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -62,42 +63,47 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
             if (hasGrown && following.isFollowing) listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
         }
     }
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = HearthTheme.spacing.xxxl, vertical = HearthTheme.spacing.xl),
-        verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.gapS),
-    ) {
-        items(messages, key = { it.id.raw }) { message ->
-            val isLast = message.id == messages.last().id
-            val isReplying = isLast && viewModel.isStreaming && message.role == MessageRole.ASSISTANT
-            MessageSection(
-                MessageViewConfiguration(
-                    message = message,
-                    isStreaming = isReplying,
-                    searchingFor = if (isReplying) viewModel.searchingFor else null,
-                    pictureWork = if (isReplying) viewModel.pictureWork else null,
-                    pictureJobsAhead = if (isReplying) viewModel.pictureJobsAhead else null,
-                    researchStep = if (isReplying) viewModel.researchStep else null,
-                    hasSearchFailed = isLast && viewModel.hasSearchFailed,
-                    memoryNotice = if (isLast) viewModel.memoryNotice else null,
-                    canRetry = isLast && !viewModel.isStreaming,
-                    isSpeaking = viewModel.speakingMessageId == message.id,
-                    canSpeak = canSpeak,
-                    canEdit = !viewModel.isStreaming,
-                ),
-                actions = MessageActions(
-                    onRetry = presenter::regenerateAction,
-                    onSpeak = { presenter.speakAction(message.id) },
-                    onEdit = { presenter.editAction(message.id) },
-                    onVersion = { index -> presenter.selectVersionAction(index, message.id) },
-                    onCanvas = { index -> presenter.canvasAction(CanvasReference(message.id, index)) },
-                ),
-                pictures = pictures,
-            )
+    // On a wide window the messages are held to a readable width in the middle; the list itself stays the full width,
+    // so that it scrolls from anywhere on it.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val margin = maxOf(HearthTheme.spacing.xxxl, (maxWidth - HearthTheme.sizes.readableMaxWidth) / 2 + HearthTheme.spacing.xxxl)
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = margin, vertical = HearthTheme.spacing.xl),
+            verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.gapS),
+        ) {
+            items(messages, key = { it.id.raw }) { message ->
+                val isLast = message.id == messages.last().id
+                val isReplying = isLast && viewModel.isStreaming && message.role == MessageRole.ASSISTANT
+                MessageSection(
+                    MessageViewConfiguration(
+                        message = message,
+                        isStreaming = isReplying,
+                        searchingFor = if (isReplying) viewModel.searchingFor else null,
+                        pictureWork = if (isReplying) viewModel.pictureWork else null,
+                        pictureJobsAhead = if (isReplying) viewModel.pictureJobsAhead else null,
+                        researchStep = if (isReplying) viewModel.researchStep else null,
+                        hasSearchFailed = isLast && viewModel.hasSearchFailed,
+                        memoryNotice = if (isLast) viewModel.memoryNotice else null,
+                        canRetry = isLast && !viewModel.isStreaming,
+                        isSpeaking = viewModel.speakingMessageId == message.id,
+                        canSpeak = canSpeak,
+                        canEdit = !viewModel.isStreaming,
+                    ),
+                    actions = MessageActions(
+                        onRetry = presenter::regenerateAction,
+                        onSpeak = { presenter.speakAction(message.id) },
+                        onEdit = { presenter.editAction(message.id) },
+                        onVersion = { index -> presenter.selectVersionAction(index, message.id) },
+                        onCanvas = { index -> presenter.canvasAction(CanvasReference(message.id, index)) },
+                    ),
+                    pictures = pictures,
+                )
+            }
+            item(key = "followUps") { FollowUps(viewModel.followUps, presenter::followUpAction) }
+            item(key = "end") { Spacer(Modifier.height(EndAnchorHeight)) }
         }
-        item(key = "followUps") { FollowUps(viewModel.followUps, presenter::followUpAction) }
-        item(key = "end") { Spacer(Modifier.height(EndAnchorHeight)) }
     }
 }
 

@@ -2,4 +2,6 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/pine" />
     <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <!-- Drawn in the launcher's own colour where the user has asked for themed icons. -->
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
 </adaptive-icon>

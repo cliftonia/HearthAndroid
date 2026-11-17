@@ -56,6 +56,13 @@ data class TaskDraft(
 ) {
     val isExisting: Boolean get() = id != null
 
+    /**
+     * Whether this draft says anything different from [opened], the draft the editor opened with, so that leaving
+     * would lose it. Space round the title or the question is not a difference, nor is a save that failed.
+     */
+    fun differsFrom(opened: TaskDraft): Boolean =
+        copy(title = title.trim(), prompt = prompt.trim(), hasFailed = false) != opened.copy(title = opened.title.trim(), prompt = opened.prompt.trim(), hasFailed = false)
+
     /** The schedule as drafted, in [zone]: a daily or weekly time is kept in it, and a one-off time is read in it. */
     fun schedule(zone: ZoneId): TaskSchedule = when (repeat) {
         TaskRepeatKind.DAILY -> TaskSchedule.Daily(time, zone.id)
@@ -137,7 +144,7 @@ fun SettingsPresenter.tasksAction() {
 /** Opens the editor on a new task, leaving the model to the hub and with a one-off date of tomorrow. Needs sync. */
 fun SettingsPresenter.addTaskAction() {
     if (!syncStore.settings.value.canSync) return
-    taskDraftState.value = TaskDraft(date = tomorrow(), model = TaskModels.AUTOMATIC)
+    openTaskDraft(TaskDraft(date = tomorrow(), model = TaskModels.AUTOMATIC))
     pageState.value = SettingsPageKind.TASK
 }
 
@@ -153,7 +160,7 @@ fun SettingsPresenter.scheduleTaskAction(question: String) {
         pageState.value = SettingsPageKind.TASKS
         return
     }
-    taskDraftState.value = TaskDraft(prompt = question.trim(), date = tomorrow(), model = TaskModels.AUTOMATIC)
+    openTaskDraft(TaskDraft(prompt = question.trim(), date = tomorrow(), model = TaskModels.AUTOMATIC))
     pageState.value = SettingsPageKind.TASK
 }
 
@@ -166,8 +173,37 @@ fun SettingsPresenter.tasksPageAction() {
 /** Opens the editor on a saved task. */
 fun SettingsPresenter.editTaskAction(id: TaskId) {
     val task = taskControls.store.task(id) ?: return
-    taskDraftState.value = TaskDraft.of(task, taskControls.zone(), tomorrow())
+    openTaskDraft(TaskDraft.of(task, taskControls.zone(), tomorrow()))
     pageState.value = SettingsPageKind.TASK
+}
+
+/** Puts a draft in the editor, remembering it as it opened so that leaving can tell whether anything was changed. */
+private fun SettingsPresenter.openTaskDraft(draft: TaskDraft) {
+    taskDraftState.value = draft
+    taskOpenedDraft = draft
+    taskDiscardState.value = false
+}
+
+/** Whether the task in the editor has changes that leaving it would lose. */
+fun SettingsPresenter.hasUnsavedTask(): Boolean {
+    val draft = taskDraftState.value ?: return false
+    val opened = taskOpenedDraft ?: return false
+    return draft.differsFrom(opened)
+}
+
+/** Whether the user is being asked whether to throw away the changes to a task, having tried to leave the editor. */
+val SettingsPresenter.isAskingToDiscardTask: StateFlow<Boolean> get() = taskDiscardState
+
+/** The user would rather go on with the task. */
+fun SettingsPresenter.keepEditingTaskAction() {
+    taskDiscardState.value = false
+}
+
+/** The user chose to throw away the changes to the task: the editor is left as the back button would leave it. */
+fun SettingsPresenter.discardTaskAction() {
+    taskDiscardState.value = false
+    taskOpenedDraft = taskDraftState.value
+    backAction()
 }
 
 /** Changes the draft, as each field of the editor is changed. */

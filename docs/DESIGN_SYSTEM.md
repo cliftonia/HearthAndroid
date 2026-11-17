@@ -17,7 +17,7 @@ The exceptions are few and named:
 - A measure that belongs to one drawing and nothing else may be a private constant beside it, with a comment.
   The ember on the voice screen and the dots in the held composer are the examples.
 - Proportions (`weight(1f)`, a scale of `0.86f`, the stops of a gradient) are not tokens.
-- Material's own components (buttons, menus, fields, switches, dialogs) are used as they come. They take their
+- Material's own components (buttons, menus, fields, switches, dialogs, snackbars) are used as they come. They take their
   colours from `HearthTheme`, which fills in the Material colour scheme.
 
 ## Tokens
@@ -41,6 +41,7 @@ the appearance, so it is the only part read from the composition.
 | `danger` | Errors, and actions that cannot be undone, in text and symbols. Light `#B0472F`, dark enough for small text on `paper` and `card` |
 | `dangerFill` | The fill of a button that cannot be undone, such as ending a voice conversation. Light `#B0472F`, dark `#B54E3A`: the dark `danger` is a text colour, too light for white on it |
 | `onDangerFill` | Text and symbols on `dangerFill`: white in both appearances |
+| `dangerSoft` | A quiet wash of `danger`, with `ink` on it: Material's error container. Light `#F6E1DB`, dark `#3D2420` |
 | `online` | The server can be reached: the status dot only. It is too light for text, so a check that succeeded is worded in `pine` |
 
 ### Type: `HearthTheme.type`
@@ -115,6 +116,8 @@ menu item.
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
 | `chipLabelMaxWidth`, `tableColumn`, `sourceNumberWidth` | 180, 150, 22 | Set widths |
 | `drawerWidth`, `wideLayoutMinWidth` | 320, 840 | The chat list; where it starts to sit beside the chat |
+| `fullScreenDialogMaxWidth`, `dialogMaxWidth` | 600, 560 | Below the first an editor is a full-screen dialog; above it, a dialog in the middle no wider than the second |
+| `readableMaxWidth` | 840 | The widest the messages, the composer and the settings are drawn, centred, on a wide window |
 | `canvasCardMaxWidth`, `canvasSwitchWidth`, `canvasColumnMinWidth` | 420, 200, 360 | The card of a piece of work in a reply; the canvas's Preview and Code switch; the least the chat and the canvas each need for the chat list to stay beside them |
 
 ### Strokes and elevation: `HearthTheme.strokes`
@@ -141,7 +144,7 @@ by two features, or in two files of one, and is about looks and not about what a
 
 | Component | What it is |
 |---|---|
-| `HearthTheme(isDark) { … }` | Provides the colours, and hands them to Material's components |
+| `HearthTheme(isDark) { … }` | Provides the colours, and hands them to Material's components, the inverse and error-container roles included, so a snackbar is ink on paper with the other appearance's pine for its action |
 | `HearthMark(sideLength)` | The app's mark, drawn in proportion to its side |
 | `HearthIcons` | The symbols the app draws itself, because Material's set has none like them: `NewChat` |
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
@@ -149,14 +152,23 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthCircleButton(icon, label, tint, containerColor, isOn) { … }` | One symbol in a floating circle the size of a touch target: the frosted card colour, a hairline edge and a soft shadow, drawn like the composer. The chat list and private chat buttons at the top of a chat. `containerColor` fills it to show it is switched on; `isOn` makes it a switch to a screen reader |
 | `HearthSmallIconButton(icon, label, sideLength) { … }` | A symbol drawn smaller than a finger (taking a photo or a file off the message) that still answers to, and is heard over, a whole touch target, without taking more room |
 | `HearthVersionStepper(labels, hasPrevious, hasNext) { step -> … }` | The arrows either side of "2/3" that step through the versions of a reply or of a piece in the canvas, with a selection haptic each step |
-| `HearthChoiceCard { … }`, `HearthChoiceRow(title, isSelected, isLast, detail, icon, tint) { … }` | A card of choices, heard as one group, and a row of it: a symbol, the words, a line under them and a tick for the one chosen. `isSelected = null` makes a row an action rather than a choice. The model sheet and the project picker |
+| `HearthChoiceCard { … }`, `HearthChoiceRow(title, isSelected, isLast, detail, icon, tint) { … }` | A card of choices, heard as one group, and a row of it: a symbol, the words, a line under them and a tick for the one chosen. `isSelected = null` makes a row an action rather than a choice. The project picker |
+| `HearthDropdownField(label, value, supportingText) { close -> … }` | One choice from a list as Material's exposed dropdown: an outlined field with its label inside and the ▼ that opens the menu. The effort in the model sheet and a task's model |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, at least `touchTarget` high, with a line beneath the label on what it does, where given |
-| `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, ending in an arrow; TalkBack hears it as one button, by its description. Unavailable, it has no arrow and is heard as such |
-| `HearthPageRow(title, status, onClick, enabled)` | The common page row: a title and, at its end, how things stand on the page; unavailable, the status is the reason, beneath the title. Heard as "Memory, On, 12 saved" |
+| `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, with no arrow, as Android lists settings; TalkBack hears it as one button, by its description. Unavailable, it is heard as such |
+| `HearthPageRow(title, status, onClick, enabled)` | The common page row: a title and beneath it how things stand on the page or, unavailable, the reason. Heard as "Memory, On, 12 saved" |
 | `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
-| `HearthSheetHeader(title) { … }` | The title of a sheet that offers a choice, with the button that closes it |
+| `HearthSheetHeader(title)` | The title of a bottom sheet, at the leading edge under its handle. No close button: the handle, the scrim and back close it |
+| `HearthSegmentedChoice(options, selected) { value -> … }` | A few short choices: Material's segmented buttons without the tick, each label on one line; with large text, a list of radio buttons. The theme and how often a task repeats |
+| `isLargeFont()` | Whether the phone's text is set large (1.3 and up). A line cut short at the usual size is given a second line: drawer titles, the model sheet's rows |
 | `HearthPermissionNotice(icon, message, actionTitle) { … }` | A card saying that the phone is holding something back, with a button that leads to where that is changed; the button is left out where there is nowhere to send the user |
+
+### Motion
+
+`sharedAxisX(forward)` and `fadeThrough()` in `HearthMotion.kt` are Material's transitions between screens: the shared
+x axis between the settings' list and its pages, and the fade through between the chat, the settings and a voice
+conversation. Compose plays them at the phone's animator duration scale, so they go when animations are turned off.
 
 ### Haptics
 

@@ -3,6 +3,8 @@ package app.hearth.drawer
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthMark
 import app.hearth.designsystem.HearthTheme
+import app.hearth.shared.withoutHeld
 import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ModelStore
@@ -55,7 +58,10 @@ fun DrawerContent(
 ) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
-    val conversations by presenter.conversations.collectAsStateWithLifecycle()
+    val saved by presenter.conversations.collectAsStateWithLifecycle()
+    val heldDelete by presenter.heldDelete.collectAsStateWithLifecycle()
+    // A chat being deleted is gone from the list while it can still be undone.
+    val conversations = remember(saved, heldDelete) { saved.withoutHeld(heldDelete) }
     val query by presenter.query.collectAsStateWithLifecycle()
     val projects by presenter.projects.collectAsStateWithLifecycle()
     val selectedProjectId by presenter.selectedProjectId.collectAsStateWithLifecycle()
@@ -88,7 +94,11 @@ fun DrawerContent(
         )
         Box(Modifier.weight(1f)) {
             // The bottom padding leaves room for the last chat to be scrolled clear of the floating controls.
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(top = spacing.xs, bottom = spacing.floatingClearance)) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = spacing.floatingClearance)) {
+                // The room above the list is its first item, always there, so that the list holds to its top when the
+                // projects are read after the chats: a list keeps its place by its first item in view, and would
+                // otherwise keep the first chat there and leave the projects above it, out of sight.
+                item(key = "top") { Spacer(Modifier.height(spacing.xs)) }
                 if (selectedProject != null) {
                     projectHeaderItems(selectedProject, presenter)
                 } else {

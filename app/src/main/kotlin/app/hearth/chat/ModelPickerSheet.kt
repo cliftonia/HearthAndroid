@@ -1,49 +1,37 @@
 package app.hearth.chat
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.UnfoldMore
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
-import app.hearth.designsystem.HearthChoiceCard
-import app.hearth.designsystem.HearthChoiceRow
+import app.hearth.designsystem.HearthDropdownField
 import app.hearth.designsystem.HearthSheetHeader
 import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.isLargeFont
 import app.hearth.domain.ChatModel
 import app.hearth.domain.EffortChoiceKind
 import app.hearth.domain.ImageModelKind
@@ -55,7 +43,8 @@ import kotlinx.coroutines.launch
 /**
  * The sheet opened from the composer's model chip: the server's models to choose from, and the effort that goes
  * into a reply: how hard the chosen model thinks, or deep research. While pictures are being made it lists the
- * picture models instead.
+ * picture models instead. A bottom sheet as Android draws one: a handle, the title at the leading edge, a plain list
+ * of radio buttons, and no button to close it, which the handle, a tap beside it and the back button do.
  */
 @Composable
 internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter, onDismiss: () -> Unit) {
@@ -73,11 +62,8 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
         // No tint from elevation: the sheet is the same paper as the screen it rises over.
         tonalElevation = 0.dp,
     ) {
-        HearthSheetHeader(stringResource(if (isPictureMode) R.string.model_picture_sheet_title else R.string.model_sheet_title), close)
-        Column(
-            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(start = spacing.xxxl, end = spacing.xxxl, bottom = spacing.xxxl),
-            verticalArrangement = Arrangement.spacedBy(spacing.xxxl),
-        ) {
+        HearthSheetHeader(stringResource(if (isPictureMode) R.string.model_picture_sheet_title else R.string.model_sheet_title))
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(bottom = spacing.m)) {
             if (isPictureMode) {
                 PictureModels(viewModel.pictureModels, viewModel.selectedPictureModel(settings)) { model ->
                     Haptics.play(HapticKind.SELECTION)
@@ -93,26 +79,26 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
             }
         }
         // The effort stays in view below the list, however many models the server has.
-        if (!isPictureMode) EffortRow(viewModel, settings, presenter::selectEffortAction)
+        if (!isPictureMode) EffortField(viewModel, settings, presenter::selectEffortAction)
     }
 }
 
-/** The models on the server, then those in the cloud. */
+/** The models on the server, then those in the cloud, each group under its heading. */
 @Composable
 private fun ChatModels(models: List<ChatModel>, selected: ChatModel?, onSelect: (ChatModel) -> Unit) {
     if (models.isEmpty()) EmptyNote(stringResource(R.string.chat_no_model))
     listOf(R.string.chat_local_models to models.filterNot { it.isCloud }, R.string.chat_cloud_models to models.filter { it.isCloud })
         .filter { it.second.isNotEmpty() }
         .forEach { (title, group) ->
-            Column(verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s)) {
-                Text(
-                    stringResource(title),
-                    color = HearthTheme.colors.mute,
-                    style = HearthTheme.type.caption,
-                    modifier = Modifier.padding(horizontal = HearthTheme.spacing.xs).semantics { heading() },
-                )
-                ModelRows(group) { model, isLast -> ModelRow(model.displayName, model.detail(), model.id == selected?.id, isLast) { onSelect(model) } }
-            }
+            Text(
+                stringResource(title),
+                color = HearthTheme.colors.pine,
+                style = HearthTheme.type.footnoteStrong,
+                modifier = Modifier
+                    .padding(start = HearthTheme.spacing.screen, end = HearthTheme.spacing.screen, top = HearthTheme.spacing.xl, bottom = HearthTheme.spacing.xs)
+                    .semantics { heading() },
+            )
+            ModelRows(group) { model -> ModelRow(model.displayName, model.detail(), model.id == selected?.id) { onSelect(model) } }
         }
 }
 
@@ -122,7 +108,7 @@ private fun PictureModels(models: List<ImageModelKind>, selected: ImageModelKind
     if (models.isEmpty()) {
         EmptyNote(stringResource(R.string.picture_no_models_yet))
     } else {
-        ModelRows(models) { model, isLast -> ModelRow(model.shortName(), model.blurb(), model == selected, isLast) { onSelect(model) } }
+        ModelRows(models) { model -> ModelRow(model.shortName(), model.blurb(), model == selected) { onSelect(model) } }
     }
 }
 
@@ -134,16 +120,28 @@ private fun ChatModel.detail(): String = listOfNotNull(
     stringResource(R.string.model_searches).takeIf { canUseTools },
 ).joinToString(" · ")
 
-/** One card holding a row for each model. Each row is told whether it is the last, which has no line under it. */
+/** A group of rows, heard by a screen reader as one group of choices. */
 @Composable
-private fun <Model> ModelRows(models: List<Model>, row: @Composable (Model, Boolean) -> Unit) {
-    HearthChoiceCard { models.forEachIndexed { index, model -> row(model, index == models.lastIndex) } }
+private fun <Model> ModelRows(models: List<Model>, row: @Composable (Model) -> Unit) {
+    Column(Modifier.fillMaxWidth().selectableGroup()) { models.forEach { row(it) } }
 }
 
-/** One model: its name, what it is good for, and a tick if it is the one chosen. */
+/** One model: its name, what it is good for, and a radio button showing whether it is the one chosen. */
 @Composable
-private fun ModelRow(title: String, detail: String, isSelected: Boolean, isLast: Boolean, onSelect: () -> Unit) =
-    HearthChoiceRow(title, isSelected, isLast, detail = detail, onClick = onSelect)
+private fun ModelRow(title: String, detail: String, isSelected: Boolean, onSelect: () -> Unit) {
+    // Large text is given a second line before anything is cut short.
+    val lines = if (isLargeFont()) 2 else 1
+    ListItem(
+        headlineContent = { Text(title, maxLines = lines, overflow = TextOverflow.Ellipsis) },
+        supportingContent = if (detail.isEmpty()) null else { { Text(detail, maxLines = lines, overflow = TextOverflow.Ellipsis) } },
+        // The row is the control; the button only shows how it stands.
+        trailingContent = { RadioButton(selected = isSelected, onClick = null) },
+        colors = ListItemDefaults.colors(containerColor = HearthTheme.colors.paper, supportingColor = HearthTheme.colors.mute),
+        modifier = Modifier
+            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onSelect)
+            .padding(horizontal = HearthTheme.spacing.m),
+    )
+}
 
 /** What stands in for the list while there is nothing to put in it. */
 @Composable
@@ -153,56 +151,37 @@ private fun EmptyNote(text: String) {
         color = HearthTheme.colors.mute,
         style = HearthTheme.type.subhead,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(vertical = HearthTheme.spacing.screen),
+        modifier = Modifier.fillMaxWidth().padding(HearthTheme.spacing.screen),
     )
 }
 
 /**
  * The effort that goes into a reply: how hard the chosen model thinks before it, for a model that thinks, and deep
- * research for any model. A menu, since the choices are few. Research is listed but cannot be chosen until there
- * is a search address, and says so.
+ * research for any model. An exposed dropdown, since the choices are few and research needs a line to say what it
+ * does. Research is listed but cannot be chosen until there is a search address, and says so.
  */
 @Composable
-private fun EffortRow(viewModel: ChatViewModel, settings: ServerSettings, onSelect: (EffortChoiceKind) -> Unit) {
-    val colors = HearthTheme.colors
+private fun EffortField(viewModel: ChatViewModel, settings: ServerSettings, onSelect: (EffortChoiceKind) -> Unit) {
     val spacing = HearthTheme.spacing
-    var isOpen by remember { mutableStateOf(false) }
     val canThink = viewModel.selectedModel?.canThink == true
     val chosen = viewModel.effortChoice(settings)
-    val chosenTitle = chosen.title(canThink)
-    Box(Modifier.fillMaxWidth().padding(start = spacing.xxxl, end = spacing.xxxl, top = spacing.m, bottom = spacing.xxxl)) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .clip(HearthTheme.shapes.card)
-                .background(colors.card)
-                .clickable(role = Role.DropdownList) { isOpen = true }
-                .semantics(mergeDescendants = true) { stateDescription = chosenTitle }
-                .padding(horizontal = spacing.xxxl, vertical = spacing.xxl),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(spacing.m),
-        ) {
-            Text(stringResource(R.string.model_effort), color = colors.ink, style = HearthTheme.type.subhead, modifier = Modifier.weight(1f))
-            Text(chosenTitle, color = if (chosen == EffortChoiceKind.Research) colors.pine else colors.mute, style = HearthTheme.type.subhead)
-            Icon(Icons.Outlined.UnfoldMore, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconS))
-        }
-        // The menu opens under the effort it changes, at the trailing edge.
-        Box(Modifier.align(Alignment.BottomEnd)) {
-            DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-                viewModel.effortChoices(settings).forEach { option ->
-                    val isAvailable = option.isAvailable(settings)
-                    DropdownMenuItem(
-                        text = { EffortOption(option, canThink, isAvailable) },
-                        trailingIcon = { if (option == chosen) Icon(Icons.Outlined.Check, null, tint = colors.pine, modifier = Modifier.size(HearthTheme.sizes.iconS)) },
-                        enabled = isAvailable,
-                        onClick = {
-                            isOpen = false
-                            Haptics.play(HapticKind.SELECTION)
-                            onSelect(option)
-                        },
-                    )
-                }
-            }
+    HearthDropdownField(
+        label = stringResource(R.string.model_effort),
+        value = chosen.title(canThink),
+        modifier = Modifier.fillMaxWidth().padding(start = spacing.screen, end = spacing.screen, top = spacing.m, bottom = spacing.xxxl),
+    ) { close ->
+        viewModel.effortChoices(settings).forEach { option ->
+            val isAvailable = option.isAvailable(settings)
+            DropdownMenuItem(
+                text = { EffortOption(option, canThink, isAvailable) },
+                trailingIcon = { RadioButton(selected = option == chosen, onClick = null, enabled = isAvailable) },
+                enabled = isAvailable,
+                onClick = {
+                    close()
+                    Haptics.play(HapticKind.SELECTION)
+                    onSelect(option)
+                },
+            )
         }
     }
 }

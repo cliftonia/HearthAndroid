@@ -93,11 +93,14 @@ private fun TaskRow(task: ScheduledTask, presenter: SettingsPresenter) {
     }
 }
 
-/** A schedule in words: "Every day at 7:30", "Every Friday at 18:00", "Once, 20 Nov at 9:00". */
+/**
+ * A schedule in words, its times on the phone's own clock: "Every day at 7:30 AM", "Every Friday at 18:00",
+ * "Once, Nov 20 at 9:00 AM".
+ */
 @Composable
 internal fun taskScheduleWords(schedule: TaskSchedule, zone: ZoneId = ZoneId.systemDefault()): String {
     val locale = LocalConfiguration.current.locales[0]
-    return schedule.summary(zone, locale).words(
+    return schedule.summary(zone, locale, rememberTaskTimeFormat()).words(
         stringResource(R.string.task_schedule_daily),
         stringResource(R.string.task_schedule_weekly),
         stringResource(R.string.task_schedule_once),

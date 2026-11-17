@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
@@ -89,12 +90,14 @@ private fun ChatLayout(
     banner: @Composable () -> Unit,
     footer: @Composable () -> Unit,
 ) {
+    // On a wide window the error and the composer are held to the readable width of the messages, in the middle.
+    val readable = Modifier.widthIn(max = HearthTheme.sizes.readableMaxWidth)
     Layout(
         content = {
             Box { header() }
             Box { content() }
-            Box { banner() }
-            Box { footer() }
+            Box(contentAlignment = Alignment.TopCenter) { Box(readable) { banner() } }
+            Box(contentAlignment = Alignment.TopCenter) { Box(readable) { footer() } }
         },
         modifier = modifier,
     ) { measurables, constraints ->

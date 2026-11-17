@@ -28,6 +28,7 @@ import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
+import app.hearth.shared.withoutHeldMemory
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.clipped
 
@@ -41,7 +42,10 @@ private const val MAXIMUM_MEMORY_LENGTH = 200
 @Composable
 internal fun MemoryPage(settings: ServerSettings, presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
-    val memories by presenter.memories.collectAsStateWithLifecycle()
+    val saved by presenter.memories.collectAsStateWithLifecycle()
+    val heldDelete by presenter.heldDelete.collectAsStateWithLifecycle()
+    // One being forgotten is gone from the page while that can still be undone.
+    val memories = saved.withoutHeldMemory(heldDelete)
     var draft by rememberSaveable { mutableStateOf("") }
     var isConfirmingClear by remember { mutableStateOf(false) }
     val footer = if (settings.isMemoryEnabled) {
@@ -84,12 +88,13 @@ internal fun MemoryPage(settings: ServerSettings, presenter: SettingsPresenter) 
         AlertDialog(
             onDismissRequest = { isConfirmingClear = false },
             title = { Text(stringResource(R.string.memory_clear_question)) },
+            text = { Text(stringResource(R.string.memory_clear_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     isConfirmingClear = false
                     Haptics.play(HapticKind.WARNING)
                     presenter.clearMemoriesAction()
-                }) { Text(stringResource(R.string.memory_clear), color = colors.danger) }
+                }) { Text(stringResource(R.string.memory_forget), color = colors.danger) }
             },
             dismissButton = { TextButton(onClick = { isConfirmingClear = false }) { Text(stringResource(R.string.settings_cancel)) } },
         )

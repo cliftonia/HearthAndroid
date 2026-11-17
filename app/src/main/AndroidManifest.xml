@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Asked for only when the user first dictates or starts a voice conversation. -->
@@ -29,17 +30,20 @@
         </intent>
     </queries>
 
-    <!-- Conversations and memories stay on the device: no cloud backup, no transfer to a new phone. -->
+    <!-- Conversations and memories stay on the device: no cloud backup, no transfer to a new phone. Going back is
+         told to the app as it is made, so that a page can show where it leads before the gesture ends. -->
     <application
         android:name=".HearthApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/brand"
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Hearth">
+        android:theme="@style/Theme.Hearth"
+        tools:targetApi="33">
         <activity
             android:name=".MainActivity"
             android:exported="true"

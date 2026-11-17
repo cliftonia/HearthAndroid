@@ -19,8 +19,8 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.shared.UnlockMethodKind
 
 /**
- * Shown in place of everything else until the phone has confirmed who is holding it. The button is named for what the
- * phone will ask for, as the lock's switch in the settings is.
+ * Shown in place of everything else until the phone has confirmed who is holding it. Beneath the button is what the
+ * phone will ask for, as the lock's switch in the settings is named for it.
  */
 @Composable
 fun LockScreen(unlockMethod: UnlockMethodKind, onUnlock: () -> Unit, modifier: Modifier = Modifier) {
@@ -34,10 +34,14 @@ fun LockScreen(unlockMethod: UnlockMethodKind, onUnlock: () -> Unit, modifier: M
     ) {
         HearthMark(HearthTheme.sizes.markL)
         Text(stringResource(R.string.brand), style = HearthTheme.type.display, color = colors.ink)
-        val title = when (unlockMethod) {
-            UnlockMethodKind.BIOMETRIC -> R.string.lock_unlock_biometric
-            UnlockMethodKind.SCREEN_LOCK, UnlockMethodKind.NONE -> R.string.lock_unlock_screen_lock
+        val method = when (unlockMethod) {
+            UnlockMethodKind.BIOMETRIC -> R.string.lock_method_biometric
+            UnlockMethodKind.SCREEN_LOCK, UnlockMethodKind.NONE -> R.string.lock_method_screen_lock
         }
-        Button(onClick = onUnlock) { Text(stringResource(title), textAlign = TextAlign.Center) }
+        // A short button, with what the phone will ask for said beneath it rather than wrapped inside it.
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m)) {
+            Button(onClick = onUnlock) { Text(stringResource(R.string.lock_unlock)) }
+            Text(stringResource(method), color = colors.mute, style = HearthTheme.type.footnoteSnug, textAlign = TextAlign.Center)
+        }
     }
 }

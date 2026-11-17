@@ -123,7 +123,7 @@ class TaskSettingsTests {
     }
 
     @Test
-    fun `editing keeps what the hub said of the last run, and back leaves the change unsaved`() = runTest {
+    fun `editing keeps what the hub said of the last run, and a discarded change is left unsaved`() = runTest {
         val fixture = makeTestSubject()
         val task = ScheduledTask(
             title = "News", prompt = "News?", model = "gone-model:cloud",
@@ -137,6 +137,9 @@ class TaskSettingsTests {
         assertEquals(TaskDraft(task.id, "News", "News?", "gone-model:cloud", TaskRepeatKind.DAILY, TaskTime(7, 30), date = LocalDate.of(2026, 11, 17)), subject.taskDraft.value)
         subject.taskDraftAction { it.copy(title = "Headlines") }
         subject.backAction()
+        // Back asks first, since there is a change to lose.
+        assertEquals(SettingsPageKind.TASK, subject.page.value)
+        subject.discardTaskAction()
         assertEquals(SettingsPageKind.TASKS, subject.page.value)
         assertEquals("News", fixture.taskStore.task(task.id)?.title)
 

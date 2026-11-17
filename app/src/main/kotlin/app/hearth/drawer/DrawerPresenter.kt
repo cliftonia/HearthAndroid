@@ -10,6 +10,9 @@ import app.hearth.domain.ProjectStore
 import app.hearth.domain.renamedTitle
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
+import app.hearth.shared.HeldDelete
+import app.hearth.shared.UndoPresenter
+import app.hearth.shared.UndoTarget
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +24,10 @@ import kotlinx.coroutines.launch
 interface DrawerPresenterDelegate {
     fun drawerPresenterDidSelect(id: ConversationId)
 
-    /** The conversation is gone from the store; the chat must let go of it if it was open. */
+    /**
+     * The conversation is being deleted: hidden while the delete can be undone, then gone from the store. The chat
+     * must let go of it if it was open. Told both times, so it may be told of a chat it already let go of.
+     */
     fun drawerPresenterDidDelete(id: ConversationId)
 
     /** The conversation has a new title in the store; the chat must show it if it is open. */
@@ -49,6 +55,8 @@ class DrawerPresenter(
     private val scope: CoroutineScope,
     private val conversationStore: ConversationStore,
     private val projectStore: ProjectStore,
+    /** Holds a delete back while it can be undone. */
+    private val undo: UndoPresenter = UndoPresenter(),
 ) {
     private val queryState = MutableStateFlow("")
     private val selectedProjectState = MutableStateFlow<ProjectId?>(null)
@@ -65,6 +73,9 @@ class DrawerPresenter(
      */
     val selectedProjectId: StateFlow<ProjectId?> = selectedProjectState.asStateFlow()
     var delegate: DrawerPresenterDelegate? = null
+
+    /** A delete that can still be undone; its chat is left out of the list until then. */
+    val heldDelete: StateFlow<HeldDelete?> = undo.held
 
     /** A change to a chat that could not be kept, until it is acknowledged. */
     val error: StateFlow<ErrorViewConfiguration?> = errorState.asStateFlow()
@@ -98,8 +109,20 @@ class DrawerPresenter(
         }
     }
 
-    fun deleteAction(id: ConversationId) = change {
-        conversationStore.delete(id)
+    /**
+     * Deletes a chat, once the time to undo it is over; until then it is only left out of the list. Nothing reaches
+     * the disk or sync before that, so an undone delete leaves no trace anywhere.
+     */
+    fun deleteAction(id: ConversationId) {
+        undo.hold(
+            UndoTarget.Chat(id),
+            commit = {
+                change {
+                    conversationStore.delete(id)
+                    delegate?.drawerPresenterDidDelete(id)
+                }
+            },
+        )
         delegate?.drawerPresenterDidDelete(id)
     }
 

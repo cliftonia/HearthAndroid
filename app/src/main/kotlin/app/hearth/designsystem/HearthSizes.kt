@@ -82,8 +82,23 @@ class HearthSizes {
     /** The chat list, as a drawer or beside the conversation. */
     val drawerWidth: Dp = 320.dp
 
+    /**
+     * The widest the conversation, the composer and the settings are drawn, centred, on a wide window; lines any longer
+     * are hard to read. A phone is never this wide, so it changes nothing there.
+     */
+    val readableMaxWidth: Dp = 840.dp
+
     /** From this width up the chat list sits beside the conversation. */
     val wideLayoutMinWidth: Dp = 840.dp
+
+    /**
+     * From this width up, past a phone held upright, an editor is a dialog in the middle of the window rather than a
+     * full-screen dialog: Material's line between a compact window and a medium one.
+     */
+    val fullScreenDialogMaxWidth: Dp = 600.dp
+
+    /** The widest an editor is drawn as a dialog in the middle of a wide window: Material's widest dialog. */
+    val dialogMaxWidth: Dp = 560.dp
 
     /** The most room the card of a piece of work takes in a reply. */
     val canvasCardMaxWidth: Dp = 420.dp

@@ -43,10 +43,15 @@ fun SettingsPresenter.serversAction() {
 /**
  * Goes back: from the task editor to the tasks, unsaved, from a page to the list of settings, and from the list out
  * of the settings. Tasks reached from the chat's composer go straight back to the chat. What was typed on the page
- * is kept on the way.
+ * is kept on the way. A task with changes is not left unsaved without asking: the user is asked whether to discard
+ * them, and nothing moves until they answer.
  */
 fun SettingsPresenter.backAction() {
     val page = pageState.value
+    if (page == SettingsPageKind.TASK && hasUnsavedTask()) {
+        taskDiscardState.value = true
+        return
+    }
     if (page == SettingsPageKind.MAIN) return doneAction()
     if (isTaskFromChat && (page == SettingsPageKind.TASK || page == SettingsPageKind.TASKS)) return doneAction()
     leavePage()
@@ -81,4 +86,6 @@ internal fun SettingsPresenter.leavePage() {
         SettingsPageKind.TASK, SettingsPageKind.VOICE, SettingsPageKind.PICTURES, SettingsPageKind.NOTIFICATIONS -> Unit
     }
     taskDraftState.value = null
+    taskOpenedDraft = null
+    taskDiscardState.value = false
 }

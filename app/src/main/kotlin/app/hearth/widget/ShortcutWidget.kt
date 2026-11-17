@@ -28,8 +28,8 @@ abstract class ShortcutWidget(
         val views = RemoteViews(context.packageName, R.layout.widget_shortcut).apply {
             setTextViewText(R.id.widget_title, context.getString(title))
             setImageViewResource(R.id.widget_icon, icon)
-            setContentDescription(R.id.widget_root, context.getString(title))
-            setOnClickPendingIntent(R.id.widget_root, tap)
+            setContentDescription(android.R.id.background, context.getString(title))
+            setOnClickPendingIntent(android.R.id.background, tap)
         }
         ids.forEach { manager.updateAppWidget(it, views) }
     }

@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,10 +35,13 @@ import app.hearth.shared.errorMessage
 internal fun ServersPage(settings: ServerSettings, presenter: SettingsPresenter) {
     val test by presenter.connectionTest.collectAsStateWithLifecycle()
     HearthCard(footer = stringResource(R.string.settings_servers_footer)) {
+        // The keyboard's action key moves from each address to the next, and puts the keyboard away after the last.
         AddressField(stringResource(R.string.settings_ollama), settings.ollamaAddress) { text -> presenter.updateAction { it.copy(ollamaAddress = text) } }
         AddressField(stringResource(R.string.settings_search), settings.searchAddress) { text -> presenter.updateAction { it.copy(searchAddress = text) } }
         AddressField(stringResource(R.string.settings_speech), settings.speechAddress) { text -> presenter.updateAction { it.copy(speechAddress = text) } }
-        AddressField(stringResource(R.string.settings_image), settings.imageAddress) { text -> presenter.updateAction { it.copy(imageAddress = text) } }
+        AddressField(stringResource(R.string.settings_image), settings.imageAddress, isLast = true) { text ->
+            presenter.updateAction { it.copy(imageAddress = text) }
+        }
         ConnectionRow(test, presenter)
     }
 }
@@ -66,15 +70,23 @@ private fun ConnectionRow(test: ConnectionTest?, presenter: SettingsPresenter) {
     }
 }
 
-/** A one-line field for a server address, with a keyboard that neither corrects nor capitalises it. */
+/**
+ * A one-line field for a server address, with a keyboard that neither corrects nor capitalises it. Its action key goes
+ * on to the next field, or, on the [isLast], is Done.
+ */
 @Composable
-private fun AddressField(label: String, value: String, onChange: (String) -> Unit) {
+private fun AddressField(label: String, value: String, isLast: Boolean = false, onChange: (String) -> Unit) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Uri,
+            autoCorrectEnabled = false,
+            capitalization = KeyboardCapitalization.None,
+            imeAction = if (isLast) ImeAction.Done else ImeAction.Next,
+        ),
         modifier = Modifier.fillMaxWidth(),
     )
 }

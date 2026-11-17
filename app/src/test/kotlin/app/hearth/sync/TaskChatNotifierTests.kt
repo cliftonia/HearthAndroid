@@ -3,6 +3,7 @@ package app.hearth.sync
 import app.hearth.domain.Conversation
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
+import app.hearth.domain.NotificationKind
 import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ReplyNotification
 import kotlin.test.assertEquals
@@ -38,7 +39,7 @@ class TaskChatNotifierTests {
 
         fixture.subject.announce(listOf(filed, Conversation(title = "Typed here", messages = listOf(answer))))
 
-        assertEquals(listOf(ReplyNotification(filed.id, "Weekend weather", "Rain this weekend.")), fixture.posted)
+        assertEquals(listOf(ReplyNotification(filed.id, "Weekend weather", "Rain this weekend.", NotificationKind.TASK)), fixture.posted)
     }
 
     @Test

@@ -83,6 +83,7 @@ fun ComposerFooter(
     val focusRequester = remember { FocusRequester() }
     val requestMicrophone = rememberMicrophoneRequest()
     var isFocused by remember { mutableStateOf(false) }
+    var isDropHovering by remember { mutableStateOf(false) }
     var isModelSheetOpen by remember { mutableStateOf(false) }
     // At rest the composer is a single row. It opens out, showing its options, while a message is being written,
     // and stays so while a model is being chosen for it.
@@ -147,7 +148,11 @@ fun ComposerFooter(
                 scaleY = heldScale
             }
             .background(colors.card, HearthTheme.shapes.composer)
-            .border(HearthTheme.strokes.hairline, colors.line, HearthTheme.shapes.composer)
+            // Its edge turns the brand colour while something it can take is held over it.
+            .border(HearthTheme.strokes.hairline, if (isDropHovering) colors.pine else colors.line, HearthTheme.shapes.composer)
+            .takesDrops(attachments, onHovering = { isDropHovering = it }) { text, shared ->
+                presenter.receiveSharedAction(text, shared.images, shared.documents, shared.unreadableCount)
+            }
             .padding(start = spacing.m, end = spacing.m, top = if (isExpanded) spacing.xl else spacing.s, bottom = spacing.s),
     ) {
         if (viewModel.editingMessageId != null) {
@@ -174,6 +179,8 @@ fun ComposerFooter(
                             .padding(horizontal = spacing.m)
                             .focusRequester(focusRequester)
                             .onFocusChanged { isFocused = it.isFocused }
+                            // Enter on a keyboard plugged into the phone sends; Shift and Enter is a new line.
+                            .sendsOnHardwareEnter(presenter::sendAction)
                             .semantics { contentDescription = placeholder },
                         decorationBox = { innerField ->
                             Box {

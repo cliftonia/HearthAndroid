@@ -126,6 +126,8 @@ class SettingsListTests {
         assertEquals(MemoryRowStatus.On(2), memoryRowStatus(subject.settings.value, subject.memories.value.size))
 
         subject.deleteMemoryAction(subject.memories.value.first().id)
+        // Forgotten once the time to undo it is over.
+        fixture.undo.expiredAction(checkNotNull(subject.heldDelete.value).serial)
         advanceUntilIdle()
         assertEquals(listOf("I have a dog"), subject.memories.value.map { it.text })
 

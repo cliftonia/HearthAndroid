@@ -42,10 +42,13 @@ fun HearthTheme(isDark: Boolean, content: @Composable () -> Unit) {
     val scheme = base.copy(
         primary = colors.pine, onPrimary = colors.onPine, primaryContainer = colors.pineSoft, onPrimaryContainer = colors.ink,
         secondary = colors.pine, onSecondary = colors.onPine, secondaryContainer = colors.pineSoft, onSecondaryContainer = colors.ink,
-        tertiary = colors.pine, onTertiary = colors.onPine,
+        tertiary = colors.pine, onTertiary = colors.onPine, tertiaryContainer = colors.pineSoft, onTertiaryContainer = colors.ink,
         background = colors.paper, onBackground = colors.ink, surface = colors.paper, onSurface = colors.ink,
         surfaceVariant = colors.bubble, onSurfaceVariant = colors.mute, outline = colors.mute, outlineVariant = colors.line,
-        error = colors.danger, surfaceTint = colors.pine,
+        error = colors.danger, onError = colors.paper, errorContainer = colors.dangerSoft, onErrorContainer = colors.ink,
+        surfaceTint = colors.pine,
+        // A snackbar, and anything else Material draws the other way round: ink for paper, and the other appearance's pine.
+        inverseSurface = colors.ink, inverseOnSurface = colors.paper, inversePrimary = (if (isDark) LightColors else DarkColors).pine,
         surfaceContainerLowest = colors.card, surfaceContainerLow = colors.card, surfaceContainer = colors.card,
         surfaceContainerHigh = colors.card, surfaceContainerHighest = colors.bubble,
     )

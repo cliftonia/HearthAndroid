@@ -15,12 +15,12 @@ fun quoted(key: String): String = "\"" + local.getProperty(key, "").replace("\\"
 
 android {
     namespace = "app.hearth"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = local.getProperty("hearth.applicationId", "app.hearth.android")
         minSdk = 28
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "0.1"
         buildConfigField("String", "OLLAMA_ADDRESS", quoted("hearth.ollamaAddress"))

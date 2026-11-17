@@ -28,6 +28,7 @@ import app.hearth.domain.SpeechInteractor
 import app.hearth.domain.ThinkingLevel
 import app.hearth.domain.showingVersion
 import app.hearth.shared.ErrorViewConfiguration
+import app.hearth.shared.UndoPresenter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -92,6 +93,8 @@ class ChatPresenter(
         val isOnScreen: () -> Boolean,
         /** Plays a haptic, if haptics are wanted. A test may hand in its own. */
         val haptic: (HapticKind) -> Unit = Haptics::play,
+        /** Holds a deleted chat back while the delete can be undone. */
+        val undo: UndoPresenter = UndoPresenter(),
     )
 
     internal val state = MutableStateFlow(ChatViewModel())
@@ -106,6 +109,12 @@ class ChatPresenter(
 
     /** The message being sent and answered, with the naming and suggestions that follow the answer. */
     private var turnJob: Job? = null
+
+    /**
+     * What was typed and not sent in each chat other than the open one, kept while the app runs, so that each chat
+     * has its own draft to come back to and none follows the user into another.
+     */
+    internal val drafts = mutableMapOf<ConversationId, String>()
 
     // Models
 
@@ -232,14 +241,11 @@ class ChatPresenter(
     }
 
     /**
-     * Starts afresh: anything half written is cleared along with the conversation.
+     * Starts afresh, with an empty composer. Anything half written stays with the chat it was written in.
      *
      * [projectId] is the project the new chat belongs to; `null` for an ordinary chat.
      */
-    fun newChatAction(projectId: ProjectId? = null) {
-        show(Conversation(modelId = state.value.selectedModel?.id, projectId = projectId))
-        state.update { it.copy(draft = "") }
-    }
+    fun newChatAction(projectId: ProjectId? = null) = show(Conversation(modelId = state.value.selectedModel?.id, projectId = projectId))
 
     /** Opens a saved conversation, and with it the model it was last held with if the server still has it. */
     fun selectConversationAction(id: ConversationId) {
@@ -288,14 +294,21 @@ class ChatPresenter(
         scope.launch(start = CoroutineStart.UNDISPATCHED) { dependencies.settingsStore.update(changed) }
     }
 
-    /** Puts a conversation on screen, stopping whatever the one before was doing. A half-written draft is kept. */
+    /**
+     * Puts a conversation on screen, stopping whatever the one before was doing. A half-written draft stays with the
+     * chat it was written in, and the chat shown gets back its own, if it had one. A message being edited is not a
+     * draft: it is let go of.
+     */
     private fun show(conversation: Conversation) {
         stopAction()
         stopDictation()
+        val leaving = state.value
+        if (leaving.editingMessageId == null && leaving.draft.isNotEmpty()) drafts[leaving.conversation.id] = leaving.draft else drafts.remove(leaving.conversation.id)
+        val draft = drafts.remove(conversation.id).orEmpty()
         state.update {
             it.copy(
                 conversation = conversation,
-                draft = if (it.editingMessageId != null) "" else it.draft,
+                draft = draft,
                 pendingImages = emptyList(),
                 pendingDocuments = emptyList(),
                 editingMessageId = null,

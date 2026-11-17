@@ -2,6 +2,8 @@ package app.hearth.domain
 
 import java.time.DayOfWeek
 import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -62,9 +64,6 @@ data class TaskTime(val hour: Int, val minute: Int) {
     /** As the wire writes it: `07:30`. */
     val wire: String get() = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
 
-    /** As the user reads it: `7:30`, `18:00`. */
-    val text: String get() = String.format(Locale.ROOT, "%d:%02d", hour, minute)
-
     companion object {
         /** A time read from `HH:MM` (one or two digits for the hour); `null` if it is not one. */
         fun parse(text: String): TaskTime? {
@@ -100,23 +99,47 @@ sealed interface TaskSchedule {
     data class Once(val atSeconds: Long) : TaskSchedule
 
     /**
-     * What the schedule says, in parts for the app to put in a sentence: the time as `7:30`, the weekday's name and
-     * a one-off date as `20 Nov`, named in [locale]. A one-off time is shown in [zone], the device's own.
+     * What the schedule says, in parts for the app to put in a sentence: the time and a one-off date written by
+     * [format], as the phone's settings say, and the weekday's name in [locale]. A one-off time is shown in [zone], the
+     * device's own.
      */
-    fun summary(zone: ZoneId, locale: Locale): TaskScheduleSummary = when (this) {
-        is Daily -> TaskScheduleSummary.Daily(time.text)
-        is Weekly -> TaskScheduleSummary.Weekly(DayOfWeek.of(weekday).getDisplayName(TextStyle.FULL, locale), time.text)
+    fun summary(zone: ZoneId, locale: Locale, format: TaskTimeFormat): TaskScheduleSummary = when (this) {
+        is Daily -> TaskScheduleSummary.Daily(format.time(time))
+        is Weekly -> TaskScheduleSummary.Weekly(DayOfWeek.of(weekday).getDisplayName(TextStyle.FULL, locale), format.time(time))
         is Once -> {
             val moment = Instant.ofEpochSecond(atSeconds).atZone(zone)
-            TaskScheduleSummary.Once(
-                moment.format(DateTimeFormatter.ofPattern("d MMM", locale)),
-                TaskTime(moment.hour, moment.minute).text,
+            TaskScheduleSummary.Once(format.date(moment.toLocalDate()), format.time(TaskTime(moment.hour, moment.minute)))
+        }
+    }
+}
+
+/**
+ * How a time of day and a date are written for the user. The app makes one from the phone's settings (a 12- or
+ * 24-hour clock, and the order its language writes a day and a month in), so that the domain needs nothing of Android.
+ */
+class TaskTimeFormat(
+    /** A time of day: `7:30 am`, `07:30`. */
+    val time: (TaskTime) -> String,
+    /** A day of the year, without the year: `20 Nov`, `Nov 20`. */
+    val date: (LocalDate) -> String,
+) {
+    companion object {
+        /**
+         * Fixed patterns, for where the phone cannot be asked: `7:30` on a 24-hour clock, `7:30 AM` on a 12-hour one,
+         * in [locale]'s words for the morning and afternoon, and `20 Nov`.
+         */
+        fun fixed(uses24Hour: Boolean, locale: Locale): TaskTimeFormat {
+            val clock = DateTimeFormatter.ofPattern(if (uses24Hour) "H:mm" else "h:mm a", locale)
+            val day = DateTimeFormatter.ofPattern("d MMM", locale)
+            return TaskTimeFormat(
+                time = { LocalTime.of(it.hour, it.minute).format(clock) },
+                date = { it.format(day) },
             )
         }
     }
 }
 
-/** A schedule's parts, ready to be put in words: "Every day at 7:30", "Every Friday at 18:00", "Once, 20 Nov at 9:00". */
+/** A schedule's parts, ready to be put in words: "Every day at 7:30", "Every Friday at 6:00 PM", "Once, 20 Nov at 9:00". */
 sealed interface TaskScheduleSummary {
     data class Daily(val time: String) : TaskScheduleSummary
 

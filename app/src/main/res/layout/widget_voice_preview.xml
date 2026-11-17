@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Voice Conversation widget as the widget picker shows it before it is placed: widget_shortcut, filled in. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    tools:targetApi="s"
+    android:orientation="vertical"
+    android:padding="@dimen/widget_padding">
+
+    <!-- Takes the room that is left, so the words sit at the foot of the tile. -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <ImageView
+            android:id="@+id/widget_icon"
+            android:src="@drawable/ic_widget_voice"
+            android:layout_width="@dimen/widget_mark"
+            android:layout_height="@dimen/widget_mark"
+            android:importantForAccessibility="no" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/widget_title"
+        android:text="@string/widget_voice_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_ink"
+        android:textSize="@dimen/widget_title_size"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:text="@string/brand"
+        android:textColor="@color/widget_mute"
+        android:textSize="@dimen/widget_caption_size" />
+</LinearLayout>

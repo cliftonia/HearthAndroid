@@ -9,6 +9,7 @@ import app.hearth.domain.ChatModel
 import app.hearth.domain.ChatRequest
 import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationDataProvider
+import app.hearth.domain.ConversationId
 import app.hearth.domain.ConversationStore
 import app.hearth.domain.DictationProvider
 import app.hearth.domain.DictationUpdate
@@ -35,6 +36,8 @@ import app.hearth.domain.SettingsDataProvider
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechDataProvider
 import app.hearth.domain.SpeechInteractor
+import app.hearth.domain.SyncLocalChange
+import app.hearth.shared.UndoPresenter
 import java.io.IOException
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +82,15 @@ internal class ChatPresenterFixture(
     val level = MutableStateFlow(0.0)
 
     val settingsStore = SettingsStore(settings, SettingsDataProvider(load = { null }, save = {}))
-    val conversationStore = ConversationStore(ConversationDataProvider(loadAll = { stored }, save = {}, delete = {}))
+    /** The chats taken off the disk, and what sync was told of. */
+    val deletedIds = mutableListOf<ConversationId>()
+    val syncChanges = mutableListOf<SyncLocalChange>()
+    val conversationStore = ConversationStore(ConversationDataProvider(loadAll = { stored }, save = {}, delete = { deletedIds += it })).also { store ->
+        store.onLocalChange = { syncChanges += it }
+    }
+
+    /** Holds a deleted chat back while it can be undone. */
+    val undo = UndoPresenter()
     val memoryStore = MemoryStore(MemoryDataProvider(load = { memories }, save = {}))
     val projectStore = ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))
 
@@ -166,6 +177,7 @@ internal class ChatPresenterFixture(
             isLocked = { false },
             isOnScreen = { isOnScreen },
             haptic = { played += it },
+            undo = undo,
         ),
         now = { 0 },
     )

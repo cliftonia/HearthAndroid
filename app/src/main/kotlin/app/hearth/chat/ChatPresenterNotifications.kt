@@ -95,6 +95,7 @@ suspend fun ChatPresenter.quietAction() {
  * model carried over, and the models of whichever server the app was built to start with.
  */
 suspend fun ChatPresenter.resetAction() {
+    drafts.clear()
     state.value = ChatViewModel()
     refreshModelsAction()
 }

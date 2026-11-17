@@ -19,10 +19,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -31,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -57,51 +62,87 @@ import app.hearth.shared.share
  * The canvas: one piece of a reply shown on its own, as it is meant to be seen or as it was written.
  *
  * @param markdown Lays a document out as a reply is. It is handed in because the canvas does not know the chat.
+ * @param canMakePage Whether a page's web view may be made yet. The page over a narrow window waits until it has
+ * risen into place: a web view made while it slides in can be drawn over the whole window for a moment.
+ * @param isFullScreen Whether the canvas is a page over the whole of a narrow window, rather than a column beside the
+ * chat. As a page it has Android's top app bar: the close button at the start, copy and share at the end.
  */
 @Composable
-fun CanvasScreen(presenter: CanvasPresenter, markdown: @Composable (String) -> Unit, modifier: Modifier = Modifier) {
+fun CanvasScreen(
+    presenter: CanvasPresenter,
+    markdown: @Composable (String) -> Unit,
+    modifier: Modifier = Modifier,
+    canMakePage: Boolean = true,
+    isFullScreen: Boolean = false,
+) {
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
     val content = viewModel.content
     Column(modifier.background(HearthTheme.colors.paper)) {
-        Header(content, presenter::closeAction)
+        if (isFullScreen) PageBar(content, presenter::closeAction) else Header(content, presenter::closeAction)
         if (content != null && (content.kind.hasPreview || content.versionCount > 1)) Controls(content, presenter)
         Box(Modifier.fillMaxWidth().height(HearthTheme.strokes.hairline).background(HearthTheme.colors.line))
         Box(Modifier.fillMaxWidth().weight(1f)) {
             // Another piece opened while the canvas is showing starts afresh, with no page left over from the last.
-            if (content != null) key(viewModel.anchor) { Piece(content, markdown) }
+            if (content != null) key(viewModel.anchor) { Piece(content, markdown, canMakePage) }
         }
     }
 }
 
-/** The title and what it is, then copy, share and close. */
+/** The title and what it is, then copy, share and close: the canvas as a column beside the chat. */
 @Composable
 private fun Header(content: CanvasViewConfiguration?, onClose: () -> Unit) {
-    val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
-    val copy = rememberCopy()
-    val context = LocalContext.current
-    val text = content?.text.orEmpty()
+    Row(Modifier.fillMaxWidth().padding(start = spacing.xxxl, end = spacing.xs, top = spacing.m), verticalAlignment = Alignment.CenterVertically) {
+        TitleLines(content, Modifier.weight(1f))
+        CopyAndShare(content)
+        HearthIconButton(Icons.Outlined.Close, stringResource(R.string.canvas_close), onClick = onClose)
+    }
+}
+
+/** The canvas as a page of its own: Android's top app bar, closed from the start, with copy and share at the end. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PageBar(content: CanvasViewConfiguration?, onClose: () -> Unit) {
+    TopAppBar(
+        title = { TitleLines(content) },
+        navigationIcon = { HearthIconButton(Icons.Outlined.Close, stringResource(R.string.canvas_close), onClick = onClose) },
+        actions = { CopyAndShare(content) },
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = HearthTheme.colors.paper),
+        // The window's edges are kept clear by the page's own padding.
+        windowInsets = WindowInsets(0, 0, 0, 0),
+    )
+}
+
+/** The piece's title, and beneath it what it is or that it is still being written. */
+@Composable
+private fun TitleLines(content: CanvasViewConfiguration?, modifier: Modifier = Modifier) {
+    val colors = HearthTheme.colors
     val detail = when {
         content == null -> ""
         content.isWriting -> stringResource(R.string.canvas_writing)
         else -> canvasDetail(content.title, content.kind, content.lineCount)
     }
-    Row(Modifier.fillMaxWidth().padding(start = spacing.xxxl, end = spacing.xs, top = spacing.m), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-            Text(
-                content?.let { canvasTitle(it.title, it.kind) } ?: stringResource(R.string.canvas_title),
-                color = colors.ink,
-                style = HearthTheme.type.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(detail, color = colors.mute, style = HearthTheme.type.captionSnug, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.canvas_copy)) { copy(text) }
-        HearthIconButton(Icons.Outlined.Share, stringResource(R.string.canvas_share)) { share(context, text) }
-        HearthIconButton(Icons.Outlined.Close, stringResource(R.string.canvas_close), onClick = onClose)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xxs)) {
+        Text(
+            content?.let { canvasTitle(it.title, it.kind) } ?: stringResource(R.string.canvas_title),
+            color = colors.ink,
+            style = HearthTheme.type.title,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.semantics { heading() },
+        )
+        Text(detail, color = colors.mute, style = HearthTheme.type.captionSnug, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
+}
+
+/** Copies the piece as it was written, or hands it to another app. */
+@Composable
+private fun CopyAndShare(content: CanvasViewConfiguration?) {
+    val copy = rememberCopy()
+    val context = LocalContext.current
+    val text = content?.text.orEmpty()
+    HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.canvas_copy)) { copy(text) }
+    HearthIconButton(Icons.Outlined.Share, stringResource(R.string.canvas_share)) { share(context, text) }
 }
 
 /** The switch between the preview and the code, for a piece that has both, and the stepper between versions. */
@@ -161,7 +202,7 @@ private fun VersionStepper(content: CanvasViewConfiguration, onStep: (Int) -> Un
  * from the network.
  */
 @Composable
-private fun Piece(content: CanvasViewConfiguration, markdown: @Composable (String) -> Unit) {
+private fun Piece(content: CanvasViewConfiguration, markdown: @Composable (String) -> Unit, canMakePage: Boolean) {
     var isPreviewUnavailable by remember { mutableStateOf(false) }
     val isPreview = content.mode == CanvasModeKind.PREVIEW
     // The page last finished. One still being written hands nothing over, so the web view is made only for a
@@ -172,9 +213,10 @@ private fun Piece(content: CanvasViewConfiguration, markdown: @Composable (Strin
     val lastFinished = remember { arrayOfNulls<String>(1) }
     if (finished != null) lastFinished[0] = finished
     val page = lastFinished[0]
-    if (page != null && !isPreviewUnavailable) {
-        // Kept while the code is looked at, unseen and out of reach, so that a page goes on as it was.
-        CanvasWebPreview(page, isShown = isPreview, onUnavailable = { isPreviewUnavailable = true }, modifier = Modifier.fillMaxSize())
+    if (page != null && !isPreviewUnavailable && canMakePage) {
+        // Kept while the code is looked at, unseen and out of reach, so that a page goes on as it was. Clipped, so that
+        // the web view never draws outside its place, whatever it was told its size was.
+        CanvasWebPreview(page, isShown = isPreview, onUnavailable = { isPreviewUnavailable = true }, modifier = Modifier.fillMaxSize().clipToBounds())
     }
     when {
         !isPreview -> CanvasCodeSection(content.text, content.isWriting)

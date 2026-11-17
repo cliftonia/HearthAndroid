@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -38,6 +38,7 @@ import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.isLargeFont
 import app.hearth.shared.rememberConversationExporter
 import app.hearth.shared.share
 
@@ -81,7 +82,8 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
             )
         }
         Column(Modifier.weight(1f)) {
-            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Large text is given a second line before the title is cut short.
+            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = if (isLargeFont()) 2 else 1, overflow = TextOverflow.Ellipsis)
             // A chat a scheduled task filed says so, under its title.
             if (conversation.taskId != null && hasTaskMark) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xs)) {
@@ -99,7 +101,7 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
             )
         }
         Box {
-            HearthIconButton(Icons.Outlined.MoreHoriz, optionsLabel, tint = colors.mute) { isMenuOpen = true }
+            HearthIconButton(Icons.Outlined.MoreVert, optionsLabel, tint = colors.mute) { isMenuOpen = true }
             DropdownMenu(expanded = isMenuOpen, onDismissRequest = { isMenuOpen = false }) {
                 val pinLabel = if (conversation.isPinned) R.string.drawer_unpin else R.string.drawer_pin
                 val actions = listOfNotNull(

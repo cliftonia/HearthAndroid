@@ -158,6 +158,13 @@
     <string name="drawer_chat_title">Title</string>
     <string name="drawer_save">Save</string>
     <string name="drawer_delete">Delete</string>
+    <string name="undo_chat_deleted">Chat deleted</string>
+    <string name="undo_memory_forgotten">Memory forgotten</string>
+    <string name="undo_action">Undo</string>
+    <string name="discard_question">Discard changes?</string>
+    <string name="discard_keep_editing">Keep editing</string>
+    <string name="discard_confirm">Discard</string>
+    <string name="shortcut_new_line">New line</string>
     <string name="drawer_empty">No chats yet</string>
     <string name="drawer_settings">Settings</string>
     <string name="drawer_not_connected">Not connected</string>
@@ -194,10 +201,13 @@
     <string name="project_no_files">No files yet</string>
     <string name="project_files_footer">PDFs and text files. Every chat in this project can draw on what they say.</string>
     <string name="project_delete">Delete project</string>
-    <string name="project_delete_question">Delete this project? Its chats are kept.</string>
+    <string name="project_delete_question">Delete project?</string>
+    <string name="project_delete_message">Its chats are kept.</string>
     <string name="error_project_save_failed">The project could not be saved. It is as it was.</string>
-    <string name="common_done">Done</string>
     <string name="common_ok">OK</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_save">Save</string>
+    <string name="common_copied">Copied</string>
 
     <string name="settings_back">Back</string>
     <string name="settings_cancel">Cancel</string>
@@ -246,7 +256,7 @@
     <string name="profile_follow_ups_footer">Suggestions cost one extra short request per reply.</string>
     <string name="profile_erase_all">Erase all data on this device</string>
     <string name="profile_erase_all_footer">This removes everything Hearth keeps on this device and turns sync off. Your hub and your other devices keep their copies; nothing is deleted there.</string>
-    <string name="profile_erase_all_question">Erase all data on this device?</string>
+    <string name="profile_erase_all_question">Erase all data?</string>
     <string name="profile_erase_all_message">Your chats, projects, memories, profile and saved settings will be erased from this device, server addresses included, and sync will be turned off. Your hub and other devices keep their copies. Hearth will be as it was when first opened. This cannot be undone.</string>
     <string name="profile_erase_all_confirm">Erase everything</string>
     <string name="profile_erase_all_failed">Not everything could be erased. Try again.</string>
@@ -262,6 +272,8 @@
     <string name="notifications_tasks">Scheduled tasks</string>
     <string name="notifications_tasks_detail">When a scheduled task\'s answer arrives while Hearth is not on screen.</string>
     <string name="notifications_replies_and_tasks">Replies, Scheduled tasks</string>
+    <string name="notifications_blocked">Off — blocked in phone settings</string>
+    <string name="notifications_channel_blocked">This kind of notification is turned off for Hearth in the phone\'s Settings.</string>
 
     <string name="haptics_title">Vibration</string>
     <string name="haptics_footer">A light tap when a message is sent, a reply finishes or something is switched. It follows the phone\'s own touch feedback setting, and a device with nothing to tap with gives none.</string>
@@ -275,7 +287,9 @@
     <string name="memory_none">Nothing is remembered yet.</string>
     <string name="memory_delete">Forget: %1$s</string>
     <string name="memory_clear">Forget all memories</string>
-    <string name="memory_clear_question">Forget every saved memory?</string>
+    <string name="memory_forget">Forget</string>
+    <string name="memory_clear_question">Forget all memories?</string>
+    <string name="memory_clear_message">Everything Hearth has saved about you is forgotten.</string>
     <plurals name="memory_on_count">
         <item quantity="one">On · %1$d saved</item>
         <item quantity="other">On · %1$d saved</item>
@@ -387,8 +401,9 @@
     <string name="lock_title">Unlock Hearth</string>
     <string name="lock_reason">Unlock your conversations.</string>
     <string name="lock_enable_reason">Confirm it is you to turn on the lock.</string>
-    <string name="lock_unlock_biometric">Unlock with fingerprint, face or screen lock</string>
-    <string name="lock_unlock_screen_lock">Unlock with screen lock (PIN, pattern or password)</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_method_biometric">With your fingerprint, face or screen lock</string>
+    <string name="lock_method_screen_lock">With your screen lock: PIN, pattern or password</string>
 
     <string name="voice_listening">Listening</string>
     <string name="voice_thinking">Thinking</string>
@@ -428,6 +443,8 @@
     <string name="sync_hub_footer">Your own Hearth Hub keeps your chats, projects and memories in step between your devices. Private chats, settings, server addresses and your profile are never synced.</string>
     <string name="sync_token">Access key</string>
     <string name="sync_token_placeholder">Optional</string>
+    <string name="sync_token_show">Show access key</string>
+    <string name="sync_token_hide">Hide access key</string>
     <string name="sync_token_saved_placeholder">Saved. Type a new one to replace it</string>
     <string name="sync_token_footer">Only if your hub asks for one. It is sealed with a key kept by this phone and is never synced.</string>
     <string name="sync_save_token">Save key</string>
@@ -468,7 +485,7 @@
     <string name="tasks_not_run">Not run yet</string>
     <string name="tasks_last_run">Last run %1$s</string>
     <string name="tasks_last_run_failed">Last run failed %1$s</string>
-    <string name="tasks_switch">Run %1$s</string>
+    <string name="tasks_switch">%1$s, active</string>
     <string name="tasks_edit">Edit %1$s</string>
     <string name="tasks_untitled">Untitled task</string>
     <string name="task_schedule_daily">Every day at %1$s</string>
@@ -485,7 +502,6 @@
     <string name="task_model_automatic">Automatic</string>
     <string name="task_model_automatic_detail">Kimi in the cloud, then your own model if the graphics card is free.</string>
     <string name="task_model_none">The chat server offers no cloud models, so Automatic is the only choice.</string>
-    <string name="task_model_chosen">Model, %1$s</string>
     <string name="task_repeat">Repeat</string>
     <string name="task_repeat_daily">Every day</string>
     <string name="task_repeat_weekly">Every week</string>
@@ -500,8 +516,11 @@
     <string name="task_save">Save</string>
     <string name="task_save_failed">The task could not be saved. Try again.</string>
     <string name="task_delete">Delete task</string>
-    <string name="task_delete_question">Delete this task?</string>
+    <string name="task_delete_question">Delete task?</string>
     <string name="task_delete_message">It stops running on the hub and is deleted from all your devices. Chats it has already filed are kept.</string>
-    <string name="task_done">Done</string>
+    <string name="task_time_select">Select time</string>
+    <string name="task_time_enter">Enter time</string>
+    <string name="task_time_use_keyboard">Type the time</string>
+    <string name="task_time_use_clock">Choose the time on a clock</string>
     <string name="chat_scheduled_task">Scheduled task</string>
 </resources>

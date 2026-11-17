@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  A tile two cells each way. From Android 12 the widget picker lays out the preview as the widget will look; before
+  it, it shows a picture of it.
+-->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/widget_voice_description"
     android:initialLayout="@layout/widget_shortcut"
     android:minWidth="@dimen/widget_min_side"
     android:minHeight="@dimen/widget_min_side"
+    android:previewImage="@drawable/widget_preview_voice"
+    android:previewLayout="@layout/widget_voice_preview"
     android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="2"
     android:updatePeriodMillis="0"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    tools:targetApi="s" />

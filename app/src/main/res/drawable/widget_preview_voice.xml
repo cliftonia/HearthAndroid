@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The picture of the widget the widget picker shows before Android 12, which cannot lay out a preview: its tile and symbol. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="@dimen/widget_min_side"
+        android:height="@dimen/widget_min_side"
+        android:drawable="@drawable/widget_background" />
+    <item
+        android:width="@dimen/widget_mark"
+        android:height="@dimen/widget_mark"
+        android:drawable="@drawable/ic_widget_voice"
+        android:gravity="top|start"
+        android:left="@dimen/widget_padding"
+        android:top="@dimen/widget_padding" />
+</layer-list>

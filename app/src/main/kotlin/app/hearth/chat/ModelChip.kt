@@ -4,8 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
@@ -26,33 +27,55 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.isLargeFont
 
 /**
  * The model the message goes to and how hard it will think, or the picture model while pictures are being made.
  * Tapping it opens the sheet where both are chosen.
  *
- * The name gives way before the effort does: where there is not room for all of it, its middle is left out.
+ * The name gives way before the effort does: where there is not room for all of it, its middle is left out. With
+ * large text that would leave nothing of the name, so there the effort goes on a line under it. The chip grows taller
+ * with its text rather than cutting it off.
  * [isEffortProminent] shows the effort in the brand colour, as research is, so that it is plain what the next
  * message will set off.
  */
 @Composable
 internal fun ModelChip(name: String, effort: String, label: String, modifier: Modifier = Modifier, isEffortProminent: Boolean = false, onClick: () -> Unit) {
     val colors = HearthTheme.colors
-    Row(
-        modifier
-            // A finger is given the least it needs, round the chip as it is drawn.
-            .minimumInteractiveComponentSize()
-            .height(HearthTheme.sizes.controlS)
-            .clip(HearthTheme.shapes.pill)
-            .background(colors.bubble)
-            .clickable(onClickLabel = label, role = Role.Button, onClick = onClick)
-            .padding(horizontal = HearthTheme.spacing.xl),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s),
-    ) {
-        val nameRoom = Modifier.weight(1f, fill = false).widthIn(max = HearthTheme.sizes.chipLabelMaxWidth)
-        MiddleTruncatedText(name, colors.ink, HearthTheme.type.footnoteStrong, nameRoom)
-        if (effort.isNotEmpty()) Text(effort, color = if (isEffortProminent) colors.pine else colors.mute, style = HearthTheme.type.footnote, maxLines = 1, softWrap = false)
+    val isLarge = isLargeFont()
+    val chip = modifier
+        // A finger is given the least it needs, round the chip as it is drawn.
+        .minimumInteractiveComponentSize()
+        .heightIn(min = HearthTheme.sizes.controlS)
+        // Two lines in a pill would be an oval, so the stacked chip has the field's corners.
+        .clip(if (isLarge) HearthTheme.shapes.field else HearthTheme.shapes.pill)
+        .background(colors.bubble)
+        .clickable(onClickLabel = label, role = Role.Button, onClick = onClick)
+        .padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.xxs)
+    val nameRoom = Modifier.widthIn(max = HearthTheme.sizes.chipLabelMaxWidth)
+    val effortText: @Composable () -> Unit = {
+        if (effort.isNotEmpty()) {
+            Text(
+                effort,
+                color = if (isEffortProminent) colors.pine else colors.mute,
+                style = HearthTheme.type.footnote,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+    if (isLarge) {
+        // Large text has no room for both on one line, so the effort goes under the name rather than squeezing it.
+        Column(chip, verticalArrangement = Arrangement.Center) {
+            MiddleTruncatedText(name, colors.ink, HearthTheme.type.footnoteStrong, nameRoom)
+            effortText()
+        }
+    } else {
+        Row(chip, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s)) {
+            MiddleTruncatedText(name, colors.ink, HearthTheme.type.footnoteStrong, Modifier.weight(1f, fill = false).then(nameRoom))
+            effortText()
+        }
     }
 }
 

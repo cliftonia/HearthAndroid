@@ -3,6 +3,7 @@ package app.hearth.settings
 import app.hearth.domain.ImageModelKind
 import app.hearth.domain.ScheduledTask
 import app.hearth.domain.ServerReachability
+import app.hearth.domain.NotificationKind
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SyncSettings
 
@@ -32,8 +33,8 @@ sealed interface VoiceRowStatus {
     data class Chosen(val voice: String, val readsAloud: Boolean) : VoiceRowStatus
 }
 
-/** Which notifications are on. */
-enum class NotificationsRowStatus { OFF, REPLIES, TASKS, REPLIES_AND_TASKS }
+/** Which notifications are on, or that those switched on are all held back by the phone's own settings. */
+enum class NotificationsRowStatus { OFF, REPLIES, TASKS, REPLIES_AND_TASKS, BLOCKED }
 
 /** The chat server: being checked, answered with this many models, did not answer, or not yet asked. */
 sealed interface ServersRowStatus {
@@ -78,11 +79,27 @@ enum class PicturesEmptyNote { NO_ADDRESS, NO_ANSWER }
 fun picturesEmptyNote(settings: ServerSettings): PicturesEmptyNote =
     if (settings.imageUrl == null) PicturesEmptyNote.NO_ADDRESS else PicturesEmptyNote.NO_ANSWER
 
-fun notificationsRowStatus(settings: ServerSettings): NotificationsRowStatus = when {
-    settings.isReplyNotificationsEnabled && settings.isTaskNotificationsEnabled -> NotificationsRowStatus.REPLIES_AND_TASKS
-    settings.isReplyNotificationsEnabled -> NotificationsRowStatus.REPLIES
-    settings.isTaskNotificationsEnabled -> NotificationsRowStatus.TASKS
-    else -> NotificationsRowStatus.OFF
+/**
+ * Whether a kind of notification switched on here will actually be posted: the phone must allow the app's
+ * notifications ([isAllowed], `null` until asked, taken as allowed) and must not have that kind's channel turned off.
+ */
+fun isNotificationShown(isEnabled: Boolean, isAllowed: Boolean?, blocked: Set<NotificationKind>, kind: NotificationKind): Boolean =
+    isEnabled && isAllowed != false && kind !in blocked
+
+/**
+ * Which notifications will be posted, as the user would find them: a switch that is on counts only while the phone
+ * lets that kind through. Where every switch that is on is held back by the phone, the row says so.
+ */
+fun notificationsRowStatus(settings: ServerSettings, isAllowed: Boolean? = null, blocked: Set<NotificationKind> = emptySet()): NotificationsRowStatus {
+    val replies = isNotificationShown(settings.isReplyNotificationsEnabled, isAllowed, blocked, NotificationKind.REPLY)
+    val tasks = isNotificationShown(settings.isTaskNotificationsEnabled, isAllowed, blocked, NotificationKind.TASK)
+    return when {
+        replies && tasks -> NotificationsRowStatus.REPLIES_AND_TASKS
+        replies -> NotificationsRowStatus.REPLIES
+        tasks -> NotificationsRowStatus.TASKS
+        settings.isReplyNotificationsEnabled || settings.isTaskNotificationsEnabled -> NotificationsRowStatus.BLOCKED
+        else -> NotificationsRowStatus.OFF
+    }
 }
 
 /**

@@ -4,6 +4,10 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.KeyboardShortcutInfo
+import android.view.Menu
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.WindowManager
@@ -102,6 +106,28 @@ class MainActivity : FragmentActivity() {
                 }
             },
         )
+    }
+
+    /**
+     * Ctrl and N, on a keyboard plugged into the phone, starts a new chat, as on a computer. The phone offers a key
+     * held with Ctrl here once nothing on screen has taken it. Not while locked.
+     */
+    override fun onKeyShortcut(keyCode: Int, event: KeyEvent): Boolean {
+        val isNewChat = keyCode == KeyEvent.KEYCODE_N && event.isCtrlPressed && !event.isAltPressed && !event.isShiftPressed
+        if (!isNewChat || !coordinator.isReady.value || coordinator.lock.isLocked.value) return super.onKeyShortcut(keyCode, event)
+        if (event.repeatCount == 0) coordinator.startNewChat()
+        return true
+    }
+
+    /** Lists the app's keyboard shortcuts where the phone shows them, as when Meta and / are held. */
+    override fun onProvideKeyboardShortcuts(data: MutableList<KeyboardShortcutGroup>, menu: Menu?, deviceId: Int) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        val shortcuts = listOf(
+            KeyboardShortcutInfo(getString(R.string.chat_new), KeyEvent.KEYCODE_N, KeyEvent.META_CTRL_ON),
+            KeyboardShortcutInfo(getString(R.string.composer_send), KeyEvent.KEYCODE_ENTER, 0),
+            KeyboardShortcutInfo(getString(R.string.shortcut_new_line), KeyEvent.KEYCODE_ENTER, KeyEvent.META_SHIFT_ON),
+        )
+        data.add(KeyboardShortcutGroup(getString(R.string.brand), shortcuts))
     }
 
     override fun onNewIntent(intent: Intent) {

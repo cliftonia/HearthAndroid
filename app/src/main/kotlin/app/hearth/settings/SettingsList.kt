@@ -2,13 +2,12 @@ package app.hearth.settings
 
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -21,7 +20,9 @@ import app.hearth.R
 import app.hearth.designsystem.HearthCard
 import app.hearth.designsystem.HearthPageRow
 import app.hearth.designsystem.HearthSwitchRow
+import app.hearth.designsystem.HearthSegmentedChoice
 import app.hearth.designsystem.HearthTheme
+import app.hearth.shared.withoutHeldMemory
 import app.hearth.domain.Appearance
 import app.hearth.domain.ServerSettings
 import app.hearth.integrations.hasVibrator
@@ -51,7 +52,13 @@ internal fun SettingsList(
         HearthPageRow(stringResource(R.string.picture_section), picture, presenter::picturesAction)
     }
     HearthCard(stringResource(R.string.notifications_title)) {
-        HearthPageRow(stringResource(R.string.notifications_title), notificationsRowWords(notificationsRowStatus(settings)), presenter::notificationsAction)
+        val isAllowed by presenter.notificationsAllowed.collectAsStateWithLifecycle()
+        val blocked by presenter.blockedNotifications.collectAsStateWithLifecycle()
+        // The phone's settings may have changed while the app was away; the row says what will really happen.
+        LaunchedEffect(Unit) { presenter.refreshNotificationPermissionAction() }
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { presenter.refreshNotificationPermissionAction() }
+        val status = notificationsRowStatus(settings, isAllowed, blocked)
+        HearthPageRow(stringResource(R.string.notifications_title), notificationsRowWords(status), presenter::notificationsAction)
     }
     AppearanceGroup(settings, presenter, authenticate, unlockMethod)
     ServersGroup(presenter)
@@ -61,7 +68,9 @@ internal fun SettingsList(
 /** Memory, follow-up questions, web search and the scheduled tasks. */
 @Composable
 private fun ChatsGroup(settings: ServerSettings, presenter: SettingsPresenter) {
-    val memories by presenter.memories.collectAsStateWithLifecycle()
+    val savedMemories by presenter.memories.collectAsStateWithLifecycle()
+    val heldDelete by presenter.heldDelete.collectAsStateWithLifecycle()
+    val memories = savedMemories.withoutHeldMemory(heldDelete)
     val tasks by presenter.tasks.collectAsStateWithLifecycle()
     val sync by presenter.syncSettings.collectAsStateWithLifecycle()
     HearthCard(stringResource(R.string.settings_group_chats)) {
@@ -116,14 +125,8 @@ private fun ThemeRow(settings: ServerSettings, presenter: SettingsPresenter) {
     )
     Column {
         Text(stringResource(R.string.settings_theme), color = HearthTheme.colors.ink, style = HearthTheme.type.subhead)
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            Appearance.entries.forEachIndexed { index, appearance ->
-                SegmentedButton(
-                    selected = settings.appearance == appearance,
-                    onClick = { presenter.updateAction { it.copy(appearance = appearance) } },
-                    shape = SegmentedButtonDefaults.itemShape(index, Appearance.entries.size),
-                ) { Text(stringResource(titles.getValue(appearance))) }
-            }
+        HearthSegmentedChoice(Appearance.entries.map { it to stringResource(titles.getValue(it)) }, settings.appearance) { appearance ->
+            presenter.updateAction { it.copy(appearance = appearance) }
         }
     }
 }
@@ -176,6 +179,7 @@ private fun notificationsRowWords(status: NotificationsRowStatus): String = when
     NotificationsRowStatus.REPLIES -> stringResource(R.string.notifications_replies)
     NotificationsRowStatus.TASKS -> stringResource(R.string.notifications_tasks)
     NotificationsRowStatus.REPLIES_AND_TASKS -> stringResource(R.string.notifications_replies_and_tasks)
+    NotificationsRowStatus.BLOCKED -> stringResource(R.string.notifications_blocked)
 }
 
 @Composable

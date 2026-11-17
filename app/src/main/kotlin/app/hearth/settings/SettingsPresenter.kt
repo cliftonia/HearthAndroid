@@ -11,6 +11,7 @@ import app.hearth.domain.MemoryId
 import app.hearth.domain.MemoryRequest
 import app.hearth.domain.MemoryStore
 import app.hearth.domain.ModelStore
+import app.hearth.domain.NotificationKind
 import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProfileStore
 import app.hearth.domain.ServerReachability
@@ -18,6 +19,9 @@ import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsStore
 import app.hearth.domain.SpeechInteractor
 import app.hearth.shared.ErrorViewConfiguration
+import app.hearth.shared.HeldDelete
+import app.hearth.shared.UndoPresenter
+import app.hearth.shared.UndoTarget
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +94,8 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         val tasks: TaskControls,
         /** What the sync page is built from. */
         val sync: SyncControls,
+        /** Holds a forgotten memory back while that can be undone. */
+        val undo: UndoPresenter = UndoPresenter(),
     )
 
     private val settingsStore = dependencies.settingsStore
@@ -101,11 +107,16 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     internal val profileErrorState = MutableStateFlow<ProfileErrorKind?>(null)
     internal val erasingState = MutableStateFlow(false)
     internal val notificationsAllowedState = MutableStateFlow<Boolean?>(null)
+    internal val notificationsBlockedState = MutableStateFlow<Set<NotificationKind>>(emptySet())
     internal val syncAddressState = MutableStateFlow("")
     internal val syncTokenDraftState = MutableStateFlow("")
     internal val syncCheckState = MutableStateFlow<SyncCheck?>(null)
     internal val taskDraftState = MutableStateFlow<TaskDraft?>(null)
     internal val taskErrorState = MutableStateFlow<ErrorViewConfiguration?>(null)
+
+    /** The task draft as the editor opened with it, against which a change is told. */
+    internal var taskOpenedDraft: TaskDraft? = null
+    internal val taskDiscardState = MutableStateFlow(false)
 
     /** Whether the tasks pages were opened from the chat's composer, which leaving them goes back to. */
     internal var isTaskFromChat = false
@@ -123,6 +134,9 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     val voices: StateFlow<List<String>> = voiceState.asStateFlow()
     val settings: StateFlow<ServerSettings> = settingsStore.settings
     val memories: StateFlow<List<Memory>> = memoryStore.memories
+
+    /** A delete that can still be undone; a memory being forgotten is left out of the page until then. */
+    val heldDelete: StateFlow<HeldDelete?> = dependencies.undo.held
 
     /** Whether the chat server answered when the chat last asked it for its models. */
     val reachability: StateFlow<ServerReachability> = modelStore.reachability
@@ -270,8 +284,14 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
         scope.launch { memoryStore.apply(MemoryRequest.Save(text), isFromUser = true) }
     }
 
+    /**
+     * Forgets one memory once the time to undo that is over; until then it is only left out of the page, so an undone
+     * forgetting never reaches the disk or sync.
+     */
     fun deleteMemoryAction(id: MemoryId) {
-        scope.launch { memoryStore.apply(MemoryRequest.Delete(id), isFromUser = true) }
+        dependencies.undo.hold(UndoTarget.Memory(id), commit = {
+            scope.launch { memoryStore.apply(MemoryRequest.Delete(id), isFromUser = true) }
+        })
     }
 
     /** Forgets everything. If that could not be written, the memories stay as they were. */

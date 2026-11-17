@@ -34,14 +34,14 @@ app/src/main/kotlin/app/hearth/
 ├── chat/                    The conversation: presenter, view model, screen, composer, hold to talk, greeting, messages, pictures, research, the canvas's cards
 ├── canvas/                  The canvas: presenter, view model, screen, the code view, the web view and its guard, the wide layout
 ├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
-├── project/                 The sheet that makes, edits and deletes a project: presenter, view model, sheet
+├── project/                 The editor that makes, edits and deletes a project: presenter, view model, full-screen dialog
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
 ├── settings/                Settings: presenter, screen, the list and what each row says, one file per page (profile, memory, web search, scheduled tasks, voice, pictures, notifications, servers, sync)
 ├── sync/                    When to sync (`SyncScheduler`), the background job (`BackgroundSync`), task notifications, and the hooks sync is given into the chat
 ├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
-├── shared/                  The little that more than one feature needs and is not styling
+├── shared/                  The little that more than one feature needs and is not styling: undoing a delete, the discard question, errors, sharing
 ├── widget/                  The home screen widgets
 └── integrations/            Wrappers round the platform: speech recogniser, media player, camera, files, saved pictures, profile photo, notifications, the hub token's keystore seal, what the phone can unlock with, whether it can vibrate
 
@@ -205,7 +205,8 @@ not be able to plant a memory. A project with instructions alone leaves memory o
 filed, newest first, with **Manage** leading to the tasks page), then the dated groups. Each chat is under one
 heading only, so a task's chat is not listed again under its day, and a pinned one stays under Pinned. Choosing a
 project narrows the list to its chats, and `DrawerSections` does the narrowing and the grouping. Two sheets belong to projects, each a feature
-of its own: `project` makes and edits one, `projectpicker` files a chat. The coordinator holds one value,
+of its own: `project` makes and edits one (a full-screen dialog on a phone, a dialog in the middle of a wider window),
+`projectpicker` files a chat (a bottom sheet). The coordinator holds one value,
 `projectSheet`, for both, so that the picker can give way to the editor when a new project is wanted for a chat;
 `RootView` draws whichever it names over everything else.
 
@@ -215,7 +216,7 @@ Research answers one question with a report written from pages the app searched 
 any other: it runs with the chat's selected model, streams into a reply, and is saved in the conversation. It
 mirrors the iPhone app step for step, with the same bounds, prompts and wording.
 
-- **Chosen as an effort.** The model sheet's Effort menu lists the thinking levels and then Deep research.
+- **Chosen as an effort.** The model sheet's Effort dropdown lists the thinking levels and then Deep research.
   `EffortChoiceKind` is that choice: `Thinking(ThinkingLevel)` or `Research`. Research is never a thinking level
   and is never sent to the model as one; while it is chosen the model thinks at the level saved in the settings.
   A thinking level is saved for every chat (`ServerSettings.thinkingLevel`); research is only
@@ -294,7 +295,8 @@ app rule for rule, with the same wording.
   room for all three (each of the chat and the canvas wants `canvasColumnMinWidth`), which needs no state of its
   own, so closing brings the list back, and the chat list's button closes the canvas while the list is crowded
   out. A narrow window shows a page that rises over the chat; the chat stays as it was beneath it, out of reach of
-  touch and of a screen reader. The canvas closes by its button, by the back button, by the lock, by the settings
+  touch and of a screen reader. Its web view is made only once the page has risen into place, and is clipped to it:
+  one made during the slide could be drawn over the whole window. The canvas closes by its button, by the back button, by the lock, by the settings
   or a voice conversation taking the chat's place, and when its piece is no longer in the open chat, as when
   another chat or a new chat is opened.
 - **A generated page is untrusted.** `CanvasWebPolicy` in the domain holds the decisions and `CanvasWebPreview`
@@ -379,6 +381,48 @@ app rule for rule, with the same wording.
   (firing a frame's handlers inside a shadow root, or a newer API) would reopen it. So a page should not be
   thought of as sealed.
 
+## Undo, unsaved changes and drafts
+
+**Deleting a chat or forgetting a memory can be undone.** The delete is held back, not carried out and restored:
+`UndoPresenter` (in `shared`, owned by the coordinator and handed to the drawer, chat and settings presenters) hides
+the item while a snackbar offers Undo, and carries the delete out through the store only when the snackbar's time is
+over, when another delete is held, or when the app leaves the screen. So an undone delete never reached the disk or
+sync, and a chat brought back leaves no tombstone on the hub. The views leave the held item out of their lists with
+`withoutHeld` and `withoutHeldMemory`. Undoing a delete made from the chat's own menu opens the chat again. Erasing
+lets go of whatever was held.
+
+**Leaving an editor with changes asks first.** The project editor (by its close button or back) and the task editor
+(by back) ask "Discard changes?" when the draft
+differs from how it opened (`ProjectViewModel.hasChanges`, `TaskDraft.differsFrom`); space typed round a name is not a
+change. Nothing moves until the user answers.
+
+**Each chat keeps its own draft.** What was typed and not sent stays with the chat it was written in
+(`ChatPresenter.drafts`, for as long as the app runs), so it does not follow the user into the next chat; a new chat
+starts empty. A message being edited is not kept as a draft. The iPhone app does the same.
+
+**Back is predictive.** The app opts in to `OnBackInvokedCallback`. The drawer and the sheets are Material's and follow
+a back gesture themselves; the settings and the canvas follow it through `PredictiveBackHandler` in `RootView`,
+drawing the page a little smaller or lower as the gesture is made, and go back only when it is let go. A voice
+conversation ends on back at once. In the drawer, back inside a project's chats first goes up to every chat, and only
+then closes the drawer.
+
+**Android's own patterns, in Hearth's colours.** Where the iPhone app has its own idiom the Android app uses
+Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button; full-screen
+editors with the close button at the start of a top app bar and Save at its end (the project editor, and the task
+editor, whose Save the settings screen's bar carries); labels inside the fields with help as supporting text; exposed
+dropdowns for one choice of a list; settings rows with how things stand beneath the title and no arrow; a top app bar
+tinted once the page scrolls under it; dialogs with a short headline and the explanation in the body. Pages of the
+settings move along Material's shared x axis, and the chat, the settings and a voice conversation give way to each
+other by a fade through (`HearthMotion.kt`); Compose plays both at the phone's animator duration scale. Times follow
+the phone's 12- or 24-hour clock and its language's patterns: the domain takes a `TaskTimeFormat` the app makes from
+the phone (`rememberTaskTimeFormat`), so it stays free of Android. The time picker can be switched to typing. Copying
+shows "Copied" below Android 13, which shows nothing by itself.
+
+**A keyboard and a mouse.** With a hardware keyboard Enter sends and Shift with Enter is a new line (`composerKey`);
+the on-screen keyboard's Enter is left a new line. Ctrl and N starts a new chat (`MainActivity.onKeyShortcut`), and
+the phone's shortcut list names both. Photos, PDFs, text files and words dragged onto the composer go the way things
+shared from another app go (`takesDrops`, then `AttachmentLoader.shared`).
+
 ## Profile, and erasing everything
 
 **The names are settings.** `ServerSettings` keeps the full name and the nickname as they were typed, and its
@@ -427,8 +471,12 @@ from a server but what sync brings.
 - The planner says nothing while the app is on screen, while the switch is off, and for a turn that failed or
   came to nothing. For a private chat it gives only `Discreet`: the app's name and "A reply is ready."
 - When the app *is* on screen the same moment is felt as one haptic instead, and never while a reply streams.
-- Leave to notify is asked for by the notifications page, and only when the switch is turned on. A refusal leaves
-  the switch on; the page then says so and leads to the phone's own settings.
+- Each kind has its own channel in the phone's settings, `replies` and `tasks`, so either can be silenced there
+  alone. `NotificationProvider.isKindAllowed` asks whether a channel is on.
+- Leave to notify is asked for by the notifications page, and only when the switch is turned on. A refusal is kept
+  as the user's wish, but the switches and the settings row show the truth ("Off — blocked in phone settings",
+  worked out by `notificationsRowStatus` and `isNotificationShown`), and a notice leads to the phone's page for the
+  app, or for the one channel that was turned off.
 - A notification carries its chat's identifier. Tapping it starts `MainActivity` with
   `app.hearth.action.OPEN_CHAT`, and the coordinator opens that chat, reading the chats from disk first if the
   tap is what launched the app.
@@ -628,7 +676,7 @@ The app is launched through `app.hearth.MainActivity`. That name, the intent act
 `app.hearth.action.VOICE` and `app.hearth.action.NEW_CHAT`, the shortcut id `voice` and the widget classes
 `app.hearth.widget.NewChatWidget` and `VoiceWidget` are known to launchers outside the app, so they stay
 put even when code around them moves. So do `app.hearth.action.OPEN_CHAT`, its extra
-`app.hearth.extra.CONVERSATION_ID` and the notification channel `replies`: a notification posted by one version
+`app.hearth.extra.CONVERSATION_ID` and the notification channels `replies` and `tasks`: a notification posted by one version
 of the app may be tapped after the next is installed.
 
 **The picture server shares one graphics card with the chat server.** `ImageInteractor` therefore asks the chat

@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,16 +17,16 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 
 /**
- * A row in the settings that opens a page: what it shows, then an arrow. The whole row is one button, at least a
- * finger high, heard as [description] alone, so that TalkBack reads it once however many pieces it is drawn from.
- * While it is not [enabled] it cannot be tapped, has no arrow, and is heard as unavailable.
+ * A row in the settings that opens a page, as Android lists settings: no arrow at its end, since the whole row is
+ * plainly something to tap. It is one button, at least a finger high, heard as [description] alone, so that TalkBack
+ * reads it once however many pieces it is drawn from. While it is not [enabled] it cannot be tapped and is heard as
+ * unavailable.
  *
- * @param spacing The room between the pieces of [content] and the arrow.
+ * @param spacing The room between the pieces of [content].
  */
 @Composable
 fun HearthPageRow(
@@ -51,17 +48,14 @@ fun HearthPageRow(
             },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing),
-    ) {
-        content()
-        if (enabled) {
-            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = HearthTheme.colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconM))
-        }
-    }
+        content = content,
+    )
 }
 
 /**
- * A page row of the common kind: its [title], and at its end how things stand there ([status]), or, while it is not
- * [enabled], the reason beneath the title. TalkBack hears the title and the status together ("Memory, On, 12 saved").
+ * A page row of the common kind: its [title], and beneath it how things stand there ([status]) or, while it is not
+ * [enabled], the reason it cannot be opened, as the supporting text of an Android list item. TalkBack hears the title
+ * and the status together ("Memory, On, 12 saved").
  */
 @Composable
 fun HearthPageRow(title: String, status: String, onClick: () -> Unit, enabled: Boolean = true) {
@@ -69,23 +63,9 @@ fun HearthPageRow(title: String, status: String, onClick: () -> Unit, enabled: B
     // The dot that parts the status on screen is a pause when it is heard.
     val description = "$title, ${status.replace(" · ", ", ")}"
     HearthPageRow(description, onClick, enabled) {
-        if (enabled) {
-            // The title is short and kept whole; the status takes the rest of the row, against the arrow.
-            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1)
-            Text(
-                status,
-                color = colors.mute,
-                style = HearthTheme.type.subhead,
-                textAlign = TextAlign.End,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-            Column(Modifier.weight(1f)) {
-                Text(title, color = colors.mute, style = HearthTheme.type.subhead)
-                Text(status, color = colors.mute, style = HearthTheme.type.footnoteSnug)
-            }
+        Column(Modifier.weight(1f).padding(vertical = HearthTheme.spacing.xs)) {
+            Text(title, color = if (enabled) colors.ink else colors.mute, style = HearthTheme.type.subhead)
+            Text(status, color = colors.mute, style = HearthTheme.type.footnoteSnug, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }

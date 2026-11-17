@@ -56,6 +56,9 @@ class ProjectPresenter(
             name = project?.name.orEmpty(),
             instructions = project?.instructions.orEmpty(),
             documents = project?.documents.orEmpty(),
+            openedName = project?.name.orEmpty(),
+            openedInstructions = project?.instructions.orEmpty(),
+            openedDocuments = project?.documents.orEmpty(),
         )
         adoptingId = if (project == null) adopting else null
     }
@@ -84,6 +87,24 @@ class ProjectPresenter(
     // Closing
 
     fun cancelAction() = delegate?.projectPresenterDidFinish(ProjectOutcome.Cancelled) ?: Unit
+
+    /**
+     * The user asked to put the editor away without saving: by its close button or the back button.
+     * Returns whether it may go. With changes that would be lost it stays, and the user is asked first.
+     */
+    fun dismissRequestAction(): Boolean {
+        if (!state.value.hasChanges) return true
+        state.update { it.copy(isAskingToDiscard = true) }
+        return false
+    }
+
+    /** The user would rather go on with the draft. */
+    fun keepEditingAction() = state.update { it.copy(isAskingToDiscard = false) }
+
+    /** The user chose to throw their changes away: the draft goes back to how it opened, so the sheet may now close. */
+    fun discardAction() = state.update {
+        it.copy(name = it.openedName, instructions = it.openedInstructions, documents = it.openedDocuments, isAskingToDiscard = false)
+    }
 
     /** Keeps the draft: as a new project, or over the one being edited. A project without a name is not kept. */
     fun saveAction() {

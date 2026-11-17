@@ -15,7 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -27,7 +26,6 @@ import app.hearth.designsystem.HearthChoiceRow
 import app.hearth.designsystem.HearthSheetHeader
 import app.hearth.designsystem.HearthTheme
 import app.hearth.shared.ErrorDialog
-import kotlinx.coroutines.launch
 
 /**
  * The sheet that files a chat: the projects to choose from, then a new project and, for a chat already in one,
@@ -39,10 +37,7 @@ fun ProjectPickerSheet(presenter: ProjectPickerPresenter) {
     val projects by presenter.projects.collectAsStateWithLifecycle()
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
-    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
-    // The sheet slides away before it is taken off the screen.
-    val close: () -> Unit = { scope.launch { sheetState.hide() }.invokeOnCompletion { presenter.closeAction() } }
     ModalBottomSheet(
         onDismissRequest = presenter::closeAction,
         sheetState = sheetState,
@@ -50,7 +45,7 @@ fun ProjectPickerSheet(presenter: ProjectPickerPresenter) {
         // No tint from elevation: the sheet is the same paper as the screen it rises over.
         tonalElevation = 0.dp,
     ) {
-        HearthSheetHeader(stringResource(if (viewModel.isMoving) R.string.project_move else R.string.project_add), close)
+        HearthSheetHeader(stringResource(if (viewModel.isMoving) R.string.project_move else R.string.project_add))
         Column(
             Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(start = spacing.xxxl, end = spacing.xxxl, bottom = spacing.xxxl),
             verticalArrangement = Arrangement.spacedBy(spacing.xxxl),

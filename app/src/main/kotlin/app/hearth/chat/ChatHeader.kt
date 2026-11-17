@@ -14,7 +14,7 @@ import androidx.compose.material.icons.filled.Lock as LockFilled
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -173,7 +173,7 @@ private fun ChatControls(conversation: Conversation, isInProject: Boolean, prese
     ) {
         HearthIconButton(HearthIcons.NewChat, stringResource(R.string.chat_new), onClick = presenter::newChatAction)
         Box {
-            HearthIconButton(Icons.Outlined.MoreHoriz, stringResource(R.string.chat_options)) { isMenuOpen = true }
+            HearthIconButton(Icons.Outlined.MoreVert, stringResource(R.string.chat_options)) { isMenuOpen = true }
             ChatMenu(conversation, isInProject, isMenuOpen, presenter, onRename = { isRenaming = true }, onDismiss = { isMenuOpen = false })
         }
     }

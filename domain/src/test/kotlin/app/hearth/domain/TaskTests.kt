@@ -16,8 +16,8 @@ class TaskTests {
     private val brisbane = ZoneId.of("Australia/Brisbane")
     private val templates = Triple("Every day at %1\$s", "Every %1\$s at %2\$s", "Once, %1\$s at %2\$s")
 
-    private fun TaskSchedule.words(): String =
-        summary(brisbane, Locale.ENGLISH).words(templates.first, templates.second, templates.third)
+    private fun TaskSchedule.words(uses24Hour: Boolean = true): String =
+        summary(brisbane, Locale.ENGLISH, TaskTimeFormat.fixed(uses24Hour, Locale.ENGLISH)).words(templates.first, templates.second, templates.third)
 
     @Test
     fun `each kind of schedule is put in words`() {
@@ -27,6 +27,26 @@ class TaskTests {
         assertEquals("Every Friday at 18:00", TaskSchedule.Weekly(TaskTime(18, 0), weekday = 5, "Australia/Brisbane").words())
         assertEquals("Every Monday at 0:05", TaskSchedule.Weekly(TaskTime(0, 5), weekday = 1, "UTC").words())
         assertEquals("Once, 20 Nov at 9:00", TaskSchedule.Once(nineOnTheTwentieth).words())
+    }
+
+    @Test
+    fun `a schedule follows a 12-hour clock when the phone uses one`() {
+        val nineOnTheTwentieth = LocalDateTime.of(2026, 11, 20, 9, 0).atZone(brisbane).toEpochSecond()
+
+        assertEquals("Every day at 7:30 AM", TaskSchedule.Daily(TaskTime(7, 30), "Australia/Brisbane").words(uses24Hour = false))
+        assertEquals("Every Friday at 6:00 PM", TaskSchedule.Weekly(TaskTime(18, 0), weekday = 5, "UTC").words(uses24Hour = false))
+        assertEquals("Every Monday at 12:05 AM", TaskSchedule.Weekly(TaskTime(0, 5), weekday = 1, "UTC").words(uses24Hour = false))
+        assertEquals("Once, 20 Nov at 9:00 AM", TaskSchedule.Once(nineOnTheTwentieth).words(uses24Hour = false))
+    }
+
+    @Test
+    fun `the app's own way of writing times and dates is the one used`() {
+        val format = TaskTimeFormat(time = { "${it.hour}h${it.minute}" }, date = { "${it.monthValue}/${it.dayOfMonth}" })
+        val nineOnTheTwentieth = LocalDateTime.of(2026, 11, 20, 9, 0).atZone(brisbane).toEpochSecond()
+
+        val once = TaskSchedule.Once(nineOnTheTwentieth).summary(brisbane, Locale.ENGLISH, format)
+
+        assertEquals(TaskScheduleSummary.Once("11/20", "9h0"), once)
     }
 
     @Test
@@ -122,7 +142,7 @@ class TaskTests {
         val chat = Conversation(title = "Morning briefing", messages = listOf(Message(role = MessageRole.USER, text = "News?"), answer), taskId = "t1")
 
         val notice = planner.notice(chat, isEnabled = true, isOnScreen = false, fallbackTitle = "Hearth")
-        assertEquals(ReplyNotification(chat.id, "Morning briefing", "Three stories today: rain, trains and a parade."), notice)
+        assertEquals(ReplyNotification(chat.id, "Morning briefing", "Three stories today: rain, trains and a parade.", NotificationKind.TASK), notice)
         assertNull(planner.notice(chat, isEnabled = false, isOnScreen = false, fallbackTitle = "Hearth"))
         assertNull(planner.notice(chat, isEnabled = true, isOnScreen = true, fallbackTitle = "Hearth"))
         assertNull(planner.notice(chat.copy(taskId = null), isEnabled = true, isOnScreen = false, fallbackTitle = "Hearth"))

@@ -17,6 +17,8 @@ import app.hearth.domain.ImageInteractor
 import app.hearth.domain.MemoryDataProvider
 import app.hearth.domain.MemoryStore
 import app.hearth.domain.ModelStore
+import app.hearth.domain.Memory
+import app.hearth.domain.NotificationKind
 import app.hearth.domain.NotificationProvider
 import app.hearth.domain.ProfilePhotoProvider
 import app.hearth.domain.ProfileStore
@@ -40,6 +42,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import app.hearth.shared.UndoPresenter
 import org.junit.Test
 
 /** The settings' own part in the profile, the notifications switch and erasing everything. */
@@ -68,7 +71,13 @@ class SettingsEraseTests {
                 },
             ),
         )
-        val memoryStore = MemoryStore(MemoryDataProvider(load = { emptyList() }, save = {}))
+        var savedMemories = listOf<Memory>()
+        var memoryWriteCount = 0
+        val memoryStore = MemoryStore(MemoryDataProvider(load = { savedMemories }, save = { memoryWriteCount += 1 }))
+
+        /** The kinds of notification whose channel is turned off in the phone's settings. */
+        val blockedKinds = mutableSetOf<NotificationKind>()
+        val undo = UndoPresenter()
         val profileStore = ProfileStore(ProfilePhotoProvider(load = { photoFile }, save = { photoFile = it }, delete = { photoFile = null }))
         val projectStore = ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {}))
         val taskFiles = mutableMapOf<TaskId, ScheduledTask>()
@@ -119,7 +128,7 @@ class SettingsEraseTests {
                     EraseInteractor.Stores(conversationStore, projectStore, memoryStore, profileStore, settingsStore, taskStore),
                     removeNotifications = { events += "notifications removed" },
                 ),
-                notifications = NotificationProvider(isAllowed = { isNotificationAllowed }, post = {}),
+                notifications = NotificationProvider(isAllowed = { isNotificationAllowed }, isKindAllowed = { it !in blockedKinds }, post = {}),
                 quietChat = { events += "chat quietened" },
                 tasks = TaskControls(taskStore, zone = { ZoneId.of("Australia/Brisbane") }, now = { now }),
                 sync = SyncControls(
@@ -127,6 +136,7 @@ class SettingsEraseTests {
                     syncNow = { syncNowCount += 1 },
                     check = { _, _ -> checkAnswer },
                 ),
+                undo = undo,
             ),
         ).also { it.delegate = this }
 

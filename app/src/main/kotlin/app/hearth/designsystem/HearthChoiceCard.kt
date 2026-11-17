@@ -67,8 +67,10 @@ fun HearthChoiceRow(
     ) {
         if (icon != null) Icon(icon, null, tint = tint, modifier = Modifier.size(HearthTheme.sizes.iconM))
         Column(Modifier.weight(1f)) {
-            Text(title, color = tint, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (detail.isNotEmpty()) Text(detail, color = colors.mute, style = HearthTheme.type.footnoteSnug, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Large text is given a second line before anything is cut short.
+            val lines = if (isLargeFont()) 2 else 1
+            Text(title, color = tint, style = HearthTheme.type.subhead, maxLines = lines, overflow = TextOverflow.Ellipsis)
+            if (detail.isNotEmpty()) Text(detail, color = colors.mute, style = HearthTheme.type.footnoteSnug, maxLines = lines, overflow = TextOverflow.Ellipsis)
         }
         // The tick keeps its place when it is not shown, so every name has the same room.
         Icon(Icons.Outlined.Check, null, tint = if (isSelected == true) colors.pine else Color.Transparent, modifier = Modifier.size(HearthTheme.sizes.iconM))

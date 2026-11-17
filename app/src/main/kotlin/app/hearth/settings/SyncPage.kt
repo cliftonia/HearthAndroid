@@ -6,12 +6,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,9 +31,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HearthCard
+import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthSwitchRow
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.SyncFailureKind
@@ -104,16 +112,26 @@ internal fun SyncPage(presenter: SettingsPresenter) {
     }
 }
 
-/** A field for a new access key, never filled with the saved one, and the buttons that keep or forget it. */
+/**
+ * A field for a new access key, never filled with the saved one, and the buttons that keep or forget it. The key is
+ * hidden as it is typed; the eye at the end of the field shows it, to check it, and hides it again.
+ */
 @Composable
 private fun TokenField(presenter: SettingsPresenter, draft: String, hasToken: Boolean) {
+    var isShown by rememberSaveable { mutableStateOf(false) }
     OutlinedTextField(
         value = draft,
         onValueChange = presenter::syncTokenDraftAction,
         label = { Text(stringResource(R.string.sync_token)) },
         placeholder = { Text(stringResource(if (hasToken) R.string.sync_token_saved_placeholder else R.string.sync_token_placeholder)) },
         singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (isShown) VisualTransformation.None else PasswordVisualTransformation(),
+        trailingIcon = {
+            val label = stringResource(if (isShown) R.string.sync_token_hide else R.string.sync_token_show)
+            HearthIconButton(if (isShown) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, label, tint = HearthTheme.colors.mute) {
+                isShown = !isShown
+            }
+        },
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Password,
             autoCorrectEnabled = false,

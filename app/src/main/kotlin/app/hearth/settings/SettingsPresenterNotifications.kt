@@ -1,5 +1,8 @@
 package app.hearth.settings
 
+import app.hearth.domain.NotificationKind
+import kotlinx.coroutines.flow.StateFlow
+
 // The notification switches, which take effect as they are switched.
 
 /**
@@ -7,8 +10,14 @@ package app.hearth.settings
  * question, and each time the app comes back from the phone's own settings, where the answer may have changed.
  */
 fun SettingsPresenter.refreshNotificationPermissionAction() {
-    notificationsAllowedState.value = dependencies.notifications.isAllowed()
+    val notifications = dependencies.notifications
+    notificationsAllowedState.value = notifications.isAllowed()
+    notificationsBlockedState.value = NotificationKind.entries.filterNot(notifications.isKindAllowed).toSet()
 }
+
+/** The kinds of notification whose channel the user turned off in the phone's own settings, as last asked. */
+val SettingsPresenter.blockedNotifications: StateFlow<Set<NotificationKind>>
+    get() = notificationsBlockedState
 
 /**
  * Keeps the Replies switch as it now stands. Asking the phone for leave, which only the screen can do, follows

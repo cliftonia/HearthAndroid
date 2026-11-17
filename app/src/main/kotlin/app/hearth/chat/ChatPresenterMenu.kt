@@ -8,6 +8,7 @@ import app.hearth.domain.ProjectId
 import app.hearth.domain.renamedTitle
 import app.hearth.shared.ErrorKind
 import app.hearth.shared.ErrorViewConfiguration
+import app.hearth.shared.UndoTarget
 import java.io.IOException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -75,17 +76,37 @@ fun ChatPresenter.conversationMoved(id: ConversationId, projectId: ProjectId?) =
     if (it.conversation.id == id) it.copy(conversation = it.conversation.copy(projectId = projectId)) else it
 }
 
-/** Deletes the open chat, stopping any reply on its way, and starts a new one in its place. */
-fun ChatPresenter.deleteChatAction() = changeChat { id ->
-    // The reply is written down as it stops, so it must have stopped before the chat is taken off the disk.
-    stopAndWait()
-    dependencies.conversationStore.delete(id)
-    conversationDeleted(id)
+/**
+ * Deletes the open chat, stopping any reply on its way, and starts a new one in its place. The chat is only hidden
+ * while the delete can be undone, and undoing it opens it again; it is taken off the disk, and sync hears of it,
+ * once that time is over. A chat never saved has nothing to bring back, so it simply goes.
+ */
+fun ChatPresenter.deleteChatAction() {
+    val id = state.value.conversation.id
+    scope.launch {
+        // The reply is written down as it stops, so it must have stopped before the chat is hidden or deleted.
+        stopAndWait()
+        if (dependencies.conversationStore.conversation(id) != null) {
+            dependencies.undo.hold(
+                UndoTarget.Chat(id),
+                commit = {
+                    changeChat(id) {
+                        dependencies.conversationStore.delete(id)
+                        conversationDeleted(id)
+                    }
+                },
+                restore = { selectConversationAction(id) },
+            )
+        }
+        conversationDeleted(id)
+    }
 }
 
 /** Runs a change to the open chat in the store. One that could not be written is logged and the user is told. */
-private fun ChatPresenter.changeChat(action: suspend (ConversationId) -> Unit) {
-    val id = state.value.conversation.id
+private fun ChatPresenter.changeChat(action: suspend (ConversationId) -> Unit) = changeChat(state.value.conversation.id, action)
+
+/** Runs a change to the chat [id] in the store. One that could not be written is logged and the user is told. */
+private fun ChatPresenter.changeChat(id: ConversationId, action: suspend (ConversationId) -> Unit) {
     scope.launch {
         try {
             action(id)
