@@ -1,8 +1,10 @@
 package app.hearth.chat
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,13 +54,12 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.EffortChoiceKind
 import app.hearth.domain.ThinkingLevel
 import app.hearth.integrations.AttachmentLoader
+import app.hearth.shared.rememberDocumentPicker
+import app.hearth.shared.rememberMicrophoneRequest
 import kotlinx.coroutines.launch
 
 /** The most photos that can be picked from the library in one go. */
 private const val MAXIMUM_PHOTOS_PER_PICK = 4
-
-/** The kinds of file offered for attaching: those whose text can be read. */
-private val ATTACHABLE_FILE_TYPES = arrayOf("application/pdf", "text/*", "application/json", "application/xml")
 
 /** The name of a thinking level, in the user's language. */
 @Composable
@@ -104,14 +105,11 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
         if (addresses.isNotEmpty()) scope.launch { presenter.addImagesAction(attachments.photos(addresses)) }
     }
 
-    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                val read = attachments.documents(uris.map(Uri::toString))
-                presenter.addDocumentsAction(read.documents, read.unreadableCount)
-            }
-        }
-    }
+    val pickFiles = rememberDocumentPicker(
+        attachments,
+        onRead = { presenter.addDocumentsAction(it.documents, it.unreadableCount) },
+        onUnavailable = presenter::filesUnavailableAction,
+    )
     val library = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAXIMUM_PHOTOS_PER_PICK)) { uris ->
         addPhotos(uris.map(Uri::toString))
     }
@@ -122,7 +120,12 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
     fun takePhoto() {
         val address = attachments.newCameraAddress()
         cameraAddress = address
-        camera.launch(Uri.parse(address))
+        try {
+            camera.launch(Uri.parse(address))
+        } catch (failure: ActivityNotFoundException) {
+            Log.w(ChatPresenter.TAG, "No camera app: ${failure.javaClass.simpleName}")
+            presenter.cameraUnavailableAction()
+        }
     }
     // An app that uses the camera itself, as a voice conversation does, may borrow the phone's camera app only
     // with the same leave. It is asked for when a photo is first to be taken.
@@ -138,7 +141,7 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                 leadingIcon = { Icon(Icons.Outlined.Description, null, Modifier.size(HearthTheme.sizes.iconS)) },
                 onClick = {
                     isOpen = false
-                    files.launch(ATTACHABLE_FILE_TYPES)
+                    pickFiles()
                 },
             )
             // Photos are offered only where they can be used: by a model that can look at them, or by the picture server.
@@ -198,15 +201,16 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
 /** Starts and stops dictation, asking for the microphone the first time it is needed. */
 @Composable
 internal fun DictationButton(isDictating: Boolean, presenter: ChatPresenter) {
-    val context = LocalContext.current
     val colors = HearthTheme.colors
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) presenter.dictationAction() else presenter.dictationDeniedAction()
-    }
+    val scope = rememberCoroutineScope()
+    val requestMicrophone = rememberMicrophoneRequest()
     val label = stringResource(if (isDictating) R.string.composer_stop_dictation else R.string.composer_dictate)
     HearthIconButton(Icons.Outlined.Mic, label, tint = if (isDictating) colors.danger else colors.mute) {
-        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (isDictating || isAllowed) presenter.dictationAction() else permission.launch(Manifest.permission.RECORD_AUDIO)
+        if (isDictating) {
+            presenter.dictationAction()
+        } else {
+            scope.launch { if (requestMicrophone()) presenter.dictationAction() else presenter.dictationDeniedAction() }
+        }
     }
 }
 

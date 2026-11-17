@@ -96,15 +96,14 @@ internal fun TaskEditorPage(presenter: SettingsPresenter) {
         ) { isOn -> presenter.taskDraftAction { it.copy(usesWebSearch = isOn) } }
     }
     HearthCard {
-        val save = stringResource(R.string.task_save)
         Button(
             onClick = {
                 Haptics.play(HapticKind.SUCCESS)
                 presenter.saveTaskAction()
             },
             enabled = presenter.canSaveTask(current),
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = save },
-        ) { Text(save) }
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text(stringResource(R.string.task_save)) }
         if (current.hasFailed) {
             Text(
                 stringResource(R.string.task_save_failed),
@@ -114,10 +113,7 @@ internal fun TaskEditorPage(presenter: SettingsPresenter) {
             )
         }
         if (current.isExisting) {
-            val delete = stringResource(R.string.task_delete)
-            TextButton(onClick = { isConfirmingDelete = true }, modifier = Modifier.semantics { contentDescription = delete }) {
-                Text(delete, color = colors.danger)
-            }
+            TextButton(onClick = { isConfirmingDelete = true }) { Text(stringResource(R.string.task_delete), color = colors.danger) }
         }
     }
     if (isConfirmingDelete) {
@@ -208,11 +204,11 @@ private fun ScheduleCard(draft: TaskDraft, presenter: SettingsPresenter) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m)) {
             val time = stringResource(R.string.task_time, draft.time.text)
-            OutlinedButton(onClick = { isPickingTime = true }, modifier = Modifier.semantics { contentDescription = time }) { Text(time) }
+            OutlinedButton(onClick = { isPickingTime = true }) { Text(time) }
             if (draft.repeat == TaskRepeatKind.ONCE) {
                 val dateText = draft.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
                 val date = stringResource(R.string.task_date, dateText)
-                OutlinedButton(onClick = { isPickingDate = true }, modifier = Modifier.semantics { contentDescription = date }) { Text(date) }
+                OutlinedButton(onClick = { isPickingDate = true }) { Text(date) }
             }
         }
         Text(taskScheduleWords(draft.schedule(presenter.taskZone())), color = colors.ink, style = HearthTheme.type.subhead)

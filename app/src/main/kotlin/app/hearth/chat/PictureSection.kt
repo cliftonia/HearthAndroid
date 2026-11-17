@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -92,6 +93,8 @@ private fun PictureButton(icon: ImageVector, label: String, onClick: () -> Unit)
     val colors = HearthTheme.colors
     Row(
         Modifier
+            // A finger is given the least it needs, round the pill as it is drawn.
+            .minimumInteractiveComponentSize()
             .clip(HearthTheme.shapes.pill)
             .border(HearthTheme.strokes.hairline, colors.line, HearthTheme.shapes.pill)
             .clickable(role = Role.Button, onClick = onClick)

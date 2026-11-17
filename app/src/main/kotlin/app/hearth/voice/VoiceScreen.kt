@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -39,12 +38,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +53,7 @@ import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.HearthTheme
 import app.hearth.integrations.CameraLeave
 import app.hearth.integrations.DeviceCamera
+import app.hearth.shared.rememberMicrophoneRequest
 
 // The ember is this screen's own drawing, so its measures are kept here and not in the theme.
 
@@ -88,14 +88,10 @@ fun VoiceScreen(presenter: VoicePresenter, camera: DeviceCamera, cameraLeave: Ca
     val viewModel by presenter.viewModel.collectAsStateWithLifecycle()
     // Each turn of the conversation is felt: listening, thinking, speaking.
     HapticEffect(HapticKind.LIGHT, viewModel.state)
-    val context = LocalContext.current
     val colors = HearthTheme.colors
     CameraLifetime(presenter, cameraLeave)
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission(), presenter::startAction)
-    LaunchedEffect(Unit) {
-        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (isAllowed) presenter.startAction(true) else permission.launch(Manifest.permission.RECORD_AUDIO)
-    }
+    val requestMicrophone = rememberMicrophoneRequest()
+    LaunchedEffect(Unit) { presenter.startAction(requestMicrophone()) }
     val canInterrupt = viewModel.state == VoiceStateKind.THINKING || viewModel.state == VoiceStateKind.SPEAKING
     val title = stringResource(
         when (viewModel.state) {
@@ -152,7 +148,17 @@ fun VoiceScreen(presenter: VoicePresenter, camera: DeviceCamera, cameraLeave: Ca
                         Modifier
                             .size(EmberTouchSize * emberScale)
                             .clip(HearthTheme.shapes.circle)
-                            .clickable(enabled = canInterrupt, onClickLabel = interruptLabel, role = Role.Button, onClick = presenter::interruptAction),
+                            // A button, named for what it does, only while there is something to interrupt; otherwise
+                            // it only decorates and a screen reader passes it by.
+                            .then(
+                                if (canInterrupt) {
+                                    Modifier
+                                        .clickable(onClickLabel = interruptLabel, role = Role.Button, onClick = presenter::interruptAction)
+                                        .semantics { contentDescription = interruptLabel }
+                                } else {
+                                    Modifier
+                                },
+                            ),
                         contentAlignment = Alignment.Center,
                     ) { Ember(viewModel.state, Modifier.requiredSize(EmberHaloSize).scale(emberScale)) }
                     Text(title, style = HearthTheme.type.display, color = colors.ink, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

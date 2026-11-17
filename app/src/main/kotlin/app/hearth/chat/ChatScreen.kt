@@ -21,6 +21,9 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -184,7 +187,13 @@ private fun ErrorBanner(error: ErrorViewConfiguration, onRetry: () -> Unit, onDi
             .padding(start = spacing.xxl),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f).padding(vertical = spacing.l)) {
+        // Announced when it appears or changes, without interrupting what is being read.
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(vertical = spacing.l)
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+        ) {
             Text(errorTitle(error), color = colors.danger, style = HearthTheme.type.calloutStrong)
             Text(errorMessage(error), color = colors.ink, style = HearthTheme.type.calloutTight, maxLines = 4, overflow = TextOverflow.Ellipsis)
         }

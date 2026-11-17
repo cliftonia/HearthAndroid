@@ -33,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -138,9 +137,10 @@ private fun PrivateToggle(isPrivate: Boolean, canChange: Boolean, onToggle: () -
     HearthCircleButton(
         if (isPrivate) Icons.Filled.LockFilled else Icons.Outlined.Lock,
         stringResource(R.string.chat_private),
-        modifier = Modifier.padding(end = HearthTheme.spacing.xl).semantics { selected = isPrivate },
+        modifier = Modifier.padding(end = HearthTheme.spacing.xl),
         tint = if (isPrivate) colors.pine else colors.ink,
         containerColor = if (isPrivate) colors.pineSoft else null,
+        isOn = isPrivate,
         onClick = onToggle,
     )
 }

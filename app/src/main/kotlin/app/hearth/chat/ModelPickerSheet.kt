@@ -10,14 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
@@ -32,18 +30,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
+import app.hearth.designsystem.HearthChoiceCard
+import app.hearth.designsystem.HearthChoiceRow
 import app.hearth.designsystem.HearthSheetHeader
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ChatModel
@@ -139,33 +137,13 @@ private fun ChatModel.detail(): String = listOfNotNull(
 /** One card holding a row for each model. Each row is told whether it is the last, which has no line under it. */
 @Composable
 private fun <Model> ModelRows(models: List<Model>, row: @Composable (Model, Boolean) -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(HearthTheme.shapes.card).background(HearthTheme.colors.card)) {
-        models.forEachIndexed { index, model -> row(model, index == models.lastIndex) }
-    }
+    HearthChoiceCard { models.forEachIndexed { index, model -> row(model, index == models.lastIndex) } }
 }
 
 /** One model: its name, what it is good for, and a tick if it is the one chosen. */
 @Composable
-private fun ModelRow(title: String, detail: String, isSelected: Boolean, isLast: Boolean, onSelect: () -> Unit) {
-    val colors = HearthTheme.colors
-    val spacing = HearthTheme.spacing
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onSelect)
-            .padding(horizontal = spacing.xxxl, vertical = spacing.l),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.xl),
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (detail.isNotEmpty()) Text(detail, color = colors.mute, style = HearthTheme.type.footnoteSnug, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        // The tick keeps its place when it is not shown, so every name has the same room.
-        Icon(Icons.Outlined.Check, null, tint = if (isSelected) colors.pine else Color.Transparent, modifier = Modifier.size(HearthTheme.sizes.iconM))
-    }
-    if (!isLast) HorizontalDivider(Modifier.padding(start = spacing.xxxl), thickness = HearthTheme.strokes.hairline, color = colors.line)
-}
+private fun ModelRow(title: String, detail: String, isSelected: Boolean, isLast: Boolean, onSelect: () -> Unit) =
+    HearthChoiceRow(title, isSelected, isLast, detail = detail, onClick = onSelect)
 
 /** What stands in for the list while there is nothing to put in it. */
 @Composable

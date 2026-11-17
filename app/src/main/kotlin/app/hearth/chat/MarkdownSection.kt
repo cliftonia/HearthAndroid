@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.Text
@@ -24,10 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -36,8 +38,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import app.hearth.R
-import app.hearth.designsystem.HapticKind
-import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthColors
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
@@ -46,9 +46,7 @@ import app.hearth.domain.MarkdownBlock
 import app.hearth.domain.MarkdownTransformer
 import app.hearth.domain.MathTransformer
 import app.hearth.domain.SearchSource
-
-/** Marks the stretch of text that is a link, and carries its address. */
-private const val LINK_TAG = "link"
+import app.hearth.shared.rememberCopy
 
 /** A reply laid out from its Markdown: headings, lists, code, tables and maths. */
 @Composable
@@ -57,7 +55,7 @@ fun MarkdownSection(markdown: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
         blocks.forEach { block ->
             when (block) {
-                is MarkdownBlock.Heading -> InlineText(block.text, HearthTheme.type.heading(block.level))
+                is MarkdownBlock.Heading -> InlineText(block.text, HearthTheme.type.heading(block.level), Modifier.semantics { heading() })
                 is MarkdownBlock.Paragraph -> InlineText(block.text, HearthTheme.type.reply)
                 is MarkdownBlock.Code -> CodeBlock(block)
                 is MarkdownBlock.ItemList -> ItemList(block)
@@ -75,27 +73,20 @@ fun MarkdownSection(markdown: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** A line of text with its bold, italic, code and links. */
+/**
+ * A line of text with its bold, italic, code and links. Each web link is a link annotation, so a screen reader
+ * lists it among the text's links and can open it.
+ */
 @Composable
 fun InlineText(text: String, style: TextStyle, modifier: Modifier = Modifier) {
     val colors = HearthTheme.colors
     val uriHandler = LocalUriHandler.current
-    val annotated = remember(text, colors) { annotated(text, colors) }
-    val coloured = style.copy(color = colors.ink)
-    if (annotated.getStringAnnotations(LINK_TAG, 0, annotated.length).isEmpty()) {
-        Text(annotated, style = coloured, modifier = modifier)
-    } else {
-        ClickableText(annotated, style = coloured, modifier = modifier) { offset ->
-            annotated.getStringAnnotations(LINK_TAG, offset, offset).firstOrNull()?.let { link ->
-                // Only web addresses were annotated, and only those are opened.
-                if (SearchSource.isWebLink(link.item)) runCatching { uriHandler.openUri(link.item) }
-            }
-        }
-    }
+    val annotated = remember(text, colors, uriHandler) { annotated(text, colors, uriHandler) }
+    Text(annotated, style = style.copy(color = colors.ink), modifier = modifier)
 }
 
-/** The text with its inline Markdown turned into styling, and each web link marked so that a tap can find it. */
-private fun annotated(text: String, colors: HearthColors): AnnotatedString = buildAnnotatedString {
+/** The text with its inline Markdown turned into styling, and each web link made something a tap can open. */
+private fun annotated(text: String, colors: HearthColors, uriHandler: UriHandler): AnnotatedString = buildAnnotatedString {
     InlineMarkdownTransformer().spans(text).forEach { span ->
         val start = length
         append(span.text)
@@ -111,7 +102,10 @@ private fun annotated(text: String, colors: HearthColors): AnnotatedString = bui
             start,
             length,
         )
-        span.link?.let { addStringAnnotation(LINK_TAG, it, start, length) }
+        // Only web addresses are made links, and only those are opened.
+        span.link?.takeIf { SearchSource.isWebLink(it) }?.let { address ->
+            addLink(LinkAnnotation.Url(address) { runCatching { uriHandler.openUri(address) } }, start, length)
+        }
     }
 }
 
@@ -119,14 +113,11 @@ private fun annotated(text: String, colors: HearthColors): AnnotatedString = bui
 @Composable
 private fun CodeBlock(block: MarkdownBlock.Code) {
     val colors = HearthTheme.colors
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberCopy()
     Column(Modifier.fillMaxWidth().clip(HearthTheme.shapes.tile).background(colors.bubble)) {
         Row(Modifier.fillMaxWidth().padding(start = HearthTheme.spacing.xxl), verticalAlignment = Alignment.CenterVertically) {
             Text(block.language ?: stringResource(R.string.message_code), color = colors.mute, style = HearthTheme.type.caption, modifier = Modifier.weight(1f))
-            HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy_code), tint = colors.mute) {
-                clipboard.setText(AnnotatedString(block.text))
-                Haptics.play(HapticKind.SUCCESS)
-            }
+            HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy_code), tint = colors.mute) { copy(block.text) }
         }
         Text(
             block.text,

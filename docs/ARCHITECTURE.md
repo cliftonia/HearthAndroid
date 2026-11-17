@@ -56,6 +56,7 @@ domain/src/main/kotlin/app/hearth/domain/
 ├── Research.kt, ResearchQueryParser.kt, ResearchSourceSelector.kt, ResearchPromptBuilder.kt, ResearchCitationTransformer.kt   Research: its models and pure steps
 ├── Canvas.kt, CanvasExtractor.kt, CanvasVersionMatcher.kt, CanvasWebPolicy.kt      The canvas: its models and pure decisions
 ├── ConversationTitle.kt, TextLimit.kt                                              Titles (first message, renamed, from the model), and cutting text to a limit
+├── ReplyJoiner.kt                                                                 Keeps the parts of a reply written round a search or a memory change apart
 └── PromptBuilder.kt, PromptBuilderProject.kt, MarkdownTransformer.kt, …            Pure text work
 
 data/src/main/kotlin/app/hearth/data/
@@ -133,7 +134,7 @@ what lets a reply keep streaming while the phone is rotated or the app is in the
 **Large presenters are split by concern.** `ChatPresenter` keeps its core in one file and its other actions as
 extension functions in the files beside it (`ChatPresenterReplies.kt`, `ChatPresenterPictures.kt`, `ChatPresenterResearch.kt`,
 `ChatPresenterAttachments.kt`, `ChatPresenterEditing.kt`, `ChatPresenterDictation.kt`, `ChatPresenterNarration.kt`,
-`ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`), and `SettingsPresenter` does the same for its pages
+`ChatPresenterNotifications.kt`, `ChatPresenterCanvas.kt`, `ChatPresenterMenu.kt`, `ChatPresenterSync.kt`), and `SettingsPresenter` does the same for its pages
 (`SettingsPresenterPages.kt`, `SettingsPresenterProfile.kt`, `SettingsPresenterNotifications.kt`, `SettingsPresenterSync.kt`, `SettingsPresenterTasks.kt`), and `VoicePresenter` for its camera
 (`VoicePresenterCamera.kt`). The state they share is
 `internal` for that reason.

@@ -28,7 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import app.hearth.R
-import app.hearth.designsystem.HearthIconButton
+import app.hearth.designsystem.HearthSmallIconButton
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.AttachedDocument
 import app.hearth.integrations.AttachmentLoader
@@ -90,23 +90,21 @@ fun PendingAttachments(viewModel: ChatViewModel, presenter: ChatPresenter, modif
         viewModel.pendingImages.forEachIndexed { index, image ->
             Box {
                 PhotoThumbnail(image, HearthTheme.sizes.thumbnailS)
-                HearthIconButton(
+                HearthSmallIconButton(
                     Icons.Outlined.Close,
                     stringResource(R.string.composer_remove_photo),
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(HearthTheme.spacing.xxs)
-                        .size(HearthTheme.sizes.controlXs)
-                        .background(colors.card, HearthTheme.shapes.circle),
+                    HearthTheme.sizes.controlXs,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(HearthTheme.spacing.xxs),
+                    containerColor = colors.card,
                 ) { presenter.removeImageAction(index) }
             }
         }
         viewModel.pendingDocuments.forEach { document ->
             DocumentChip(document) {
-                HearthIconButton(
+                HearthSmallIconButton(
                     Icons.Outlined.Close,
                     stringResource(R.string.composer_remove_file, document.name),
-                    modifier = Modifier.size(HearthTheme.sizes.controlS),
+                    HearthTheme.sizes.controlS,
                     tint = colors.mute,
                 ) { presenter.removeDocumentAction(document.id) }
             }

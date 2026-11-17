@@ -16,7 +16,7 @@ class HtmlTextTransformer {
         val bytes = mainContent(html.toByteArray(Charsets.UTF_8).let { it.copyOf(minOf(it.size, MAXIMUM_INPUT_LENGTH)) })
         val text = decodingEntities(String(strippingMarkup(bytes), Charsets.UTF_8))
         return text.lines()
-            .map { line -> line.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ") }
+            .map { line -> line.split(TextPatterns.WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ") }
             .filter { it.isNotEmpty() }
             .joinToString("\n")
             .clipped(maximumLength)
@@ -136,7 +136,6 @@ class HtmlTextTransformer {
         val GREATER_THAN = '>'.code.toByte()
         val COMMENT_OPEN = "<!--".toByteArray()
         val COMMENT_CLOSE = "-->".toByteArray()
-        val WHITESPACE = Regex("\\s+")
         val NUMERIC_ENTITY = Regex("&#(\\d{2,6});")
 
         /** Elements whose contents are not part of what the page says. */

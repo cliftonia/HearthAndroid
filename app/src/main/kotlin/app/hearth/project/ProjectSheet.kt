@@ -1,8 +1,5 @@
 package app.hearth.project
 
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +52,7 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.AttachedDocument
 import app.hearth.integrations.AttachmentLoader
 import app.hearth.shared.ErrorDialog
+import app.hearth.shared.rememberDocumentPicker
 import kotlinx.coroutines.launch
 
 /** The project sheet: its name, its instructions, its reference files and, for one that exists, a way to delete it. */
@@ -66,14 +64,11 @@ fun ProjectSheet(presenter: ProjectPresenter, attachments: AttachmentLoader) {
     // Opened to its full height at once: half open, the files and the way to delete would be off the screen.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isConfirmingDelete by remember { mutableStateOf(false) }
-    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) {
-            scope.launch {
-                val read = attachments.documents(uris.map(Uri::toString))
-                presenter.addDocumentsAction(read.documents, read.unreadableCount)
-            }
-        }
-    }
+    val pickFiles = rememberDocumentPicker(
+        attachments,
+        onRead = { presenter.addDocumentsAction(it.documents, it.unreadableCount) },
+        onUnavailable = presenter::filesUnavailableAction,
+    )
     // The sheet slides away before it is taken off the screen.
     val cancel: () -> Unit = { scope.launch { sheetState.hide() }.invokeOnCompletion { presenter.cancelAction() } }
     ModalBottomSheet(
@@ -118,7 +113,7 @@ fun ProjectSheet(presenter: ProjectPresenter, attachments: AttachmentLoader) {
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            FilesCard(viewModel.documents, onAdd = { files.launch(DOCUMENT_TYPES) }, onRemove = presenter::removeDocumentAction)
+            FilesCard(viewModel.documents, onAdd = pickFiles, onRemove = presenter::removeDocumentAction)
             // Only a project that exists can be deleted, so a new one has no such row at all.
             if (viewModel.isExisting) DeleteRow { isConfirmingDelete = true }
         }
@@ -140,8 +135,6 @@ fun ProjectSheet(presenter: ProjectPresenter, attachments: AttachmentLoader) {
     viewModel.error?.let { ErrorDialog(it, presenter::dismissErrorAction) }
 }
 
-/** The kinds of file offered for a project to draw on: those whose text can be read, as for a message. */
-private val DOCUMENT_TYPES = arrayOf("application/pdf", "text/*", "application/json", "application/xml")
 
 /** The sheet's title between the two ways out of it: giving up the draft, and keeping it. */
 @Composable

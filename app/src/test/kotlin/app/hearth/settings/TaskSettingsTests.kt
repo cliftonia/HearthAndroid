@@ -7,6 +7,7 @@ import app.hearth.domain.ServerSettings
 import app.hearth.domain.SyncSettings
 import app.hearth.domain.TaskSchedule
 import app.hearth.domain.TaskTime
+import app.hearth.shared.ErrorKind
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.test.assertEquals
@@ -94,6 +95,34 @@ class TaskSettingsTests {
     }
 
     @Test
+    fun `a one-off task that has already run can be saved again at the same time, but not moved into the past`() = runTest {
+        val fixture = makeTestSubject()
+        // It ran at 9:00:30 that morning; the clock says 10:00.
+        val ran = LocalDate.of(2026, 11, 16).atTime(9, 0, 30).atZone(brisbane).toEpochSecond()
+        val task = ScheduledTask(title = "Reminder", prompt = "Remind me", model = "auto", schedule = TaskSchedule.Once(ran))
+        fixture.taskStore.save(task)
+        val subject = fixture.subject
+
+        subject.editTaskAction(task.id)
+        subject.taskDraftAction { it.copy(title = "Old reminder") }
+        val draft = checkNotNull(subject.taskDraft.value)
+        assertFalse(subject.isTaskInPast(draft))
+        assertTrue(subject.canSaveTask(draft))
+
+        subject.taskDraftAction { it.copy(time = TaskTime(8, 0)) }
+        assertTrue(subject.isTaskInPast(checkNotNull(subject.taskDraft.value)))
+        assertFalse(subject.canSaveTask(checkNotNull(subject.taskDraft.value)))
+
+        subject.taskDraftAction { it.copy(time = TaskTime(9, 0)) }
+        subject.saveTaskAction()
+        advanceUntilIdle()
+        val saved = checkNotNull(fixture.taskStore.task(task.id))
+        assertEquals("Old reminder", saved.title)
+        // Left as it was, the time is kept to the second.
+        assertEquals(TaskSchedule.Once(ran), saved.schedule)
+    }
+
+    @Test
     fun `editing keeps what the hub said of the last run, and back leaves the change unsaved`() = runTest {
         val fixture = makeTestSubject()
         val task = ScheduledTask(
@@ -141,6 +170,23 @@ class TaskSettingsTests {
         advanceUntilIdle()
         assertTrue(fixture.taskStore.tasks.value.isEmpty())
         assertEquals(SettingsPageKind.TASKS, subject.page.value)
+    }
+
+    @Test
+    fun `a task that cannot be switched from the list says so`() = runTest {
+        val fixture = makeTestSubject()
+        val task = ScheduledTask(title = "News", prompt = "News?", model = "gpt-oss:120b-cloud")
+        fixture.taskStore.save(task)
+        fixture.failsTasks = true
+        val subject = fixture.subject
+
+        subject.taskEnabledAction(task.id, false)
+        advanceUntilIdle()
+
+        assertEquals(ErrorKind.TASK_CHANGE_FAILED, subject.taskError.value?.kind)
+        assertEquals(true, fixture.taskStore.task(task.id)?.isEnabled)
+        subject.dismissTaskErrorAction()
+        assertNull(subject.taskError.value)
     }
 
     @Test

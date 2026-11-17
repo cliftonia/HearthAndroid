@@ -521,7 +521,8 @@ class AppCoordinator(
                 // Made for a chat: the chat is told where it now belongs, and the list stays as it was.
                 chat.conversationMoved(outcome.adopted, outcome.id)
             } else {
-                // Made from the chat list: the list opens the new project, ready for its first chat.
+                // Made from the composer's + menu, for no chat in particular: the list opens the new project, ready
+                // for its first chat.
                 drawer.selectProjectAction(outcome.id)
             }
             // Its chats are back among all the others, so the list goes back to showing them all.

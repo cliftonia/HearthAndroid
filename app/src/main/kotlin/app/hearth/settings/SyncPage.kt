@@ -19,7 +19,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -55,7 +54,7 @@ internal fun SyncPage(presenter: SettingsPresenter) {
             singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Uri,
-                autoCorrect = false,
+                autoCorrectEnabled = false,
                 capitalization = KeyboardCapitalization.None,
                 imeAction = ImeAction.Done,
             ),
@@ -71,23 +70,17 @@ internal fun SyncPage(presenter: SettingsPresenter) {
     }
     HearthCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xl)) {
-            val syncNow = stringResource(R.string.sync_now)
-            OutlinedButton(
-                onClick = presenter::syncNowAction,
-                enabled = settings.isEnabled && !isSyncing,
-                modifier = Modifier.semantics { contentDescription = syncNow },
-            ) { Text(syncNow) }
-            val test = stringResource(R.string.sync_check)
-            OutlinedButton(
-                onClick = presenter::checkHubAction,
-                enabled = canEnable && check != SyncCheck.Checking,
-                modifier = Modifier.semantics { contentDescription = test },
-            ) { Text(test) }
+            OutlinedButton(onClick = presenter::syncNowAction, enabled = settings.isEnabled && !isSyncing) {
+                Text(stringResource(R.string.sync_now))
+            }
+            OutlinedButton(onClick = presenter::checkHubAction, enabled = canEnable && check != SyncCheck.Checking) {
+                Text(stringResource(R.string.sync_check))
+            }
         }
         check?.let { result ->
             val (message, colour) = when (result) {
                 SyncCheck.Checking -> stringResource(R.string.settings_checking) to colors.mute
-                SyncCheck.Succeeded -> stringResource(R.string.sync_check_succeeded) to colors.online
+                SyncCheck.Succeeded -> stringResource(R.string.sync_check_succeeded) to colors.pine
                 is SyncCheck.Failed -> syncFailureWords(result.failure) to colors.danger
             }
             Text(
@@ -123,7 +116,7 @@ private fun TokenField(presenter: SettingsPresenter, draft: String, hasToken: Bo
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Password,
-            autoCorrect = false,
+            autoCorrectEnabled = false,
             capitalization = KeyboardCapitalization.None,
             imeAction = ImeAction.Done,
         ),
@@ -131,18 +124,10 @@ private fun TokenField(presenter: SettingsPresenter, draft: String, hasToken: Bo
         modifier = Modifier.fillMaxWidth(),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m)) {
-        val save = stringResource(R.string.sync_save_token)
-        TextButton(
-            onClick = presenter::saveSyncTokenAction,
-            enabled = draft.isNotBlank(),
-            modifier = Modifier.semantics { contentDescription = save },
-        ) { Text(save) }
-        val remove = stringResource(R.string.sync_remove_token)
-        TextButton(
-            onClick = presenter::removeSyncTokenAction,
-            enabled = hasToken,
-            modifier = Modifier.semantics { contentDescription = remove },
-        ) { Text(remove, color = if (hasToken) HearthTheme.colors.danger else Color.Unspecified) }
+        TextButton(onClick = presenter::saveSyncTokenAction, enabled = draft.isNotBlank()) { Text(stringResource(R.string.sync_save_token)) }
+        TextButton(onClick = presenter::removeSyncTokenAction, enabled = hasToken) {
+            Text(stringResource(R.string.sync_remove_token), color = if (hasToken) HearthTheme.colors.danger else Color.Unspecified)
+        }
     }
     Text(stringResource(R.string.sync_token_footer), color = HearthTheme.colors.mute, style = HearthTheme.type.captionSnug)
 }

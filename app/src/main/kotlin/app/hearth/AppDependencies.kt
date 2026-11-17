@@ -49,6 +49,7 @@ import app.hearth.integrations.PictureLibrary
 import app.hearth.integrations.ProfilePhotoLoader
 import app.hearth.integrations.SideListPreference
 import app.hearth.integrations.live
+import app.hearth.shared.SHARE_EXPORTS_FOLDER
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -125,13 +126,14 @@ class AppDependencies(
             val profileStore = ProfileStore(ProfilePhotoProvider.live(files))
             val notifications = NotificationProvider.live(application)
             val sideList = SideListPreference.live(application)
-            // What the app keeps outside the stores: a photo taken for a message, a picture lent to another app, a
-            // memory file set aside because it could not be read, and whether the chat list was put away.
+            // What the app keeps outside the stores: a photo taken for a message, a picture or a long chat lent to
+            // another app, a memory file set aside because it could not be read, and whether the chat list was put away.
             val dictation = DictationProvider.live(application)
             val speech = SpeechInteractor(SpeechDataProvider.live(), AudioPlaybackProvider.live(application))
             val deviceCamera = DeviceCamera(application)
             val cameraLeave = CameraLeave.live(application)
-            val leftovers = listOf(File(application.cacheDir, "camera"), File(application.cacheDir, "pictures"), File(files, "Memory"))
+            val leftovers = listOf(File(application.cacheDir, "camera"), File(application.cacheDir, "pictures"),
+                File(application.cacheDir, SHARE_EXPORTS_FOLDER), File(files, "Memory"))
             val syncHooks = SyncHooks()
             val syncStore = SyncStore(
                 syncStoreProvider(application, files),

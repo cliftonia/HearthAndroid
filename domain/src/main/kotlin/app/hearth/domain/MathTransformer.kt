@@ -25,7 +25,7 @@ class MathTransformer {
         text = replacing(SPACING, text) { " " }
         text = replacing(SUPERSCRIPT, text) { script(it[1].ifEmpty { it[2] }, SUPERSCRIPTS, "^") }
         text = replacing(SUBSCRIPT, text) { script(it[1].ifEmpty { it[2] }, SUBSCRIPTS, "_") }
-        return text.replace("{", "").replace("}", "").split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
+        return text.replace("{", "").replace("}", "").split(TextPatterns.WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
     }
 
     /** Replaces every match of the pattern with what the closure makes of its groups; group 0 is the whole match. */
@@ -52,8 +52,6 @@ class MathTransformer {
     }
 
     private companion object {
-        val WHITESPACE = Regex("\\s+")
-
         /** Commands that only style their contents, such as `\text{…}`; the contents are kept. */
         val TEXT_COMMAND = Regex("\\\\(?:text|mathrm|mathbf|mathit|operatorname|boxed)\\s*\\{([^{}]*)\\}")
         val ROOT = Regex("\\\\sqrt\\s*\\{([^{}]*)\\}")

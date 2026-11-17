@@ -16,13 +16,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -35,15 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,14 +44,14 @@ import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.HearthVersionStepper
+import app.hearth.designsystem.HearthVersionStepperLabels
 import app.hearth.domain.CanvasKind
 import app.hearth.domain.CanvasWebPolicy
 import app.hearth.shared.canvasDetail
 import app.hearth.shared.canvasTitle
+import app.hearth.shared.rememberCopy
 import app.hearth.shared.share
-
-/** How faint an arrow is where there is no version that way. */
-private const val DISABLED_ALPHA = 0.35f
 
 /**
  * The canvas: one piece of a reply shown on its own, as it is meant to be seen or as it was written.
@@ -86,7 +78,7 @@ fun CanvasScreen(presenter: CanvasPresenter, markdown: @Composable (String) -> U
 private fun Header(content: CanvasViewConfiguration?, onClose: () -> Unit) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberCopy()
     val context = LocalContext.current
     val text = content?.text.orEmpty()
     val detail = when {
@@ -106,10 +98,7 @@ private fun Header(content: CanvasViewConfiguration?, onClose: () -> Unit) {
             )
             Text(detail, color = colors.mute, style = HearthTheme.type.captionSnug, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.canvas_copy)) {
-            clipboard.setText(AnnotatedString(text))
-            Haptics.play(HapticKind.SUCCESS)
-        }
+        HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.canvas_copy)) { copy(text) }
         HearthIconButton(Icons.Outlined.Share, stringResource(R.string.canvas_share)) { share(context, text) }
         HearthIconButton(Icons.Outlined.Close, stringResource(R.string.canvas_close), onClick = onClose)
     }
@@ -154,31 +143,17 @@ private fun ModeSwitch(content: CanvasViewConfiguration, onMode: (CanvasModeKind
 /** Steps to an earlier or a later version, with the place of the one shown between the arrows. */
 @Composable
 private fun VersionStepper(content: CanvasViewConfiguration, onStep: (Int) -> Unit) {
-    val position = stringResource(R.string.message_version_position, content.versionNumber, content.versionCount)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        VersionArrow(Icons.Outlined.ChevronLeft, stringResource(R.string.canvas_earlier), content.hasEarlier) { onStep(-1) }
-        Text(
-            stringResource(R.string.canvas_version, content.versionNumber, content.versionCount),
-            color = HearthTheme.colors.mute,
-            style = HearthTheme.type.footnote,
-            modifier = Modifier.semantics { contentDescription = position },
-        )
-        VersionArrow(Icons.Outlined.ChevronRight, stringResource(R.string.canvas_later), content.hasLater) { onStep(1) }
-    }
-}
-
-/** One arrow of the stepper, faded where there is no version that way. */
-@Composable
-private fun VersionArrow(icon: ImageVector, label: String, isEnabled: Boolean, onClick: () -> Unit) {
-    IconButton(
-        onClick = {
-            Haptics.play(HapticKind.SELECTION)
-            onClick()
-        },
-        enabled = isEnabled,
-    ) {
-        Icon(icon, label, tint = HearthTheme.colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconL).alpha(if (isEnabled) 1f else DISABLED_ALPHA))
-    }
+    HearthVersionStepper(
+        HearthVersionStepperLabels(
+            counter = stringResource(R.string.canvas_version, content.versionNumber, content.versionCount),
+            position = stringResource(R.string.message_version_position, content.versionNumber, content.versionCount),
+            previous = stringResource(R.string.canvas_earlier),
+            next = stringResource(R.string.canvas_later),
+        ),
+        hasPrevious = content.hasEarlier,
+        hasNext = content.hasLater,
+        onStep = onStep,
+    )
 }
 
 /**

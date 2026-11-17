@@ -91,6 +91,19 @@ class ChatInteractorTests {
     }
 
     @Test
+    fun `words written after a search begin a new paragraph`() = runTest {
+        val fixture = Fixture(
+            listOf(
+                listOf(ChatDelta.Text("Let me look this up."), search("kotlin")),
+                listOf(ChatDelta.Text("## Kotlin 2"), ChatDelta.Text(" changed")),
+            ),
+        )
+        val events = fixture.events(fixture.turn())
+        val text = events.filterIsInstance<ChatInteractor.Event.Text>().joinToString("") { it.text }
+        assertEquals("Let me look this up.\n\n## Kotlin 2 changed", text)
+    }
+
+    @Test
     fun `pages are not read when the setting is off`() = runTest {
         val fixture = Fixture(listOf(listOf(search("kotlin"))), page = "<p>${"Real page text. ".repeat(30)}</p>")
         fixture.events(fixture.turn(settings = fixture.settings.copy(isPageReadingEnabled = false)))

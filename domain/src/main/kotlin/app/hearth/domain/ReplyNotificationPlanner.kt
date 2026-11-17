@@ -38,7 +38,7 @@ class ReplyNotificationPlanner {
 
         /** The start of a reply on one line, cut at a word where it is too long. */
         fun excerpt(text: String): String {
-            val line = text.split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
+            val line = text.split(TextPatterns.WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
             if (line.length <= MAXIMUM_EXCERPT_LENGTH) return line
             val cut = line.clipped(MAXIMUM_EXCERPT_LENGTH)
             return cut.substringBeforeLast(" ") + "…"

@@ -1,25 +1,17 @@
 package app.hearth.chat
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import app.hearth.designsystem.HapticEffect
 import app.hearth.designsystem.HapticKind
-import kotlinx.coroutines.CompletableDeferred
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -65,6 +57,7 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.ChatModel
 import app.hearth.domain.ServerSettings
 import app.hearth.integrations.AttachmentLoader
+import app.hearth.shared.rememberMicrophoneRequest
 import app.hearth.shared.shortName
 
 /** How much larger the composer stands while a finger rests on it. */
@@ -326,37 +319,4 @@ private fun rememberDraftField(draft: String, onChange: (String) -> Unit): Draft
         },
         moveCursorToEnd = { held = TextFieldValue(draft, TextRange(draft.length)) },
     )
-}
-
-/**
- * A way to ask for leave to use the microphone that waits for the answer: at once when leave was given before,
- * otherwise once the user has answered the phone's question. If the screen goes before they answer, the wait is
- * given up.
- */
-@Composable
-private fun rememberMicrophoneRequest(): suspend () -> Boolean {
-    val context = LocalContext.current
-    val waiting = remember { mutableListOf<CompletableDeferred<Boolean>>() }
-    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        waiting.forEach { it.complete(isGranted) }
-        waiting.clear()
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            waiting.forEach { it.cancel() }
-            waiting.clear()
-        }
-    }
-    return remember(context, permission) {
-        suspend {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                true
-            } else {
-                val answer = CompletableDeferred<Boolean>()
-                waiting += answer
-                permission.launch(Manifest.permission.RECORD_AUDIO)
-                answer.await()
-            }
-        }
-    }
 }

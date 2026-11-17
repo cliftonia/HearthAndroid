@@ -30,6 +30,7 @@ import app.hearth.domain.ScheduledTask
 import app.hearth.domain.TaskModels
 import app.hearth.domain.TaskRunKind
 import app.hearth.domain.TaskSchedule
+import app.hearth.shared.ErrorDialog
 import java.time.ZoneId
 
 /**
@@ -41,12 +42,13 @@ internal fun TasksPage(presenter: SettingsPresenter) {
     val colors = HearthTheme.colors
     val tasks by presenter.tasks.collectAsStateWithLifecycle()
     val syncSettings by presenter.syncSettings.collectAsStateWithLifecycle()
+    val error by presenter.taskError.collectAsStateWithLifecycle()
     val canSync = syncSettings.canSync
+    error?.let { ErrorDialog(it, presenter::dismissTaskErrorAction) }
     if (!canSync) {
         HearthCard {
             Text(stringResource(R.string.tasks_needs_sync), color = colors.ink, style = HearthTheme.type.footnoteSnug)
-            val openSync = stringResource(R.string.tasks_open_sync)
-            OutlinedButton(onClick = presenter::syncAction, modifier = Modifier.semantics { contentDescription = openSync }) { Text(openSync) }
+            OutlinedButton(onClick = presenter::syncAction) { Text(stringResource(R.string.tasks_open_sync)) }
         }
     }
     HearthCard(footer = stringResource(R.string.tasks_footer)) {
@@ -55,12 +57,7 @@ internal fun TasksPage(presenter: SettingsPresenter) {
             if (index > 0) HorizontalDivider(color = colors.line)
             TaskRow(task, presenter)
         }
-        val add = stringResource(R.string.tasks_add)
-        OutlinedButton(
-            onClick = presenter::addTaskAction,
-            enabled = canSync,
-            modifier = Modifier.semantics { contentDescription = add },
-        ) { Text(add) }
+        OutlinedButton(onClick = presenter::addTaskAction, enabled = canSync) { Text(stringResource(R.string.tasks_add)) }
     }
 }
 

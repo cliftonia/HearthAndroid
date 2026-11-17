@@ -68,7 +68,7 @@ class ResearchQueryParser {
     // Lines
 
     /** One query a line, for an answer written as a list. Lines that only open or close something are passed over. */
-    private fun lineQueries(answer: String): List<String> = answer.split(NEWLINES).mapNotNull { line ->
+    private fun lineQueries(answer: String): List<String> = answer.split(TextPatterns.NEWLINES).mapNotNull { line ->
         val text = line.trim()
         val opensSomething = listOf(":", "[", "{").any { text.endsWith(it) }
         // A line that begins as JSON is what is left of JSON that could not be read, not a query.
@@ -77,9 +77,9 @@ class ResearchQueryParser {
     }
 
     /** A query on one line, without list markers, quotes or trailing commas, and of a searchable length. */
-    private fun tidied(query: String): String = query.split(NEWLINES).filter { it.isNotEmpty() }.joinToString(" ")
+    private fun tidied(query: String): String = query.split(TextPatterns.NEWLINES).filter { it.isNotEmpty() }.joinToString(" ")
         .trim()
-        .replace(LIST_MARKER, "")
+        .replace(TextPatterns.LIST_MARKER, "")
         .trim { it in WRAPPING }
         .clipped(ResearchLimits.MAXIMUM_QUERY_CHARACTERS)
         .trim()
@@ -90,9 +90,6 @@ class ResearchQueryParser {
 
         /** The names a model gives the query when each entry is an object. */
         val QUERY_KEYS = listOf("query", "q", "search", "text")
-
-        val NEWLINES = Regex("[\\n\\r\\u000B\\u000C\\u0085\\u2028\\u2029]+")
-        val LIST_MARKER = Regex("^([-*•]|\\d+[.)])\\s*")
 
         /** What a model wraps a query in, or leaves after it. */
         const val WRAPPING = "\"'“”‘’`*_, "

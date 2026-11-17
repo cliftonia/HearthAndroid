@@ -135,7 +135,7 @@ private fun NameField(label: String, value: String, onChange: (String) -> Unit) 
         onValueChange = { onChange(it.clipped(MAXIMUM_NAME_LENGTH)) },
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(autoCorrect = false, capitalization = KeyboardCapitalization.Words),
+        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.Words),
         modifier = Modifier.fillMaxWidth(),
     )
 }

@@ -17,8 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.hearth.R
@@ -60,8 +58,8 @@ internal fun VoiceControls(viewModel: VoiceViewModel, presenter: VoicePresenter,
             HearthRoundButton(
                 icon = Icons.Filled.Close,
                 label = stringResource(R.string.voice_end),
-                containerColor = colors.danger,
-                contentColor = colors.onPine,
+                containerColor = colors.dangerFill,
+                contentColor = colors.onDangerFill,
                 size = HearthTheme.sizes.controlXl,
                 iconSize = HearthTheme.sizes.iconXl,
                 onClick = presenter::endAction,
@@ -77,16 +75,17 @@ private fun CameraButton(viewModel: VoiceViewModel, presenter: VoicePresenter) {
     val isOn = viewModel.camera.phase != VoiceCameraPhaseKind.OFF
     val isEnabled = viewModel.cameraControl == VoiceCameraControlKind.ENABLED
     val fade = if (isEnabled) 1f else DISABLED_ALPHA
-    // What a screen reader adds to the button's name: what the camera does, or why it cannot be used.
-    val hint = stringResource(if (isEnabled) R.string.voice_camera_hint else R.string.voice_camera_model_cannot_see)
+    // A screen reader hears what the camera does after the button's name, as a hint is read after a name; it is
+    // not a state. Why the camera cannot be used is written on the screen beneath, so it is not repeated here.
+    val name = stringResource(if (isOn) R.string.voice_camera_turn_off else R.string.voice_camera_turn_on)
+    val label = if (isEnabled) stringResource(R.string.voice_camera_named_hint, name, stringResource(R.string.voice_camera_hint)) else name
     HearthRoundButton(
         icon = if (isOn) Icons.Filled.Videocam else Icons.Outlined.Videocam,
-        label = stringResource(if (isOn) R.string.voice_camera_turn_off else R.string.voice_camera_turn_on),
+        label = label,
         containerColor = (if (isOn) colors.pineSoft else colors.bubble).copy(alpha = fade),
         contentColor = (if (isOn) colors.pine else colors.ink).copy(alpha = fade),
         size = HearthTheme.sizes.controlXl,
         iconSize = HearthTheme.sizes.iconXl,
-        modifier = Modifier.semantics { stateDescription = hint },
         isEnabled = isEnabled,
     ) {
         Haptics.play(HapticKind.LIGHT)

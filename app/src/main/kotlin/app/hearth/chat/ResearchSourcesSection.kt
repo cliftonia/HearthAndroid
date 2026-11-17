@@ -25,16 +25,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import app.hearth.R
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.SearchSource
+import app.hearth.domain.TextPatterns
 
 /** One source of a report as it is listed: the number the report cites it by, its title and its site. */
 data class ResearchSourceViewConfiguration(val url: String, val number: Int, val title: String, val host: String, val isLast: Boolean) {
     companion object {
-        private val WHITESPACE = Regex("\\s+")
-
         /** The sources of a report, numbered from one in the order the report cites them. */
         fun list(sources: List<SearchSource>): List<ResearchSourceViewConfiguration> = sources.mapIndexed { index, source ->
-            val title = source.title.trim().replace(WHITESPACE, " ")
-            val host = source.host.trim().replace(WHITESPACE, " ")
+            val title = source.title.trim().replace(TextPatterns.WHITESPACE, " ")
+            val host = source.host.trim().replace(TextPatterns.WHITESPACE, " ")
             ResearchSourceViewConfiguration(source.url, index + 1, title.ifEmpty { host }, host, isLast = index == sources.lastIndex)
         }
     }

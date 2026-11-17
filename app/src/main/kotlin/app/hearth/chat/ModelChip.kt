@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -39,6 +40,8 @@ internal fun ModelChip(name: String, effort: String, label: String, modifier: Mo
     val colors = HearthTheme.colors
     Row(
         modifier
+            // A finger is given the least it needs, round the chip as it is drawn.
+            .minimumInteractiveComponentSize()
             .height(HearthTheme.sizes.controlS)
             .clip(HearthTheme.shapes.pill)
             .background(colors.bubble)

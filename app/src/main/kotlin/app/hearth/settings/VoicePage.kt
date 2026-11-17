@@ -55,7 +55,7 @@ internal fun VoicePage(settings: ServerSettings, presenter: SettingsPresenter) {
                 onValueChange = { text -> presenter.updateAction { it.copy(voice = text.trim()) } },
                 label = { Text(stringResource(R.string.settings_voice_name)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(autoCorrect = false, capitalization = KeyboardCapitalization.None),
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None),
                 trailingIcon = {
                     if (voices.isNotEmpty()) {
                         HearthIconButton(Icons.Outlined.ExpandMore, stringResource(R.string.settings_voice_choose), tint = HearthTheme.colors.mute) { isOpen = true }

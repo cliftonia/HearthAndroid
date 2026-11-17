@@ -35,6 +35,7 @@ import app.hearth.domain.Conversation
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ModelStore
 import app.hearth.domain.SettingsStore
+import app.hearth.shared.ErrorDialog
 import app.hearth.shared.RenameDialog
 
 /**
@@ -58,6 +59,7 @@ fun DrawerContent(
     val query by presenter.query.collectAsStateWithLifecycle()
     val projects by presenter.projects.collectAsStateWithLifecycle()
     val selectedProjectId by presenter.selectedProjectId.collectAsStateWithLifecycle()
+    val error by presenter.error.collectAsStateWithLifecycle()
     // A project deleted while its chats were being looked at leaves the list showing every chat.
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
     val sections = remember(conversations, projects, selectedProject?.id, query) {
@@ -133,6 +135,7 @@ fun DrawerContent(
             renaming = null
         }
     }
+    error?.let { ErrorDialog(it, presenter::dismissErrorAction) }
 }
 
 /** A heading of the list: over the projects, and over each group of chats. */

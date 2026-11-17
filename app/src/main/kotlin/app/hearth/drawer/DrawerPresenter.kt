@@ -8,6 +8,8 @@ import app.hearth.domain.Project
 import app.hearth.domain.ProjectId
 import app.hearth.domain.ProjectStore
 import app.hearth.domain.renamedTitle
+import app.hearth.shared.ErrorKind
+import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +52,7 @@ class DrawerPresenter(
 ) {
     private val queryState = MutableStateFlow("")
     private val selectedProjectState = MutableStateFlow<ProjectId?>(null)
+    private val errorState = MutableStateFlow<ErrorViewConfiguration?>(null)
 
     /** What is typed in the search field. The view filters the list by it. */
     val query: StateFlow<String> = queryState.asStateFlow()
@@ -62,6 +65,13 @@ class DrawerPresenter(
      */
     val selectedProjectId: StateFlow<ProjectId?> = selectedProjectState.asStateFlow()
     var delegate: DrawerPresenterDelegate? = null
+
+    /** A change to a chat that could not be kept, until it is acknowledged. */
+    val error: StateFlow<ErrorViewConfiguration?> = errorState.asStateFlow()
+
+    fun dismissErrorAction() {
+        errorState.value = null
+    }
 
     fun queryAction(text: String) {
         queryState.value = text
@@ -118,13 +128,14 @@ class DrawerPresenter(
     /** The project being looked at, if it still exists. */
     private fun selectedProject(): Project? = projectStore.project(selectedProjectState.value)
 
-    /** Runs a change to the store. One that could not be written is logged and otherwise let pass. */
+    /** Runs a change to the store. One that could not be written is logged and the user is told. */
     private fun change(action: suspend () -> Unit) {
         scope.launch {
             try {
                 action()
             } catch (failure: IOException) {
                 Log.e(TAG, "Changing a conversation failed: ${failure.javaClass.simpleName}")
+                errorState.value = ErrorViewConfiguration(ErrorKind.CHANGE_FAILED)
             }
         }
     }

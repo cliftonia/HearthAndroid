@@ -18,6 +18,12 @@ fun ChatPresenter.removeImageAction(index: Int) = state.update {
 /** The phone will not let the app use the camera, so no photo can be taken; says where that is changed. */
 fun ChatPresenter.cameraDeniedAction() = state.update { it.copy(error = ErrorViewConfiguration(ErrorKind.CAMERA_DENIED)) }
 
+/** The phone has no camera app to take a photo with; says so. */
+fun ChatPresenter.cameraUnavailableAction() = state.update { it.copy(error = ErrorViewConfiguration(ErrorKind.CAMERA_UNAVAILABLE)) }
+
+/** The phone has no app to pick a file with; says so. */
+fun ChatPresenter.filesUnavailableAction() = state.update { it.copy(error = ErrorViewConfiguration(ErrorKind.FILES_UNAVAILABLE)) }
+
 /** Adds the files that could be read to the next message, and says so if some could not. */
 fun ChatPresenter.addDocumentsAction(documents: List<AttachedDocument>, unreadableCount: Int) = state.update {
     it.copy(

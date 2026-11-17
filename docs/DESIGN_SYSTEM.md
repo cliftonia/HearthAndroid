@@ -32,14 +32,16 @@ the appearance, so it is the only part read from the composition.
 | `paper` | The background of every screen |
 | `card` | Surfaces raised off the paper: settings cards, the composer, banners |
 | `ink` | Text and symbols meant to be read |
-| `mute` | Secondary text, and symbols at rest |
+| `mute` | Secondary text, and symbols at rest. Light `#5F6A65`, dark enough for small text on `paper` and `card` |
 | `line` | Borders and dividers |
 | `pine` | The accent: links, chosen options, the main button |
 | `pineSoft` | A quiet wash of the accent: chosen rows, notices, suggestions |
 | `bubble` | The fill behind the user's messages, code and file chips |
-| `onPine` | Text and symbols on `pine` or `danger` |
-| `danger` | Errors, and actions that cannot be undone |
-| `online` | The server can be reached |
+| `onPine` | Text and symbols on `pine` |
+| `danger` | Errors, and actions that cannot be undone, in text and symbols. Light `#B0472F`, dark enough for small text on `paper` and `card` |
+| `dangerFill` | The fill of a button that cannot be undone, such as ending a voice conversation. Light `#B0472F`, dark `#B54E3A`: the dark `danger` is a text colour, too light for white on it |
+| `onDangerFill` | Text and symbols on `dangerFill`: white in both appearances |
+| `online` | The server can be reached: the status dot only. It is too light for text, so a check that succeeded is worded in `pine` |
 
 ### Type: `HearthTheme.type`
 
@@ -144,7 +146,10 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthIcons` | The symbols the app draws itself, because Material's set has none like them: `NewChat` |
 | `HearthIconButton(icon, label, tint) { … }` | A borderless button holding one symbol. The label is for screen readers and is required |
 | `HearthRoundButton(icon, label, containerColor, contentColor, size, iconSize) { … }` | A filled circle for a screen's main action: send, mute, end |
-| `HearthCircleButton(icon, label, tint, containerColor) { … }` | One symbol in a floating circle the size of a touch target: the frosted card colour, a hairline edge and a soft shadow, drawn like the composer. The chat list and private chat buttons at the top of a chat. `containerColor` fills it to show it is switched on |
+| `HearthCircleButton(icon, label, tint, containerColor, isOn) { … }` | One symbol in a floating circle the size of a touch target: the frosted card colour, a hairline edge and a soft shadow, drawn like the composer. The chat list and private chat buttons at the top of a chat. `containerColor` fills it to show it is switched on; `isOn` makes it a switch to a screen reader |
+| `HearthSmallIconButton(icon, label, sideLength) { … }` | A symbol drawn smaller than a finger (taking a photo or a file off the message) that still answers to, and is heard over, a whole touch target, without taking more room |
+| `HearthVersionStepper(labels, hasPrevious, hasNext) { step -> … }` | The arrows either side of "2/3" that step through the versions of a reply or of a piece in the canvas, with a selection haptic each step |
+| `HearthChoiceCard { … }`, `HearthChoiceRow(title, isSelected, isLast, detail, icon, tint) { … }` | A card of choices, heard as one group, and a row of it: a symbol, the words, a line under them and a tick for the one chosen. `isSelected = null` makes a row an action rather than a choice. The model sheet and the project picker |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, at least `touchTarget` high, with a line beneath the label on what it does, where given |
 | `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, ending in an arrow; TalkBack hears it as one button, by its description. Unavailable, it has no arrow and is heard as such |
@@ -174,11 +179,18 @@ with the line numbers in `mute`.
 
 ## Accessibility
 
-- Every button has a label. A symbol that only decorates has `null` for its description.
+- Every button has a label. A symbol that only decorates has `null` for its description. A button whose text says
+  what it does needs no description of its own.
+- Everything that can be tapped answers to at least `touchTarget` each way, however small it is drawn
+  (`minimumInteractiveComponentSize()`, or `HearthSmallIconButton`).
+- Each message is a group of its own, heard first as "You" or "Hearth". Headings in a reply are headings, and its
+  links are link annotations, which TalkBack lists and opens. A sent message's menu is a custom action as well as a
+  long press.
 - Group titles are marked as headings; a row that is a switch is one switch to a screen reader, and a row that
   leads to a page is one button, heard with how things stand on that page.
-- Results that arrive by themselves (a connection test, a voice sample that could not play, a problem on a page)
-  are live regions, so a screen reader announces them.
+- Results that arrive by themselves (a connection test, a voice sample that could not play, a problem on a page, the
+  chat's error banner, the line saying what a reply is doing) are polite live regions, so a screen reader announces
+  them.
 - What only decorates is hidden from a screen reader: the avatar beside a name, the dots that swell with a voice,
   the line numbers beside code in the canvas. The card of a piece of work is one button that says what it is and
   where it leads.

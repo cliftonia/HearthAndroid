@@ -141,6 +141,7 @@
     <string name="error_unreachable">Could not reach the server. Check that your VPN is connected.</string>
     <string name="error_save_failed">This chat could not be saved.</string>
     <string name="error_change_failed">That change could not be saved. The chat is as it was.</string>
+    <string name="error_task_change_failed">That change could not be saved. The task is as it was.</string>
 
     <string name="drawer_search">Search chats</string>
     <string name="drawer_today">Today</string>
@@ -162,6 +163,7 @@
     <string name="drawer_not_connected">Not connected</string>
     <string name="drawer_no_server">No server set</string>
     <string name="drawer_chat_options">Options for %1$s</string>
+    <string name="drawer_show_options">Show options</string>
     <plurals name="drawer_connected">
         <item quantity="one">Connected · %1$d model</item>
         <item quantity="other">Connected · %1$d models</item>
@@ -300,12 +302,16 @@
     <string name="message_attached_photo">Attached photo</string>
     <string name="message_attached_file">Attached file %1$s</string>
     <string name="message_options">Message options</string>
+    <string name="message_from_user">You</string>
+    <string name="message_from_hearth">Hearth</string>
     <string name="error_files_unreadable">Some files could not be read. PDFs and text files are supported.</string>
     <string name="error_speech_not_configured">No speech server address is set. Add one in Settings.</string>
     <string name="error_speech_failed">The reply could not be spoken.</string>
     <string name="error_dictation_denied">Allow microphone access in the phone\'s Settings to dictate.</string>
     <string name="error_dictation_unavailable">Dictation is not available right now.</string>
     <string name="error_camera_denied">Allow camera access in the phone\'s Settings to take a photo.</string>
+    <string name="error_camera_unavailable">There is no camera app on this phone to take a photo with.</string>
+    <string name="error_files_unavailable">There is no app on this phone to choose a file with.</string>
 
     <string name="picture_title">Picture</string>
     <string name="picture_section">Pictures</string>
@@ -398,6 +404,7 @@
     <string name="voice_permission_denied">Allow microphone access in the phone\'s Settings to talk.</string>
     <string name="voice_camera_turn_on">Turn camera on</string>
     <string name="voice_camera_turn_off">Turn camera off</string>
+    <string name="voice_camera_named_hint">%1$s. %2$s</string>
     <string name="voice_camera_hint">One picture is sent with each thing you say. Nothing is recorded.</string>
     <string name="voice_camera_flip">Switch camera</string>
     <string name="voice_camera_preview">What the camera sees</string>

@@ -97,7 +97,7 @@
             android:name=".sync.BackgroundSyncService"
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
-        <!-- Lends the camera one file to write a photo into, and another app one picture the user chose to share. Nothing else. -->
+        <!-- Lends the camera one file to write a photo into, and another app one picture or one long chat the user chose to share. Nothing else. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"

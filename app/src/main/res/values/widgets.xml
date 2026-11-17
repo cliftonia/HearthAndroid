@@ -6,7 +6,7 @@
 <resources>
     <color name="widget_paper">#F3F5F1</color>
     <color name="widget_ink">#18211E</color>
-    <color name="widget_mute">#6C7772</color>
+    <color name="widget_mute">#5F6A65</color>
     <color name="widget_pine">#2C6B5A</color>
     <color name="widget_on_pine">#FFFFFF</color>
 

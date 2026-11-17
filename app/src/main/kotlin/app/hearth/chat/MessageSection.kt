@@ -4,7 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -29,8 +27,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,23 +39,28 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import app.hearth.R
-import app.hearth.designsystem.HapticKind
-import app.hearth.designsystem.Haptics
 import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
+import app.hearth.designsystem.HearthVersionStepper
+import app.hearth.designsystem.HearthVersionStepperLabels
 import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
@@ -66,6 +69,7 @@ import app.hearth.domain.SearchSource
 import app.hearth.integrations.PictureLibrary
 import app.hearth.domain.shownVersionIndex
 import app.hearth.domain.versionCount
+import app.hearth.shared.rememberCopy
 import app.hearth.shared.share
 
 /** What is happening to the reply still being written, and what may be done with a finished one. */
@@ -104,10 +108,16 @@ class MessageActions(val onRetry: () -> Unit, val onSpeak: () -> Unit, val onEdi
 @Composable
 fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActions, pictures: PictureLibrary, modifier: Modifier = Modifier) {
     val message = configuration.message
+    // Each message is a group of its own to a screen reader, which hears first who it is from.
+    val speaker = stringResource(if (message.role == MessageRole.USER) R.string.message_from_user else R.string.message_from_hearth)
+    val group = modifier.semantics {
+        isTraversalGroup = true
+        contentDescription = speaker
+    }
     if (message.role == MessageRole.USER) {
-        UserMessage(message, configuration.canEdit, actions.onEdit, modifier)
+        UserMessage(message, configuration.canEdit, actions.onEdit, group)
     } else {
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
+        Column(group.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
             // A report lists its sources in full beneath it; an ordinary reply has them here, as pills.
@@ -135,16 +145,27 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
             }
             if (configuration.hasSearchFailed) Notice(stringResource(R.string.notice_search_failed))
             configuration.memoryNotice?.let { outcome -> memoryNoticeText(outcome)?.let { Notice(it) } }
-            if (!configuration.isStreaming && message.text.isNotEmpty()) Actions(configuration, actions)
+            // While the reply streams its actions are laid out unseen, untouchable and unheard, so that the text
+            // does not move when they appear.
+            if (message.text.isNotEmpty()) {
+                Actions(
+                    configuration,
+                    actions,
+                    if (configuration.isStreaming) Modifier.alpha(0f).clearAndSetSemantics { }.blockingTouches() else Modifier,
+                )
+            }
         }
     }
 }
 
-/** What the user sent: any photos and files, then the words. A long press offers to copy or edit it. */
+/**
+ * What the user sent: any photos and files, then the words. A long press offers to copy or edit it; a screen reader
+ * offers the same menu as an action of the words.
+ */
 @Composable
 private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, modifier: Modifier) {
     val colors = HearthTheme.colors
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberCopy()
     var isMenuOpen by remember { mutableStateOf(false) }
     val optionsLabel = stringResource(R.string.message_options)
     Column(
@@ -167,7 +188,8 @@ private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, 
                     modifier = Modifier
                         .clip(HearthTheme.shapes.bubble)
                         .background(colors.bubble)
-                        .combinedClickable(onLongClickLabel = optionsLabel, onLongClick = { isMenuOpen = true }, onClick = {})
+                        .pointerInput(Unit) { detectTapGestures(onLongPress = { isMenuOpen = true }) }
+                        .semantics { customActions = listOf(CustomAccessibilityAction(optionsLabel) { isMenuOpen = true; true }) }
                         .padding(horizontal = HearthTheme.spacing.xxxl, vertical = HearthTheme.spacing.l),
                 )
                 DropdownMenu(expanded = isMenuOpen, onDismissRequest = { isMenuOpen = false }) {
@@ -175,8 +197,7 @@ private fun UserMessage(message: Message, canEdit: Boolean, onEdit: () -> Unit, 
                         text = { Text(stringResource(R.string.message_copy)) },
                         onClick = {
                             isMenuOpen = false
-                            clipboard.setText(AnnotatedString(message.text))
-                            Haptics.play(HapticKind.SUCCESS)
+                            copy(message.text)
                         },
                     )
                     if (canEdit) {
@@ -279,7 +300,15 @@ private fun Activity(text: String) {
             color = HearthTheme.colors.pine,
             strokeWidth = HearthTheme.strokes.progress,
         )
-        Text(text, color = HearthTheme.colors.mute, style = HearthTheme.type.callout, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            text,
+            color = HearthTheme.colors.mute,
+            style = HearthTheme.type.callout,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            // Each step is announced as it changes, without interrupting.
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
     }
 }
 
@@ -305,10 +334,15 @@ private fun SourceRow(sources: List<SearchSource>) {
             val label = stringResource(R.string.message_source, index + 1, source.host)
             Row(
                 Modifier
+                    // A finger is given the least it needs, round the pill as it is drawn.
+                    .minimumInteractiveComponentSize()
                     .clip(HearthTheme.shapes.pill)
                     .border(HearthTheme.strokes.hairline, HearthTheme.colors.line, HearthTheme.shapes.pill)
                     .clickable(role = Role.Button) { if (SearchSource.isWebLink(source.url)) runCatching { uriHandler.openUri(source.url) } }
-                    .semantics { contentDescription = label }
+                    .clearAndSetSemantics {
+                        contentDescription = label
+                        role = Role.Button
+                    }
                     .padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.chipInset),
                 horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s),
             ) {
@@ -327,10 +361,10 @@ private fun SourceRow(sources: List<SearchSource>) {
 
 /** What may be done with a finished reply: hear it, copy it, share it, ask for it again, and look back at earlier versions. */
 @Composable
-private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions) {
+private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions, modifier: Modifier = Modifier) {
     val canRetry = configuration.canRetry
     val onRetry = actions.onRetry
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         // A picture has its own ways to be kept, and its note is not worth copying or reading out.
         if (!configuration.message.isPicture) TextActions(configuration, actions.onSpeak)
         if (canRetry) HearthIconButton(Icons.Outlined.Refresh, stringResource(R.string.message_retry), tint = HearthTheme.colors.mute, onClick = onRetry)
@@ -341,7 +375,7 @@ private fun Actions(configuration: MessageViewConfiguration, actions: MessageAct
 /** Read aloud, copy and share, for a reply made of words. */
 @Composable
 private fun TextActions(configuration: MessageViewConfiguration, onSpeak: () -> Unit) {
-    val clipboard = LocalClipboardManager.current
+    val copy = rememberCopy()
     val context = LocalContext.current
     val text = configuration.message.text
     if (configuration.canSpeak) {
@@ -353,42 +387,31 @@ private fun TextActions(configuration: MessageViewConfiguration, onSpeak: () -> 
             onClick = onSpeak,
         )
     }
-    HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy), tint = HearthTheme.colors.mute) {
-        clipboard.setText(AnnotatedString(text))
-        Haptics.play(HapticKind.SUCCESS)
-    }
+    HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy), tint = HearthTheme.colors.mute) { copy(text) }
     HearthIconButton(Icons.Outlined.Share, stringResource(R.string.message_share), tint = HearthTheme.colors.mute) { share(context, text) }
 }
 
 /** Steps back and forth through the versions of a reply, with the place of the one shown between the arrows. */
 @Composable
 private fun VersionStepper(message: Message, onVersion: (Int) -> Unit) {
-    val colors = HearthTheme.colors
     val index = message.shownVersionIndex
     val count = message.versionCount
-    val position = stringResource(R.string.message_version_position, index + 1, count)
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        VersionArrow(Icons.Outlined.ChevronLeft, stringResource(R.string.message_previous_version), isEnabled = index > 0) {
-            Haptics.play(HapticKind.SELECTION)
-            onVersion(index - 1)
-        }
-        Text(
-            stringResource(R.string.message_version_counter, index + 1, count),
-            color = colors.mute,
-            style = HearthTheme.type.footnote,
-            modifier = Modifier.semantics { contentDescription = position },
-        )
-        VersionArrow(Icons.Outlined.ChevronRight, stringResource(R.string.message_next_version), isEnabled = index < count - 1) {
-            Haptics.play(HapticKind.SELECTION)
-            onVersion(index + 1)
-        }
-    }
+    HearthVersionStepper(
+        HearthVersionStepperLabels(
+            counter = stringResource(R.string.message_version_counter, index + 1, count),
+            position = stringResource(R.string.message_version_position, index + 1, count),
+            previous = stringResource(R.string.message_previous_version),
+            next = stringResource(R.string.message_next_version),
+        ),
+        hasPrevious = index > 0,
+        hasNext = index < count - 1,
+        onStep = { step -> onVersion(index + step) },
+    )
 }
 
-/** One arrow of the stepper, faded where there is no version that way. */
-@Composable
-private fun VersionArrow(icon: ImageVector, label: String, isEnabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = isEnabled) {
-        Icon(icon, label, tint = HearthTheme.colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconL).alpha(if (isEnabled) 1f else 0.35f))
+/** Lets no touch through to what is under it. */
+private fun Modifier.blockingTouches(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
     }
 }

@@ -53,7 +53,7 @@ private fun ConnectionRow(test: ConnectionTest?, presenter: SettingsPresenter) {
         val (message, colour) = when (test) {
             null -> "" to colors.mute
             is ConnectionTest.Checking -> stringResource(R.string.settings_checking) to colors.mute
-            is ConnectionTest.Succeeded -> pluralStringResource(R.plurals.settings_test_ok, test.modelCount, test.modelCount) to colors.online
+            is ConnectionTest.Succeeded -> pluralStringResource(R.plurals.settings_test_ok, test.modelCount, test.modelCount) to colors.pine
             is ConnectionTest.InvalidAddress -> stringResource(R.string.settings_invalid_address) to colors.danger
             is ConnectionTest.Failed -> errorMessage(test.error) to colors.danger
         }
@@ -74,7 +74,7 @@ private fun AddressField(label: String, value: String, onChange: (String) -> Uni
         onValueChange = onChange,
         label = { Text(label) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrect = false, capitalization = KeyboardCapitalization.None),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, autoCorrectEnabled = false, capitalization = KeyboardCapitalization.None),
         modifier = Modifier.fillMaxWidth(),
     )
 }

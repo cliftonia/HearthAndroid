@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,7 +24,8 @@ private const val FROSTED_ALPHA = 0.92f
  * shadow, as the composer and the chat's menu pill are drawn. It is the size of a touch target, so nothing round it
  * needs to grow to be tapped. Used for the buttons at the top of a chat.
  *
- * [containerColor], when given, fills the circle instead, to show the button is switched on.
+ * [containerColor], when given, fills the circle instead, to show the button is switched on. [isOn], when given,
+ * makes it a switch to a screen reader, heard as on or off, rather than a plain button.
  */
 @Composable
 fun HearthCircleButton(
@@ -32,6 +34,7 @@ fun HearthCircleButton(
     modifier: Modifier = Modifier,
     tint: Color = HearthTheme.colors.ink,
     containerColor: Color? = null,
+    isOn: Boolean? = null,
     onClick: () -> Unit,
 ) {
     val colors = HearthTheme.colors
@@ -43,7 +46,13 @@ fun HearthCircleButton(
             .background(containerColor ?: colors.card.copy(alpha = FROSTED_ALPHA), shape)
             .border(HearthTheme.strokes.hairline, colors.line, shape)
             .clip(shape)
-            .clickable(role = Role.Button, onClick = onClick),
+            .then(
+                if (isOn == null) {
+                    Modifier.clickable(role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier.toggleable(value = isOn, role = Role.Switch, onValueChange = { onClick() })
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(HearthTheme.sizes.iconL))

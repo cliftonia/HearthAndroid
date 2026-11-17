@@ -16,7 +16,7 @@ class FollowUpTransformer {
 
     /** The questions in a model's answer: one per line, without list markers or quotes, and never more than three. */
     fun questions(answer: String): List<String> = answer.lines()
-        .map { line -> line.trim().replace(LIST_MARKER, "").trim('"', '\'', '“', '”', '‘', '’', '*', '_', ' ') }
+        .map { line -> line.trim().replace(TextPatterns.LIST_MARKER, "").trim('"', '\'', '“', '”', '‘', '’', '*', '_', ' ') }
         .filter { it.length in 8..140 && it.endsWith("?") }
         .take(MAXIMUM_COUNT)
 
@@ -26,8 +26,5 @@ class FollowUpTransformer {
 
         /** How much of the question and of the reply the model is shown. */
         private const val EXCERPT_LENGTH = 1500
-
-        /** A bullet or a number at the start of a line. */
-        private val LIST_MARKER = Regex("^([-*•]|\\d+[.)])\\s*")
     }
 }

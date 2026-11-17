@@ -12,6 +12,7 @@ fun errorMessage(error: ErrorViewConfiguration): String = when (error.kind) {
     ErrorKind.UNREACHABLE -> stringResource(R.string.error_unreachable)
     ErrorKind.SAVE_FAILED -> stringResource(R.string.error_save_failed)
     ErrorKind.CHANGE_FAILED -> stringResource(R.string.error_change_failed)
+    ErrorKind.TASK_CHANGE_FAILED -> stringResource(R.string.error_task_change_failed)
     ErrorKind.PROJECT_SAVE_FAILED -> stringResource(R.string.error_project_save_failed)
     ErrorKind.SERVER -> error.detail.ifEmpty { stringResource(R.string.error_title) }
     ErrorKind.FILES_UNREADABLE -> stringResource(R.string.error_files_unreadable)
@@ -20,6 +21,8 @@ fun errorMessage(error: ErrorViewConfiguration): String = when (error.kind) {
     ErrorKind.DICTATION_DENIED -> stringResource(R.string.error_dictation_denied)
     ErrorKind.DICTATION_UNAVAILABLE -> stringResource(R.string.error_dictation_unavailable)
     ErrorKind.CAMERA_DENIED -> stringResource(R.string.error_camera_denied)
+    ErrorKind.CAMERA_UNAVAILABLE -> stringResource(R.string.error_camera_unavailable)
+    ErrorKind.FILES_UNAVAILABLE -> stringResource(R.string.error_files_unavailable)
     ErrorKind.PICTURE_NOT_CONFIGURED -> stringResource(R.string.error_picture_not_configured)
     ErrorKind.PICTURE_NO_MODEL -> stringResource(R.string.error_picture_no_model)
     ErrorKind.PICTURE_CANNOT_CHANGE -> stringResource(R.string.error_picture_cannot_change)

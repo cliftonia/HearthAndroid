@@ -169,7 +169,7 @@ class CanvasExtractor {
 
     /** A title on one line and of a sensible length; `null` when nothing is left of it. */
     private fun tidied(title: String): String? {
-        val words = title.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
+        val words = title.split(TextPatterns.WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
         return words.clipped(MAXIMUM_TITLE_LENGTH).ifEmpty { null }
     }
 
@@ -194,7 +194,6 @@ class CanvasExtractor {
         private val MARKDOWN_TAGS = setOf("markdown", "md")
         private val HTML_TAGS = setOf("html", "htm", "xhtml")
         private val TITLE = Regex("<title[^>]*>(.*?)</title>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
-        private val WHITESPACE = Regex("\\s+")
         private val REFERENCES = listOf("&lt;" to "<", "&gt;" to ">", "&quot;" to "\"", "&#39;" to "'", "&amp;" to "&")
     }
 }

@@ -74,6 +74,9 @@ class ProjectPresenter(
         )
     }
 
+    /** The phone has no app to pick a file with; says so. */
+    fun filesUnavailableAction() = state.update { it.copy(error = ErrorViewConfiguration(ErrorKind.FILES_UNAVAILABLE)) }
+
     fun removeDocumentAction(id: String) = state.update { it.copy(documents = it.documents.filter { document -> document.id != id }) }
 
     fun dismissErrorAction() = state.update { it.copy(error = null) }

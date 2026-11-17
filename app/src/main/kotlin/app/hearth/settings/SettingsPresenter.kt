@@ -105,6 +105,7 @@ class SettingsPresenter(internal val scope: CoroutineScope, internal val depende
     internal val syncTokenDraftState = MutableStateFlow("")
     internal val syncCheckState = MutableStateFlow<SyncCheck?>(null)
     internal val taskDraftState = MutableStateFlow<TaskDraft?>(null)
+    internal val taskErrorState = MutableStateFlow<ErrorViewConfiguration?>(null)
 
     /** Whether the tasks pages were opened from the chat's composer, which leaving them goes back to. */
     internal var isTaskFromChat = false

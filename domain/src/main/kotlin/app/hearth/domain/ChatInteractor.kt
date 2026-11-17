@@ -95,7 +95,10 @@ class ChatInteractor(
         // A spoken reply should come quickly, so the model is not asked to think first.
         val thinking = if (turn.style == ReplyStyle.CHAT) turn.settings.thinkingLevel else ThinkingLevel.OFF
         val progress = Progress(messages.toMutableList(), upfront)
+        // Keeps what the model writes after it stops to act apart from what it wrote before.
+        val joiner = ReplyJoiner()
         repeat(MAXIMUM_REQUESTS) {
+            joiner.modelResumes()
             val offersSearch = isAutomatic && progress.searchRounds < MAXIMUM_SEARCH_ROUNDS
             // Once anything from the web is in the turn, memory is closed: a web page must not be able to plant a memory.
             val offersMemory = canRemember && progress.sources.isEmpty() && progress.memoryWrites < MAXIMUM_MEMORY_WRITES
@@ -105,7 +108,7 @@ class ChatInteractor(
             chat.streamChat(baseUrl, request).collect { delta ->
                 when (delta) {
                     is ChatDelta.Thinking -> emit(Event.Thinking(delta.text))
-                    is ChatDelta.Text -> emit(Event.Text(delta.text))
+                    is ChatDelta.Text -> emit(Event.Text(joiner.join(delta.text)))
                     is ChatDelta.SearchRequested -> searches += delta.request
                     is ChatDelta.MemoryRequested -> memoryChanges += delta.request
                 }

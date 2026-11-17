@@ -34,11 +34,8 @@ class UserProfile(fullName: String = "", nickname: String = "") {
     override fun toString(): String = "UserProfile(fullName=$fullName, nickname=$nickname)"
 
     private companion object {
-        /** Whatever ends a line, in any script. */
-        val LINE_BREAKS = Regex("[\\n\\r\\u000B\\u000C\\u0085\\u2028\\u2029]+")
-
         /** A name trimmed and on one line, so that it reads as a name wherever it is put. */
-        fun singleLine(name: String): String = name.split(LINE_BREAKS).filter { it.isNotEmpty() }.joinToString(" ").trim()
+        fun singleLine(name: String): String = name.split(TextPatterns.NEWLINES).filter { it.isNotEmpty() }.joinToString(" ").trim()
 
         fun words(name: String): List<String> = name.split(" ").filter { it.isNotEmpty() }
     }

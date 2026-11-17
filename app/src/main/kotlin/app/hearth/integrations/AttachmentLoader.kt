@@ -143,6 +143,9 @@ class AttachmentLoader(private val context: Context) {
     }
 
     companion object {
+        /** The kinds of file offered for attaching, to a message or a project: those whose text can be read. */
+        val DOCUMENT_TYPES = arrayOf("application/pdf", "text/*", "application/json", "application/xml")
+
         /** The longest side of a photo sent to a model, in pixels. */
         internal const val MAXIMUM_SIDE = 1568
 

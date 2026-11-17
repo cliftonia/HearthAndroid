@@ -8,6 +8,8 @@ import app.hearth.domain.TaskModels
 import app.hearth.domain.TaskSchedule
 import app.hearth.domain.TaskStore
 import app.hearth.domain.TaskTime
+import app.hearth.shared.ErrorKind
+import app.hearth.shared.ErrorViewConfiguration
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -44,6 +46,11 @@ data class TaskDraft(
     /** The day of a one-off run. */
     val date: LocalDate = LocalDate.now(),
     val usesWebSearch: Boolean = false,
+    /**
+     * When a saved one-off task was set to run, in seconds since 1970; `null` for any other. A task that has already
+     * run may be opened and saved again at that same time without being moved, and so without running again.
+     */
+    val savedOnceSeconds: Long? = null,
     /** Whether the last save failed, until something is changed. */
     val hasFailed: Boolean = false,
 ) {
@@ -56,15 +63,23 @@ data class TaskDraft(
         TaskRepeatKind.ONCE -> TaskSchedule.Once(date.atTime(time.hour, time.minute).atZone(zone).toEpochSecond())
     }
 
-    /** Whether a one-off run is drafted for a moment already gone. */
+    /** Whether the draft keeps a saved one-off task at the time it already had, to the minute the editor shows. */
+    fun keepsSavedOnce(zone: ZoneId): Boolean {
+        val saved = savedOnceSeconds ?: return false
+        return repeat == TaskRepeatKind.ONCE && (schedule(zone) as TaskSchedule.Once).atSeconds == saved - Math.floorMod(saved, SECONDS_IN_MINUTE)
+    }
+
+    /** Whether a one-off run is drafted for a moment already gone, other than the time a saved task already had. */
     fun isInPast(zone: ZoneId, nowMillis: Long): Boolean =
-        repeat == TaskRepeatKind.ONCE && (schedule(zone) as TaskSchedule.Once).atSeconds * 1000 <= nowMillis
+        repeat == TaskRepeatKind.ONCE && (schedule(zone) as TaskSchedule.Once).atSeconds * 1000 <= nowMillis && !keepsSavedOnce(zone)
 
     /** Whether there is enough to save: a title, a question, a model a task may use, and a time still to come. */
     fun canSave(zone: ZoneId, nowMillis: Long): Boolean =
         title.isNotBlank() && prompt.isNotBlank() && TaskModels.isAllowed(model) && !isInPast(zone, nowMillis)
 
     companion object {
+        private const val SECONDS_IN_MINUTE = 60L
+
         /** A draft of a saved task. A one-off time is shown in [zone]; a repeating task offers [defaultDate] if made one-off. */
         fun of(task: ScheduledTask, zone: ZoneId, defaultDate: LocalDate): TaskDraft {
             val base = TaskDraft(task.id, task.title, task.prompt, task.model, date = defaultDate, usesWebSearch = task.usesWebSearch)
@@ -73,7 +88,12 @@ data class TaskDraft(
                 is TaskSchedule.Weekly -> base.copy(repeat = TaskRepeatKind.WEEKLY, time = schedule.time, weekday = schedule.weekday)
                 is TaskSchedule.Once -> {
                     val moment = Instant.ofEpochSecond(schedule.atSeconds).atZone(zone)
-                    base.copy(repeat = TaskRepeatKind.ONCE, time = TaskTime(moment.hour, moment.minute), date = moment.toLocalDate())
+                    base.copy(
+                        repeat = TaskRepeatKind.ONCE,
+                        time = TaskTime(moment.hour, moment.minute),
+                        date = moment.toLocalDate(),
+                        savedOnceSeconds = schedule.atSeconds,
+                    )
                 }
             }
         }
@@ -84,6 +104,13 @@ private val SettingsPresenter.taskControls: TaskControls get() = dependencies.ta
 
 /** Every scheduled task, oldest first. */
 val SettingsPresenter.tasks: StateFlow<List<ScheduledTask>> get() = taskControls.store.tasks
+
+/** A change from the list that could not be kept, until it is acknowledged. */
+val SettingsPresenter.taskError: StateFlow<ErrorViewConfiguration?> get() = taskErrorState
+
+fun SettingsPresenter.dismissTaskErrorAction() {
+    taskErrorState.value = null
+}
 
 /** The task in the editor; `null` while none is. */
 val SettingsPresenter.taskDraft: StateFlow<TaskDraft?> get() = taskDraftState
@@ -156,6 +183,7 @@ fun SettingsPresenter.taskEnabledAction(id: TaskId, isEnabled: Boolean) {
             taskControls.store.setEnabled(id, isEnabled)
         } catch (failure: IOException) {
             Log.e(SettingsPresenter.TAG, "Switching a task failed: ${failure.javaClass.simpleName}")
+            taskErrorState.value = ErrorViewConfiguration(ErrorKind.TASK_CHANGE_FAILED)
         }
     }
 }
@@ -174,7 +202,8 @@ fun SettingsPresenter.saveTaskAction() {
         title = draft.title.trim(),
         prompt = draft.prompt.trim(),
         model = draft.model,
-        schedule = draft.schedule(zone),
+        // A one-off time left as it was is kept to the second, not moved to the minute the editor shows.
+        schedule = if (existing != null && draft.keepsSavedOnce(zone)) existing.schedule else draft.schedule(zone),
         usesWebSearch = draft.usesWebSearch,
     )
     scope.launch {

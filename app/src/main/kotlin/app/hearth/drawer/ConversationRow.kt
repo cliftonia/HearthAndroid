@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
@@ -55,12 +57,18 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
     val title = conversation.title.ifEmpty { stringResource(R.string.untitled) }
     val exporter = rememberConversationExporter()
     var isMenuOpen by remember { mutableStateOf(false) }
+    val optionsLabel = stringResource(R.string.drawer_chat_options, title)
+    val showOptions = stringResource(R.string.drawer_show_options)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(HearthTheme.shapes.tile)
             .background(if (isSelected) colors.pineSoft else Color.Transparent)
-            .combinedClickable(role = Role.Button, onLongClick = { isMenuOpen = true }) { presenter.selectAction(conversation.id) }
+            .combinedClickable(role = Role.Button, onLongClickLabel = showOptions, onLongClick = { isMenuOpen = true }) {
+                presenter.selectAction(conversation.id)
+            }
+            // The chat open beside the list is heard as the one chosen.
+            .semantics { selected = isSelected }
             .padding(start = HearthTheme.spacing.l),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -91,7 +99,7 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
             )
         }
         Box {
-            HearthIconButton(Icons.Outlined.MoreHoriz, stringResource(R.string.drawer_chat_options, title), tint = colors.mute) { isMenuOpen = true }
+            HearthIconButton(Icons.Outlined.MoreHoriz, optionsLabel, tint = colors.mute) { isMenuOpen = true }
             DropdownMenu(expanded = isMenuOpen, onDismissRequest = { isMenuOpen = false }) {
                 val pinLabel = if (conversation.isPinned) R.string.drawer_unpin else R.string.drawer_pin
                 val actions = listOfNotNull(
