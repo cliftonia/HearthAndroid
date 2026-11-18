@@ -103,6 +103,6 @@ private fun ProjectRow(title: String, icon: ImageVector, tint: Color, symbolTint
         horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m),
     ) {
         Icon(icon, null, tint = symbolTint, modifier = Modifier.size(HearthTheme.sizes.iconS))
-        Text(title, color = tint, style = HearthTheme.type.subhead, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Text(title, color = tint, style = HearthTheme.type.listRow, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
     }
 }

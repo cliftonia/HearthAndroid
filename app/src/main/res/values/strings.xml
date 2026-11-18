@@ -83,7 +83,6 @@
     <string name="message_code">code</string>
     <string name="message_writing">Writing a reply</string>
     <string name="message_searching">Searching the web for %1$s</string>
-    <string name="message_source">Source %1$d: %2$s</string>
     <string name="notice_search_failed">Web search failed, so this reply does not use it.</string>
     <string name="export_user">You</string>
     <string name="untitled">Untitled chat</string>
@@ -125,6 +124,11 @@
     <string name="research_checking">Checking for gaps</string>
     <string name="research_writing">Writing</string>
     <string name="research_sources">Sources</string>
+    <string name="sources_heading">Sources:</string>
+    <plurals name="sources_count">
+        <item quantity="one">%1$d source</item>
+        <item quantity="other">%1$d sources</item>
+    </plurals>
     <string name="research_source">Source %1$d: %2$s, %3$s</string>
     <string name="research_open_source">Open page</string>
     <string name="error_research_not_configured">Add a search address in Settings to research a question.</string>
@@ -144,6 +148,7 @@
     <string name="error_task_change_failed">That change could not be saved. The task is as it was.</string>
 
     <string name="drawer_search">Search chats</string>
+    <string name="drawer_search_close">Close search</string>
     <string name="drawer_today">Today</string>
     <string name="drawer_yesterday">Yesterday</string>
     <string name="drawer_previous_week">Previous 7 days</string>

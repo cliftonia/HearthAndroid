@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Stop
@@ -92,10 +93,18 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
 
 /**
  * The ways to add a photo or a file to the message being written, the way to make what is written a scheduled task,
- * and, where there is a picture server, the switch that makes the next message ask for a picture.
+ * where there is a picture server the switch that makes the next message ask for a picture, and where replies can be
+ * spoken the switch that has each one read aloud. [isReadingAloud] is `null` where there is no speech server.
  */
 @Composable
-internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode: Boolean, presenter: ChatPresenter, attachments: AttachmentLoader) {
+internal fun AttachMenu(
+    canSee: Boolean,
+    canMakePictures: Boolean,
+    isPictureMode: Boolean,
+    isReadingAloud: Boolean?,
+    presenter: ChatPresenter,
+    attachments: AttachmentLoader,
+) {
     val scope = rememberCoroutineScope()
     var isOpen by remember { mutableStateOf(false) }
     // Kept across the trip to the camera, during which Android may put the app away.
@@ -175,6 +184,20 @@ internal fun AttachMenu(canSee: Boolean, canMakePictures: Boolean, isPictureMode
                     onClick = {
                         isOpen = false
                         presenter.togglePictureModeAction()
+                    },
+                )
+            }
+            if (isReadingAloud != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.composer_read_replies)) },
+                    leadingIcon = {
+                        val icon = if (isReadingAloud) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.VolumeUp
+                        Icon(icon, null, Modifier.size(HearthTheme.sizes.iconS))
+                    },
+                    modifier = Modifier.semantics { selected = isReadingAloud },
+                    onClick = {
+                        isOpen = false
+                        presenter.toggleAutoReadAction()
                     },
                 )
             }

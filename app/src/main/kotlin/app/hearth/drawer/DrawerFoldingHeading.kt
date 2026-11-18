@@ -71,8 +71,8 @@ internal fun DrawerFoldingHeading(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s),
         ) {
-            Text(title, color = colors.mute, style = HearthTheme.type.caption, modifier = Modifier.weight(1f))
-            Text(count.toString(), color = colors.mute, style = HearthTheme.type.caption, modifier = Modifier.alpha(if (isFolded) 1f else 0f))
+            Text(title, color = colors.mute, style = HearthTheme.type.footnote, modifier = Modifier.weight(1f))
+            Text(count.toString(), color = colors.mute, style = HearthTheme.type.footnote, modifier = Modifier.alpha(if (isFolded) 1f else 0f))
             Icon(
                 Icons.Outlined.ExpandMore,
                 null,

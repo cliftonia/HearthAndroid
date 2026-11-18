@@ -42,7 +42,7 @@ class HearthSizes {
     val markS: Dp = 28.dp
 
     /** The app's mark on an empty chat. */
-    val markM: Dp = 56.dp
+    val markM: Dp = 40.dp
 
     /** The app's mark on the lock screen. */
     val markL: Dp = 64.dp
@@ -75,6 +75,9 @@ class HearthSizes {
 
     /** The number beside a source of a report: wide enough for two digits, so that the titles line up. */
     val sourceNumberWidth: Dp = 22.dp
+
+    /** The circle that stands for a source's site. */
+    val sourceMark: Dp = 20.dp
 
     /** One column of a table in a reply. */
     val tableColumn: Dp = 150.dp

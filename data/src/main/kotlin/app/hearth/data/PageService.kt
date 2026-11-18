@@ -7,10 +7,10 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-/** A page was refused: it is not public, not HTTPS, or not HTML. */
+/** A page was refused: it is not public, not HTTPS, or not what was asked for (HTML, or for an icon a small picture). */
 class PageNotAllowedException(message: String) : IOException(message)
 
-/** Fetches a public web page so that its text can be read. Nothing is kept: no cookies, no cache. */
+/** Fetches a public web page so that its text can be read, or a site's icon. Nothing is kept: no cookies, no cache. */
 class PageService internal constructor(client: OkHttpClient) {
     constructor() : this(HearthHttp.client)
 
@@ -50,8 +50,31 @@ class PageService internal constructor(client: OkHttpClient) {
         }
     }
 
+    /**
+     * The icon a site keeps at its root, as the site serves it. Throws unless the site is on the public web, answers
+     * with a picture, and the picture is small.
+     */
+    suspend fun fetchIcon(host: String): ByteArray {
+        val url = "https://$host/favicon.ico".toHttpUrlOrNull()?.takeIf(PageAddressPolicy::isAllowedForm)
+            ?: throw PageNotAllowedException("not a public HTTPS site")
+        val request = Request.Builder().url(url).header("Accept", "image/*").build()
+        return client.newCall(request).await { response ->
+            if (!response.isSuccessful) throw HttpError.Status(response.code, "")
+            // Some sites send their icon as plain bytes without naming it a picture.
+            val kind = response.header("Content-Type")?.lowercase().orEmpty()
+            if (!kind.startsWith("image/") && "octet-stream" !in kind) throw PageNotAllowedException("not a picture")
+            val source = response.body?.source() ?: throw PageNotAllowedException("no picture")
+            source.request(MAXIMUM_ICON_BYTES + 1)
+            if (source.buffer.size == 0L || source.buffer.size > MAXIMUM_ICON_BYTES) throw PageNotAllowedException("not a small picture")
+            source.buffer.readByteArray()
+        }
+    }
+
     private companion object {
         /** The most that is read of any one page. */
         const val MAXIMUM_BYTES = 1_000_000L
+
+        /** An icon larger than this is not one worth drawing in a small circle, so it is refused. */
+        const val MAXIMUM_ICON_BYTES = 300_000L
     }
 }

@@ -24,6 +24,7 @@ import app.hearth.domain.SearchDataProvider
 import app.hearth.domain.ServerSettings
 import app.hearth.domain.SettingsDataProvider
 import app.hearth.domain.SettingsStore
+import app.hearth.domain.SiteIconProvider
 import app.hearth.domain.SpeechDataProvider
 import app.hearth.domain.SpeechInteractor
 import app.hearth.chat.PictureWords
@@ -92,6 +93,8 @@ class AppDependencies(
     val sideList: SideListPreference,
     /** Which sections of the chat list are folded away. */
     val drawerFolds: DrawerFoldPreference,
+    /** The small pictures web sites show for themselves, drawn beside a reply's sources. */
+    val siteIcons: SiteIconProvider,
     /** Sync's settings, status and journal. */
     val syncStore: SyncStore,
     /** One sync with the hub; when it runs is the coordinator's scheduler's to decide. */
@@ -201,6 +204,7 @@ class AppDependencies(
                 profilePhotos = ProfilePhotoLoader(application),
                 sideList = sideList,
                 drawerFolds = DrawerFoldPreference.live(application),
+                siteIcons = SiteIconProvider.live(File(application.cacheDir, "site-icons")),
                 syncStore = syncStore,
                 sync = sync,
                 runSync = showcaseSync(application) { sync.sync() },

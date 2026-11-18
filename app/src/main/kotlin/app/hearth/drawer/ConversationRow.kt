@@ -2,14 +2,13 @@ package app.hearth.drawer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
@@ -46,12 +45,12 @@ import app.hearth.shared.share
  * One saved chat: tap to open it, or hold it or use its menu to pin or rename it, file it in a project, share it
  * or delete it.
  *
- * [hasProjectMark] is whether a chat that is in a project is marked as such. Among a project's own chats the mark
- * would say nothing, so it is asked for only where every chat is listed. [hasTaskMark] is the same for the note under
- * a chat a scheduled task filed, which says nothing under the Scheduled tasks heading.
+ * Before its name stands the symbol that says what kind it is: a clock for the answer a scheduled task filed, and a
+ * speech bubble for every other chat. [hasProjectMark] is whether a chat that is in a project is marked as such.
+ * Among a project's own chats the mark would say nothing, so it is asked for only where every chat is listed.
  */
 @Composable
-internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark: Boolean, presenter: DrawerPresenter, hasTaskMark: Boolean = true, onRename: () -> Unit) {
+internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark: Boolean, presenter: DrawerPresenter, onRename: () -> Unit) {
     val conversation = row.conversation
     val colors = HearthTheme.colors
     val context = LocalContext.current
@@ -73,24 +72,29 @@ internal fun ConversationRow(row: DrawerRow, isSelected: Boolean, hasProjectMark
             .padding(start = HearthTheme.spacing.l),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val isFromTask = conversation.taskId != null
+        Icon(
+            if (isFromTask) Icons.Outlined.Schedule else Icons.AutoMirrored.Outlined.Chat,
+            if (isFromTask) stringResource(R.string.chat_scheduled_task) else null,
+            tint = colors.mute,
+            modifier = Modifier.padding(end = HearthTheme.spacing.m).size(HearthTheme.sizes.iconS),
+        )
+        // Large text is given a second line before the title is cut short.
+        Text(
+            title,
+            color = colors.ink,
+            style = HearthTheme.type.listRow,
+            maxLines = if (isLargeFont()) 2 else 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         if (conversation.isPrivate) {
             Icon(
                 Icons.Outlined.Lock,
                 stringResource(R.string.chat_private),
                 tint = colors.mute,
-                modifier = Modifier.padding(end = HearthTheme.spacing.s).size(HearthTheme.sizes.iconXs),
+                modifier = Modifier.padding(start = HearthTheme.spacing.s).size(HearthTheme.sizes.iconXs),
             )
-        }
-        Column(Modifier.weight(1f)) {
-            // Large text is given a second line before the title is cut short.
-            Text(title, color = colors.ink, style = HearthTheme.type.subhead, maxLines = if (isLargeFont()) 2 else 1, overflow = TextOverflow.Ellipsis)
-            // A chat a scheduled task filed says so, under its title.
-            if (conversation.taskId != null && hasTaskMark) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.xs)) {
-                    Icon(Icons.Outlined.Schedule, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
-                    Text(stringResource(R.string.chat_scheduled_task), color = colors.mute, style = HearthTheme.type.caption, maxLines = 1)
-                }
-            }
         }
         if (row.isInProject && hasProjectMark) {
             Icon(

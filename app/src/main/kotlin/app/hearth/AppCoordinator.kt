@@ -121,6 +121,9 @@ class AppCoordinator(
      */
     val isCanvasOpen: StateFlow<Boolean> = canvasState.asStateFlow()
     val settingsStore = dependencies.settingsStore
+
+    /** Read by the activity, which hands the sites' icons down to the replies' sources. */
+    val siteIcons = dependencies.siteIcons
     private val syncStore = dependencies.syncStore
     private val savedData = dependencies.savedData
     val modelStore = dependencies.modelStore

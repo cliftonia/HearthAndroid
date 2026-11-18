@@ -19,6 +19,7 @@ import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.hearth.chat.LocalSiteIcons
 import app.hearth.designsystem.HapticsHost
 import app.hearth.designsystem.HearthTheme
 import app.hearth.designsystem.isDark
@@ -86,7 +88,9 @@ class MainActivity : FragmentActivity() {
                     onUnlock = { authenticate(R.string.lock_reason) { isConfirmed -> if (isConfirmed) coordinator.lock.unlockedAction() } },
                 )
             } else {
-                RootView(coordinator, unlockMethod) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
+                CompositionLocalProvider(LocalSiteIcons provides coordinator.siteIcons.load) {
+                    RootView(coordinator, unlockMethod) { onResult -> authenticate(R.string.lock_enable_reason, onResult) }
+                }
             }
         }
     }

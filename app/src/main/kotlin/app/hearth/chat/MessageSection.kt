@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
@@ -28,7 +27,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +40,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -65,7 +62,6 @@ import app.hearth.domain.MemoryOutcome
 import app.hearth.domain.Message
 import app.hearth.domain.MessageRole
 import app.hearth.domain.ResearchStepKind
-import app.hearth.domain.SearchSource
 import app.hearth.integrations.PictureLibrary
 import app.hearth.domain.shownVersionIndex
 import app.hearth.domain.versionCount
@@ -120,8 +116,6 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
         Column(group.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
-            // A report lists its sources in full beneath it; an ordinary reply has them here, as pills.
-            if (message.sources.isNotEmpty() && !message.isResearch) SourceRow(message.sources)
             val picture = message.images.firstOrNull()
             val pictureWork = configuration.pictureWork
             val researchStep = configuration.researchStep
@@ -139,9 +133,11 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
             } else if (configuration.isStreaming && configuration.searchingFor == null && message.thinking.isEmpty()) {
                 Activity(stringResource(R.string.message_writing))
             }
-            // A report lists its sources once it is finished, when their numbers are settled.
-            if (message.isResearch && message.sources.isNotEmpty() && !configuration.isStreaming) {
-                ResearchSourcesSection(ResearchSourceViewConfiguration.list(message.sources))
+            // A report lists its sources in full once it is finished, when their numbers are settled; an ordinary reply
+            // that searched the web lists its first few pages, and the button beside its actions opens them all.
+            if (message.sources.isNotEmpty() && !configuration.isStreaming) {
+                val sources = ResearchSourceViewConfiguration.list(message.sources)
+                if (message.isResearch) ResearchSourcesSection(sources) else ReplySourcesSection(sources)
             }
             if (configuration.hasSearchFailed) Notice(stringResource(R.string.notice_search_failed))
             configuration.memoryNotice?.let { outcome -> memoryNoticeText(outcome)?.let { Notice(it) } }
@@ -325,41 +321,7 @@ private fun Notice(text: String) {
     )
 }
 
-/** The web pages a reply was written from, numbered as the reply cites them. Tapping one opens it. */
-@Composable
-private fun SourceRow(sources: List<SearchSource>) {
-    val uriHandler = LocalUriHandler.current
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.m)) {
-        sources.forEachIndexed { index, source ->
-            val label = stringResource(R.string.message_source, index + 1, source.host)
-            Row(
-                Modifier
-                    // A finger is given the least it needs, round the pill as it is drawn.
-                    .minimumInteractiveComponentSize()
-                    .clip(HearthTheme.shapes.pill)
-                    .border(HearthTheme.strokes.hairline, HearthTheme.colors.line, HearthTheme.shapes.pill)
-                    .clickable(role = Role.Button) { if (SearchSource.isWebLink(source.url)) runCatching { uriHandler.openUri(source.url) } }
-                    .clearAndSetSemantics {
-                        contentDescription = label
-                        role = Role.Button
-                    }
-                    .padding(horizontal = HearthTheme.spacing.xl, vertical = HearthTheme.spacing.chipInset),
-                horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s),
-            ) {
-                Text("${index + 1}", color = HearthTheme.colors.pine, style = HearthTheme.type.footnote)
-                Text(
-                    source.host,
-                    color = HearthTheme.colors.ink,
-                    style = HearthTheme.type.footnote,
-                    maxLines = 1,
-                    modifier = Modifier.widthIn(max = HearthTheme.sizes.chipLabelMaxWidth),
-                )
-            }
-        }
-    }
-}
-
-/** What may be done with a finished reply: hear it, copy it, share it, ask for it again, and look back at earlier versions. */
+/** What may be done with a finished reply: hear it, copy it, share it, ask for it again, look back at earlier versions, and see its sources. */
 @Composable
 private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions, modifier: Modifier = Modifier) {
     val canRetry = configuration.canRetry
@@ -369,6 +331,7 @@ private fun Actions(configuration: MessageViewConfiguration, actions: MessageAct
         if (!configuration.message.isPicture) TextActions(configuration, actions.onSpeak)
         if (canRetry) HearthIconButton(Icons.Outlined.Refresh, stringResource(R.string.message_retry), tint = HearthTheme.colors.mute, onClick = onRetry)
         if (configuration.message.versionCount > 1) VersionStepper(configuration.message, actions.onVersion)
+        if (configuration.message.sources.isNotEmpty()) ReplySourcesButton(ResearchSourceViewConfiguration.list(configuration.message.sources))
     }
 }
 

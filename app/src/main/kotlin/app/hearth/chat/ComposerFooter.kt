@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.VolumeOff
-import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Language
@@ -214,6 +212,7 @@ fun ComposerFooter(
                         canSee = model?.canSee == true || isPictureMode,
                         canMakePictures = settings.imageUrl != null,
                         isPictureMode = isPictureMode,
+                        isReadingAloud = settings.isAutoReadEnabled.takeIf { settings.speechUrl != null },
                         presenter = presenter,
                         attachments = attachments,
                     )
@@ -243,10 +242,6 @@ fun ComposerFooter(
                         if (model != null && !model.canUseTools && settings.searchUrl != null) {
                             val label = stringResource(R.string.composer_search)
                             ComposerToggle(Icons.Outlined.Language, label, viewModel.isSearchForced, presenter::toggleSearchAction)
-                        }
-                        if (settings.speechUrl != null) {
-                            val icon = if (settings.isAutoReadEnabled) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff
-                            ComposerToggle(icon, stringResource(R.string.composer_read_replies), settings.isAutoReadEnabled, presenter::toggleAutoReadAction)
                         }
                     }
                 }

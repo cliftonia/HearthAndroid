@@ -23,10 +23,10 @@ class HearthTypography {
     val brand = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 22.sp)
 
     /** The one large line on an otherwise empty screen. */
-    val display = TextStyle(fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, lineHeight = 32.sp)
+    val display = TextStyle(fontFamily = FontFamily.Serif, fontSize = 26.sp, lineHeight = 32.sp)
 
     /** The paragraphs of a reply. */
-    val reply = TextStyle(fontSize = 16.sp, lineHeight = 24.sp)
+    val reply = TextStyle(fontSize = 16.sp, lineHeight = 26.sp)
 
     /** The cells of a table in a reply. */
     val replyTable = TextStyle(fontSize = 14.sp, lineHeight = 20.sp)
@@ -51,6 +51,9 @@ class HearthTypography {
 
     /** The title of a sheet. */
     val title = Plain.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+
+    /** The name of a chat or a project in the chat list. */
+    val listRow = Plain.copy(fontSize = 16.sp)
 
     /** Row labels and short explanations. */
     val subhead = Plain.copy(fontSize = 15.sp)
