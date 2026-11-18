@@ -37,13 +37,22 @@ import app.hearth.domain.Project
 
 /**
  * The projects under their own heading, which is left out while there are none to list. While searching, only the
- * projects whose names match are listed. New projects are made from the composer's plus menu.
+ * projects whose names match are listed. New projects are made from the composer's plus menu. The heading folds the
+ * projects away.
  */
-internal fun LazyListScope.projectListItems(projects: List<Project>, presenter: DrawerPresenter) {
+internal fun LazyListScope.projectListItems(projects: List<Project>, presenter: DrawerPresenter, isFolded: Boolean, isSearching: Boolean) {
     if (projects.isNotEmpty()) {
-        item(key = "projects") { DrawerHeading(stringResource(R.string.project_title)) }
+        item(key = "projects") {
+            DrawerFoldingHeading(
+                stringResource(R.string.project_title),
+                count = projects.size,
+                isFolded = isFolded,
+                isSearching = isSearching,
+                onToggle = { presenter.toggleFoldAction(DrawerFoldKind.PROJECTS) },
+            )
+        }
     }
-    items(projects, key = { it.id.raw }) { project ->
+    items(if (isFolded) emptyList() else projects, key = { it.id.raw }) { project ->
         ProjectRow(project.name, Icons.Outlined.Folder, HearthTheme.colors.ink, HearthTheme.colors.mute) { presenter.selectProjectAction(project.id) }
     }
 }

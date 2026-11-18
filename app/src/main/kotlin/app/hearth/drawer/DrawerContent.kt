@@ -18,7 +18,6 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,6 +71,10 @@ fun DrawerContent(
         DrawerSections.build(conversations, query, System.currentTimeMillis(), projectId = selectedProject?.id, projects = projects)
     }
     val listedProjects = remember(projects, query) { DrawerSections.projects(projects, query) }
+    val folds by presenter.folds.collectAsStateWithLifecycle()
+    // Every section is open while searching, so a match is never folded out of sight.
+    val isSearching = query.isNotBlank()
+    val isFolded = { kind: DrawerFoldKind -> !isSearching && kind in folds }
     var renaming by remember { mutableStateOf<Conversation?>(null) }
     Column(modifier.fillMaxHeight().padding(horizontal = spacing.xl)) {
         Row(Modifier.fillMaxWidth().padding(start = spacing.s, top = spacing.m), verticalAlignment = Alignment.CenterVertically) {
@@ -102,17 +105,27 @@ fun DrawerContent(
                 if (selectedProject != null) {
                     projectHeaderItems(selectedProject, presenter)
                 } else {
-                    projectListItems(listedProjects, presenter)
+                    projectListItems(listedProjects, presenter, isFolded(DrawerFoldKind.PROJECTS), isSearching)
                 }
                 sections.forEach { section ->
+                    val fold = section.kind.foldKind
                     item(key = section.kind.name) {
-                        if (section.kind == DrawerSectionKind.SCHEDULED_TASKS) {
-                            DrawerHeading(stringResource(section.kind.title), stringResource(R.string.drawer_manage_tasks), presenter::manageTasksAction)
-                        } else {
+                        if (fold == null) {
                             DrawerHeading(stringResource(section.kind.title))
+                        } else {
+                            val manage = stringResource(R.string.drawer_manage_tasks)
+                            DrawerFoldingHeading(
+                                stringResource(section.kind.title),
+                                count = section.rows.size,
+                                isFolded = isFolded(fold),
+                                isSearching = isSearching,
+                                onToggle = { presenter.toggleFoldAction(fold) },
+                                action = if (fold == DrawerFoldKind.SCHEDULED_TASKS) manage to presenter::manageTasksAction else null,
+                            )
                         }
                     }
-                    items(section.rows, key = { it.conversation.id.raw }) { row ->
+                    val rows = if (fold != null && isFolded(fold)) emptyList() else section.rows
+                    items(rows, key = { it.conversation.id.raw }) { row ->
                         ConversationRow(
                             row,
                             row.conversation.id == selectedId,
@@ -158,22 +171,6 @@ internal fun DrawerHeading(title: String) {
         style = HearthTheme.type.caption,
         modifier = Modifier.padding(start = spacing.l, top = spacing.xxl, bottom = spacing.xs).semantics { heading() },
     )
-}
-
-/** A heading with a small action at its end, such as Manage beside the scheduled tasks' chats. */
-@Composable
-private fun DrawerHeading(title: String, action: String, onAction: () -> Unit) {
-    val spacing = HearthTheme.spacing
-    // The button's own height stands above and below the line, so the row starts a little lower than a plain heading.
-    Row(Modifier.fillMaxWidth().padding(start = spacing.l, end = spacing.s, top = spacing.l), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            title,
-            color = HearthTheme.colors.mute,
-            style = HearthTheme.type.caption,
-            modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        TextButton(onClick = onAction) { Text(action, color = HearthTheme.colors.pine, style = HearthTheme.type.caption) }
-    }
 }
 
 /** The words for a heading of the list. */

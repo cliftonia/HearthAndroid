@@ -57,8 +57,13 @@ class DrawerPresenter(
     private val projectStore: ProjectStore,
     /** Holds a delete back while it can be undone. */
     private val undo: UndoPresenter = UndoPresenter(),
+    /** Reads which sections were folded away, as `DrawerFolds` stores them. */
+    loadFolds: () -> String = { "" },
+    /** Keeps which sections are folded away, for the next launch. */
+    private val saveFolds: (String) -> Unit = {},
 ) {
     private val queryState = MutableStateFlow("")
+    private val foldsState = MutableStateFlow(DrawerFolds.parse(loadFolds()))
     private val selectedProjectState = MutableStateFlow<ProjectId?>(null)
     private val errorState = MutableStateFlow<ErrorViewConfiguration?>(null)
 
@@ -86,6 +91,19 @@ class DrawerPresenter(
 
     fun queryAction(text: String) {
         queryState.value = text
+    }
+
+    /**
+     * The sections folded away beneath their headings. The view opens every section while searching, so a match is
+     * never folded out of sight.
+     */
+    val folds: StateFlow<Set<DrawerFoldKind>> = foldsState.asStateFlow()
+
+    /** Folds an open section, or opens a folded one, and remembers it. */
+    fun toggleFoldAction(kind: DrawerFoldKind) {
+        val folds = DrawerFolds.toggled(foldsState.value, kind)
+        foldsState.value = folds
+        saveFolds(DrawerFolds.stored(folds))
     }
 
     fun selectAction(id: ConversationId) = delegate?.drawerPresenterDidSelect(id) ?: Unit

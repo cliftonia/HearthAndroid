@@ -47,6 +47,7 @@ import app.hearth.integrations.CameraLeave
 import app.hearth.integrations.DeviceCamera
 import app.hearth.integrations.PictureLibrary
 import app.hearth.integrations.ProfilePhotoLoader
+import app.hearth.integrations.DrawerFoldPreference
 import app.hearth.integrations.SideListPreference
 import app.hearth.integrations.live
 import app.hearth.shared.SHARE_EXPORTS_FOLDER
@@ -89,6 +90,8 @@ class AppDependencies(
     val noticeWords: ReplyNoticeWords,
     val profilePhotos: ProfilePhotoLoader,
     val sideList: SideListPreference,
+    /** Which sections of the chat list are folded away. */
+    val drawerFolds: DrawerFoldPreference,
     /** Sync's settings, status and journal. */
     val syncStore: SyncStore,
     /** One sync with the hub; when it runs is the coordinator's scheduler's to decide. */
@@ -197,6 +200,7 @@ class AppDependencies(
                 noticeWords = ReplyNoticeWords.live(application.resources),
                 profilePhotos = ProfilePhotoLoader(application),
                 sideList = sideList,
+                drawerFolds = DrawerFoldPreference.live(application),
                 syncStore = syncStore,
                 sync = sync,
                 runSync = showcaseSync(application) { sync.sync() },

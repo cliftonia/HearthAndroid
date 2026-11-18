@@ -186,7 +186,14 @@ class AppCoordinator(
         isOnScreen = { isOnScreen },
         brand = dependencies.noticeWords.brand,
     )
-    val drawer = DrawerPresenter(scope, dependencies.conversationStore, dependencies.projectStore, undo)
+    val drawer = DrawerPresenter(
+        scope,
+        dependencies.conversationStore,
+        dependencies.projectStore,
+        undo,
+        loadFolds = dependencies.drawerFolds.load,
+        saveFolds = dependencies.drawerFolds.save,
+    )
     val project = ProjectPresenter(scope, dependencies.projectStore, dependencies.conversationStore, dependencies.projects)
     val projectPicker = ProjectPickerPresenter(scope, dependencies.projectStore, dependencies.conversationStore)
     val settings = SettingsPresenter(
