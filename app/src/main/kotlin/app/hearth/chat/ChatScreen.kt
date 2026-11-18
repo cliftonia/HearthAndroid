@@ -28,6 +28,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.hearth.R
 import app.hearth.designsystem.HapticEffect
@@ -62,12 +70,13 @@ fun ChatScreen(
     ChatLayout(
         modifier.fillMaxSize(),
         header = { ChatHeader(viewModel, settings, presenter) },
-        content = {
+        content = { topPadding ->
+            val clear = Modifier.padding(top = topPadding)
             when {
-                settings.ollamaUrl == null -> ConnectPrompt(presenter::settingsAction)
+                settings.ollamaUrl == null -> Box(clear) { ConnectPrompt(presenter::settingsAction) }
                 viewModel.conversation.messages.isEmpty() ->
-                    EmptyState(chatGreeting(viewModel.conversation, settings, memories).words(), viewModel.conversation.isPrivate)
-                else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null, pictures = pictures)
+                    Box(clear) { EmptyState(chatGreeting(viewModel.conversation, settings, memories).words(), viewModel.conversation.isPrivate) }
+                else -> MessageList(viewModel, presenter, canSpeak = settings.speechUrl != null, pictures = pictures, topPadding = topPadding)
             }
         },
         banner = { viewModel.error?.let { ErrorBanner(it, presenter::retryAction, presenter::dismissErrorAction) } },
@@ -81,46 +90,53 @@ fun ChatScreen(
  *
  * The composer comes first and is always whole. The error, and then the header, are shown only where they fit
  * above it entire, and the conversation has whatever is left. So the composer is never pushed under the keyboard.
+ *
+ * The header floats over the top of the conversation, which scrolls on beneath it and the status bar, fading into the
+ * paper there. The conversation is told how tall the header is, so that its first line can still be scrolled clear.
  */
 @Composable
 private fun ChatLayout(
     modifier: Modifier,
     header: @Composable () -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (topPadding: Dp) -> Unit,
     banner: @Composable () -> Unit,
     footer: @Composable () -> Unit,
 ) {
     // On a wide window the error and the composer are held to the readable width of the messages, in the middle.
     val readable = Modifier.widthIn(max = HearthTheme.sizes.readableMaxWidth)
-    Layout(
-        content = {
-            Box { header() }
-            Box { content() }
-            Box(contentAlignment = Alignment.TopCenter) { Box(readable) { banner() } }
-            Box(contentAlignment = Alignment.TopCenter) { Box(readable) { footer() } }
-        },
-        modifier = modifier,
-    ) { measurables, constraints ->
+    val paper = HearthTheme.colors.paper
+    val fade = Modifier.background(Brush.verticalGradient(0.6f to paper, 1f to paper.copy(alpha = 0f)))
+    SubcomposeLayout(modifier) { constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
-        val footerPlaceable = measurables[3].measure(Constraints(minWidth = width, maxWidth = width, maxHeight = height))
+        val footerPlaceable = subcompose(ChatSlot.FOOTER) { Box(contentAlignment = Alignment.TopCenter) { Box(readable) { footer() } } }
+            .single().measure(Constraints(minWidth = width, maxWidth = width, maxHeight = height))
         var remaining = height - footerPlaceable.height
         // Measured at the height it wants, and left out if that is more than there is.
         val fitted: (Measurable) -> Placeable? = { measurable ->
             measurable.measure(Constraints(minWidth = width, maxWidth = width)).takeIf { it.height <= remaining }?.also { remaining -= it.height }
         }
-        val bannerPlaceable = fitted(measurables[2])
-        val headerPlaceable = fitted(measurables[0])
-        val contentPlaceable = measurables[1].measure(Constraints.fixed(width, remaining))
+        val bannerPlaceable = fitted(subcompose(ChatSlot.BANNER) { Box(contentAlignment = Alignment.TopCenter) { Box(readable) { banner() } } }.single())
+        val headerPlaceable = fitted(
+            subcompose(ChatSlot.HEADER) {
+                Box(fade.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))) { header() }
+            }.single(),
+        )
+        val headerHeight = headerPlaceable?.height ?: 0
+        val contentPlaceable = subcompose(ChatSlot.CONTENT) { Box { content(headerHeight.toDp()) } }
+            .single().measure(Constraints.fixed(width, remaining + headerHeight))
         layout(width, height) {
-            val headerHeight = headerPlaceable?.height ?: 0
+            // The conversation first, so that the header is drawn over it.
+            contentPlaceable.place(0, 0)
             headerPlaceable?.place(0, 0)
-            contentPlaceable.place(0, headerHeight)
-            bannerPlaceable?.place(0, headerHeight + contentPlaceable.height)
+            bannerPlaceable?.place(0, contentPlaceable.height)
             footerPlaceable.place(0, height - footerPlaceable.height)
         }
     }
 }
+
+/** The parts of the chat screen, each composed once its room is known. */
+private enum class ChatSlot { HEADER, CONTENT, BANNER, FOOTER }
 
 /**
  * What a chat shows before its first message.

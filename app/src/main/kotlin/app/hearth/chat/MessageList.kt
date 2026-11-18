@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.hearth.R
 import app.hearth.designsystem.HearthTheme
@@ -38,7 +39,7 @@ private val EndAnchorHeight = 1.dp
 
 /** The messages of the conversation, oldest first, with the suggested questions after the last. */
 @Composable
-internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, canSpeak: Boolean, pictures: PictureLibrary) {
+internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, canSpeak: Boolean, pictures: PictureLibrary, topPadding: Dp = 0.dp) {
     val messages = viewModel.conversation.messages
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
@@ -70,7 +71,13 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = margin, vertical = HearthTheme.spacing.xl),
+            // Clear of the header floating above, at the top; the list itself runs on beneath it.
+            contentPadding = PaddingValues(
+                start = margin,
+                top = topPadding + HearthTheme.spacing.xl,
+                end = margin,
+                bottom = HearthTheme.spacing.xl,
+            ),
             verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.gapS),
         ) {
             items(messages, key = { it.id.raw }) { message ->

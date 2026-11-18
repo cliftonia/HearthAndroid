@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -131,6 +133,10 @@ internal fun RootView(coordinator: AppCoordinator, unlockMethod: UnlockMethodKin
             CanvasScreen(coordinator.canvas, { MarkdownSection(it) }, modifier, canMakePage, isFullScreen)
         }
         val insets = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
+        // On a phone the chat runs on beneath the status bar and keeps its header clear of it itself; the other screens
+        // are held below it.
+        val sideAndBottomInsets = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+        val topInset = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
         // One screen gives way to another by Material's fade through: they are not one inside the other.
         val content: @Composable (Modifier) -> Unit = { modifier ->
             AnimatedContent(targetState = screen, modifier = modifier, transitionSpec = { fadeThrough() }, label = "screen") { shown ->
@@ -148,9 +154,9 @@ internal fun RootView(coordinator: AppCoordinator, unlockMethod: UnlockMethodKin
                         coordinator.profilePhotos,
                         authenticate,
                         unlockMethod,
-                        Modifier.fillMaxSize().backPreview(settingsBack),
+                        Modifier.fillMaxSize().then(topInset).backPreview(settingsBack),
                     )
-                    Screen.VOICE -> VoiceScreen(coordinator.voice, coordinator.deviceCamera, coordinator.cameraLeave, Modifier.fillMaxSize())
+                    Screen.VOICE -> VoiceScreen(coordinator.voice, coordinator.deviceCamera, coordinator.cameraLeave, Modifier.fillMaxSize().then(topInset))
                 }
             }
         }
@@ -192,7 +198,7 @@ internal fun RootView(coordinator: AppCoordinator, unlockMethod: UnlockMethodKin
                         DrawerContent(coordinator.drawer, chat.conversation.id, coordinator.settingsStore, coordinator.modelStore)
                     }
                 },
-            ) { content(insets) }
+            ) { content(sideAndBottomInsets) }
             // On a narrow window the canvas is a page of the full height, which rises over the chat.
             AnimatedVisibility(isCanvasOpen, enter = slideInVertically { it }, exit = slideOutVertically { it }) {
                 // A web view made while the page slides in can be drawn over the whole window, so the page's web view

@@ -143,7 +143,6 @@ private fun ServersGroup(presenter: SettingsPresenter) {
         HearthPageRow(stringResource(R.string.settings_servers), serversRowWords(serversRowStatus(test, reachability, models.size)), presenter::serversAction)
         RowDivider()
         HearthPageRow(stringResource(R.string.sync_title), syncRowWords(syncRowStatus(sync, lastSyncedAt)), presenter::syncAction)
-        // A row for cloud providers will go here.
     }
 }
 
