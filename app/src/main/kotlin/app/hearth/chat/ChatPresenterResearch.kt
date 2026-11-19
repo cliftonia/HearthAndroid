@@ -38,12 +38,16 @@ internal val ChatPresenter.isResearchChosen: Boolean
     get() = state.value.isResearchChosen(dependencies.settingsStore.settings.value)
 
 /**
- * Chooses how hard the model thinks, for every chat. Research, if it is switched on, stays on: its report is thought
- * about at the level chosen here.
+ * Chooses what the next replies are given, one thing at a time: a thinking level, which is saved for every chat and
+ * switches research off, or research, which is kept for this chat only and leaves the saved level as it was for the
+ * report to be thought about at.
  */
 fun ChatPresenter.selectEffortAction(choice: EffortChoiceKind) {
     when (choice) {
-        is EffortChoiceKind.Thinking -> if (choice.level != dependencies.settingsStore.settings.value.thinkingLevel) thinkingLevelAction(choice.level)
+        is EffortChoiceKind.Thinking -> {
+            setResearch(false)
+            if (choice.level != dependencies.settingsStore.settings.value.thinkingLevel) thinkingLevelAction(choice.level)
+        }
         EffortChoiceKind.Research -> setResearch(true)
     }
 }

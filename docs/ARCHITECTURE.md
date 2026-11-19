@@ -224,16 +224,27 @@ Research answers one question with a report written from pages the app searched 
 any other: it runs with the chat's selected model, streams into a reply, and is saved in the conversation. It
 mirrors the iPhone app step for step, with the same bounds, prompts and wording.
 
-- **Switched on beside the thinking level.** Research is a switch in the + sheet, the first of its switches, shown
-  only where there is a search address (`toggleResearchAction`). `EffortChoiceKind` is what the next message is
-  given: `Thinking(ThinkingLevel)` or `Research`. Research is never a thinking level and is never sent to the model
-  as one; while it is on the model thinks at the level saved in the settings, and choosing another level leaves
-  research on. A thinking level is saved for every chat (`ServerSettings.thinkingLevel`); research is only
-  `ChatViewModel.isResearchMode`, which belongs to the open chat, is not saved, and is cleared by a new chat, by
-  opening another chat and by picture mode, as switching research on turns picture mode off. Whether it is in
-  force is `isResearchChosen(settings)`, which also wants a search address, so taking the address away takes
-  research with it. The model sheet's Effort dropdown holds the thinking levels only, and is left out for a model
-  that cannot think, which has nothing to choose there.
+- **Switched on, or chosen as the effort.** Research is a switch in the + sheet, the first of its switches, and
+  again the last entry of the model sheet's Effort menu: "Deep research", with a line on what it does, under the
+  thinking levels. Both are shown only where there is a search address, and both are the one flag
+  (`isResearchMode`), so a change made in either place shows in the other. `EffortChoiceKind` is what the next
+  message is given: `Thinking(ThinkingLevel)` or `Research`. The Effort menu is one choice at a time, a radio
+  button each: choosing research leaves no level marked, and choosing a level switches research off
+  (`selectEffortAction`). Research is never a thinking level and is never sent to the model as one; while it is on
+  the model thinks at the level last chosen. A thinking level is saved for every chat
+  (`ServerSettings.thinkingLevel`); research is only `ChatViewModel.isResearchMode`, which belongs to the open
+  chat, is not saved, and is cleared by a new chat, by opening another chat and by picture mode, as switching
+  research on turns picture mode off. Whether it is in force is `isResearchChosen(settings)`, which also wants a
+  search address, so taking the address away takes research with it. The field is shown where the model thinks or
+  research can be had; for a model that cannot think it lists the one ordinary choice, "Standard", and deep
+  research. It shows the chosen entry's name, in `pine` while that is research. The sheet has no Effort field
+  while it lists picture models.
+- **Picture mode is a row, not a switch.** "Make a picture" is the first row of the + sheet's second card, above
+  "Schedule a task" and "New project", shown where there is a picture server. Like the other rows it closes the
+  sheet and then acts (`togglePictureModeAction`); while picture mode is on the row has a tick at its end and is
+  heard as selected, and choosing it again turns picture mode off. In the composer the picture chip is followed
+  by a button that adds a photo to change (`PicturePhotoButton`); it and the sheet's Photos button open the
+  system's photo picker through the one `rememberPhotoLibrary`.
 - **The run** is `ResearchInteractor.run`, a `Flow` of events, built on the same `ChatDataProvider` and
   `SearchDataProvider` as a reply, so requests go to the same model through the same service and pages are read
   through `PageService` and its `PageAddressPolicy`. In order: plan (one request), search each query, choose the
@@ -423,8 +434,8 @@ then closes the drawer.
 Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button (with two
 exceptions: the sheet that shows code full size has a close button, since a drag down on the code scrolls the code,
 and the sheet of the composer's plus button has a round close button, its title in the middle and Photos at the end,
-since it mirrors the iPhone app's sheet and holds switches, which are thrown without closing it, so it is not put away
-by choosing); full-screen
+since it mirrors the iPhone app's sheet and holds switches (research and reading replies aloud), which are thrown
+without closing it, so it is not put away by choosing); full-screen
 editors with the close button at the start of a top app bar and Save at its end (the project editor, and the task
 editor, whose Save the settings screen's bar carries); labels inside the fields with help as supporting text; exposed
 dropdowns for one choice of a list; settings rows with how things stand beneath the title and no arrow; a top app bar

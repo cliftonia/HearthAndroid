@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.outlined.Brush
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
@@ -51,6 +52,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -95,8 +97,8 @@ private val AttachmentChoiceKind.icon: ImageVector
 
 /**
  * What the sheet offers and how each choice stands: the cards of rows, each in the order it is offered (the things to
- * add, then the things to make), the switches of the last card, whether a choice can be made, and whether a switch
- * is on. The photo library is not among the rows: it is a button in the sheet's heading.
+ * add, then the things to make), the switches of the last card, whether a choice can be made, and whether a switch,
+ * or a row such as picture mode, is on. The photo library is not among the rows: it is a button in the sheet's heading.
  */
 internal class AttachmentSheetConfiguration(
     val groups: List<List<AttachmentChoiceKind>>,
@@ -107,7 +109,8 @@ internal class AttachmentSheetConfiguration(
 
 /**
  * What the plus button opens: a heading with the way out and the photo library either side of the sheet's name, then
- * cards of rows. The first card holds the things to add, the second the things to make, and the last the switches.
+ * cards of rows. The first card holds the things to add, the second the things to make (a picture first among them,
+ * ticked while picture mode is on), and the last the switches.
  *
  * A row, or the photo library, closes the sheet first, and [onChoose] is called only once it has gone, so that a
  * picker is never opened over a sheet that is still on its way out. A switch is thrown where it stands: [onToggle] is
@@ -153,7 +156,7 @@ internal fun AttachmentSheet(
             verticalArrangement = Arrangement.spacedBy(spacing.xxxl),
         ) {
             configuration.groups.filter { it.isNotEmpty() }.forEach { group ->
-                ChoiceCard(group) { choice -> ChoiceRow(choice, configuration.isEnabled(choice)) { choose(choice) } }
+                ChoiceCard(group) { choice -> ChoiceRow(choice, configuration.isEnabled(choice), configuration.isOn(choice)) { choose(choice) } }
             }
             if (configuration.switches.isNotEmpty()) {
                 ChoiceCard(configuration.switches) { choice -> SwitchRow(choice, configuration.isOn(choice)) { onToggle(choice) } }
@@ -232,9 +235,12 @@ private fun RowScope.ChoiceLabel(choice: AttachmentChoiceKind) {
     Text(choice.title(), color = HearthTheme.colors.ink, style = HearthTheme.type.listRow, modifier = Modifier.weight(1f))
 }
 
-/** A row that does something and closes the sheet. */
+/**
+ * A row that does something and closes the sheet. A row that [isOn], as picture mode is, says so with a tick at its
+ * end and is heard as selected; tapping it again turns it off.
+ */
 @Composable
-private fun ChoiceRow(choice: AttachmentChoiceKind, isEnabled: Boolean, onClick: () -> Unit) {
+private fun ChoiceRow(choice: AttachmentChoiceKind, isEnabled: Boolean, isOn: Boolean, onClick: () -> Unit) {
     val spacing = HearthTheme.spacing
     val title = choice.title()
     Row(
@@ -246,6 +252,7 @@ private fun ChoiceRow(choice: AttachmentChoiceKind, isEnabled: Boolean, onClick:
             .clearAndSetSemantics {
                 contentDescription = title
                 role = Role.Button
+                if (isOn) selected = true
                 if (!isEnabled) disabled()
             }
             .padding(horizontal = spacing.xxxl, vertical = spacing.xxxl),
@@ -253,6 +260,7 @@ private fun ChoiceRow(choice: AttachmentChoiceKind, isEnabled: Boolean, onClick:
         horizontalArrangement = Arrangement.spacedBy(spacing.xl),
     ) {
         ChoiceLabel(choice)
+        if (isOn) Icon(Icons.Outlined.Check, null, tint = HearthTheme.colors.pine, modifier = Modifier.size(HearthTheme.sizes.iconM))
     }
 }
 

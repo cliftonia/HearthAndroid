@@ -61,7 +61,7 @@ class ChatResearchTests {
     // Choosing
 
     @Test
-    fun `research is switched on beside the thinking level, which goes on being chosen`() = runTest {
+    fun `research and a thinking level are one choice, and the switch follows whichever is chosen`() = runTest {
         val fixture = fixture()
         val levels = listOf(ThinkingLevel.OFF, ThinkingLevel.LOW, ThinkingLevel.MEDIUM, ThinkingLevel.HIGH).map(EffortChoiceKind::Thinking)
 
@@ -75,13 +75,14 @@ class ChatResearchTests {
 
         fixture.subject.selectEffortAction(EffortChoiceKind.Thinking(ThinkingLevel.HIGH))
 
-        assertTrue(fixture.subject.isResearchChosen)
-        assertEquals(ThinkingLevel.HIGH, fixture.settingsStore.settings.value.thinkingLevel)
-
-        fixture.subject.toggleResearchAction()
-
         assertFalse(fixture.subject.isResearchChosen)
         assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.HIGH), fixture.choice)
+        assertEquals(ThinkingLevel.HIGH, fixture.settingsStore.settings.value.thinkingLevel)
+
+        fixture.subject.selectEffortAction(research)
+
+        assertTrue(fixture.subject.isResearchChosen)
+        assertEquals(ThinkingLevel.HIGH, fixture.settingsStore.settings.value.thinkingLevel)
     }
 
     @Test

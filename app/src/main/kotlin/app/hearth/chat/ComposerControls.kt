@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
@@ -77,11 +78,42 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
     }
 }
 
+/** Adds the photos at these addresses to the message being written, once they have been read. */
+@Composable
+private fun rememberPhotoAdding(presenter: ChatPresenter, attachments: AttachmentLoader): (List<String>) -> Unit {
+    val scope = rememberCoroutineScope()
+    return { addresses -> if (addresses.isNotEmpty()) scope.launch { presenter.addImagesAction(attachments.photos(addresses)) } }
+}
+
 /**
- * The plus button and the sheet it opens: the ways to add a photo or a file to the message being written, the way to
- * make what is written a scheduled task, a new project, and, thrown without closing the sheet, where there is a search
- * address the switch that has the next messages researched, where there is a picture server the switch that makes the
- * next message ask for a picture and where replies can be spoken the switch that has each one read aloud.
+ * Gives the way to open the system's photo picker, which adds the photos picked to the message being written. The
+ * plus button's sheet and the button beside the picture chip both add photos through it.
+ */
+@Composable
+internal fun rememberPhotoLibrary(presenter: ChatPresenter, attachments: AttachmentLoader): () -> Unit {
+    val addPhotos = rememberPhotoAdding(presenter, attachments)
+    val library = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAXIMUM_PHOTOS_PER_PICK)) { uris ->
+        addPhotos(uris.map(Uri::toString))
+    }
+    return { library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+}
+
+/**
+ * Beside the picture chip while a picture is being asked for: adds a photo for the picture server to change, so that
+ * it is plain a photo can be changed and there is no need to go back to the plus button for one. Drawn as the
+ * composer's other options are while they are off.
+ */
+@Composable
+internal fun PicturePhotoButton(presenter: ChatPresenter, attachments: AttachmentLoader) {
+    val openLibrary = rememberPhotoLibrary(presenter, attachments)
+    HearthIconButton(Icons.Outlined.AddPhotoAlternate, stringResource(R.string.picture_add_photo), tint = HearthTheme.colors.mute, onClick = openLibrary)
+}
+
+/**
+ * The plus button and the sheet it opens: the ways to add a photo or a file to the message being written, where there
+ * is a picture server the way to make the next message ask for a picture, the way to make what is written a scheduled
+ * task, a new project, and, thrown without closing the sheet, where there is a search address the switch that has the
+ * next messages researched and where replies can be spoken the switch that has each one read aloud.
  * [isResearching] is `null` where there is no search address, and [isReadingAloud] where there is no speech server.
  */
 @Composable
@@ -94,23 +126,17 @@ internal fun AttachMenu(
     presenter: ChatPresenter,
     attachments: AttachmentLoader,
 ) {
-    val scope = rememberCoroutineScope()
     var isOpen by remember { mutableStateOf(false) }
     // Kept across the trip to the camera, during which Android may put the app away.
     var cameraAddress by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun addPhotos(addresses: List<String>) {
-        if (addresses.isNotEmpty()) scope.launch { presenter.addImagesAction(attachments.photos(addresses)) }
-    }
+    val addPhotos = rememberPhotoAdding(presenter, attachments)
 
     val pickFiles = rememberDocumentPicker(
         attachments,
         onRead = { presenter.addDocumentsAction(it.documents, it.unreadableCount) },
         onUnavailable = presenter::filesUnavailableAction,
     )
-    val library = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAXIMUM_PHOTOS_PER_PICK)) { uris ->
-        addPhotos(uris.map(Uri::toString))
-    }
+    val openLibrary = rememberPhotoLibrary(presenter, attachments)
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { wasTaken ->
         if (wasTaken) addPhotos(listOfNotNull(cameraAddress))
     }
@@ -140,7 +166,7 @@ internal fun AttachMenu(
                 val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
                 if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
             }
-            AttachmentChoiceKind.PHOTO_LIBRARY -> library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            AttachmentChoiceKind.PHOTO_LIBRARY -> openLibrary()
             AttachmentChoiceKind.RESEARCH -> presenter.toggleResearchAction()
             AttachmentChoiceKind.PICTURE_MODE -> presenter.togglePictureModeAction()
             AttachmentChoiceKind.READ_ALOUD -> presenter.toggleAutoReadAction()
@@ -153,16 +179,20 @@ internal fun AttachMenu(
     if (isOpen) {
         val configuration = AttachmentSheetConfiguration(
             // The photo library is a button in the sheet's heading, so the first card holds the camera and files. The
-            // second holds what is made: a task, offered whether or not sync is on (without it, the tasks page says why
-            // none can be added), and a new project.
+            // second holds what is made: a picture, which closes the sheet with the composer ready for what it should
+            // show (a photo to change is added from the composer itself); a task, offered whether or not sync is on
+            // (without it, the tasks page says why none can be added); and a new project.
             groups = listOf(
                 listOfNotNull(AttachmentChoiceKind.CAMERA.takeIf { hasCamera }, AttachmentChoiceKind.FILE),
-                listOf(AttachmentChoiceKind.SCHEDULE_TASK, AttachmentChoiceKind.NEW_PROJECT),
+                listOfNotNull(
+                    AttachmentChoiceKind.PICTURE_MODE.takeIf { canMakePictures },
+                    AttachmentChoiceKind.SCHEDULE_TASK,
+                    AttachmentChoiceKind.NEW_PROJECT,
+                ),
             ),
             // What the next message asks for, and how replies are given.
             switches = listOfNotNull(
                 AttachmentChoiceKind.RESEARCH.takeIf { isResearching != null },
-                AttachmentChoiceKind.PICTURE_MODE.takeIf { canMakePictures },
                 AttachmentChoiceKind.READ_ALOUD.takeIf { isReadingAloud != null },
             ),
             // Photos can be chosen only where they can be used: by a model that can look at them, or by the picture server.
@@ -194,7 +224,7 @@ private fun AttachmentChoiceKind.isAvailable(canSee: Boolean): Boolean = when (t
     -> true
 }
 
-/** Whether the choice is a switch that is on. */
+/** Whether the choice is on: a switch that is thrown, or picture mode, whose row shows a tick. */
 private fun AttachmentChoiceKind.isOn(isResearching: Boolean, isPictureMode: Boolean, isReadingAloud: Boolean): Boolean = when (this) {
     AttachmentChoiceKind.RESEARCH -> isResearching
     AttachmentChoiceKind.PICTURE_MODE -> isPictureMode

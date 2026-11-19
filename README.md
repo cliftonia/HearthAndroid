@@ -29,14 +29,15 @@ a design and a feature list, not code.
 - **Streamed Markdown**: headings, lists, tables, code blocks you can copy, and maths shown as readable text
 - **Web search when it is needed**: a model that can call tools searches on its own, reads the top pages and
   cites them; for other models a switch searches before the reply
-- **Deep research**: switch on Research in the composer's + sheet and ask a question. The chat's own model plans a
-  handful of searches, reads about a dozen pages, takes notes and writes a report that cites its numbered sources.
-  The steps show as it works, and Stop ends it at once
+- **Deep research**: switch on Research in the composer's + sheet, or in the model sheet's Effort menu, and ask a
+  question. The chat's own model plans a handful of searches, reads about a dozen pages, takes notes and writes a
+  report that cites its numbered sources. The steps show as it works, and Stop ends it at once
 - **The canvas**: a web page, a drawing, a document or a long block of code in a reply folds into a card that opens
   it on its own, working, with Copy, Share and earlier versions. A page runs its own scripts but cannot reach the
   network
 - **Attachments**: photos from the library or camera for models that can see, PDFs and text files for any model
-- **Pictures** made on your ComfyUI from a description, or by changing a photo you attach
+- **Pictures** made on your ComfyUI from a description, or by changing a photo you attach: choose **Make a picture**
+  in the composer's + sheet, and add a photo to change with the button beside the picture chip
 - **Follow-up questions**, **edit and resend**, and **Try again** with earlier replies kept to step back through
 - **Memory**: lasting facts you tell a model are kept on the phone and given to every chat. A **private chat**
   uses none and adds none
@@ -79,7 +80,7 @@ a design and a feature list, not code.
 | | | |
 |---|---|---|
 | <img src="docs/screenshots/greeting.png" alt="An empty chat greeting Sam by name" width="240"><br>A new chat greets you by name | <img src="docs/screenshots/chat.png" alt="A reply with a Kotlin code block and a list" width="240"><br>A reply with code | <img src="docs/screenshots/research.png" alt="A research report with a table and numbered sources" width="240"><br>Deep research with its sources |
-| <img src="docs/screenshots/canvas.png" alt="A Pomodoro timer page open in the canvas" width="240"><br>A page open in the canvas | <img src="docs/screenshots/voice.png" alt="The voice conversation screen, listening" width="240"><br>A voice conversation | <img src="docs/screenshots/plus-menu.png" alt="The + sheet: photos, camera and add files, schedule a task and new project, then switches for research, make a picture and read replies aloud" width="240"><br>The + sheet |
+| <img src="docs/screenshots/canvas.png" alt="A Pomodoro timer page open in the canvas" width="240"><br>A page open in the canvas | <img src="docs/screenshots/voice.png" alt="The voice conversation screen, listening" width="240"><br>A voice conversation | <img src="docs/screenshots/plus-menu.png" alt="The + sheet: photos, camera and add files, make a picture, schedule a task and new project, then switches for research and read replies aloud" width="240"><br>The + sheet |
 | <img src="docs/screenshots/drawer.png" alt="The side list with a project, pinned, scheduled task and dated chats" width="240"><br>The side list | <img src="docs/screenshots/project.png" alt="Editing the Garden project's name, instructions and files" width="240"><br>A project | <img src="docs/screenshots/lock.png" alt="The lock screen with its Unlock button" width="240"><br>The lock |
 | <img src="docs/screenshots/settings.png" alt="Settings: profile, memory, follow-ups, web search, scheduled tasks, voice, pictures" width="240"><br>Settings | <img src="docs/screenshots/settings-bottom.png" alt="Settings: theme, vibration, lock, servers, sync and erase" width="240"><br>More settings | <img src="docs/screenshots/servers.png" alt="The four server addresses with Test connection" width="240"><br>Servers |
 | <img src="docs/screenshots/sync.png" alt="Sync: hub address, access key, the switch and the last sync" width="240"><br>Sync | <img src="docs/screenshots/tasks.png" alt="Three scheduled tasks with their schedules, models and switches" width="240"><br>Scheduled tasks | <img src="docs/screenshots/task-editor.png" alt="Editing the Morning briefing task with the Automatic model" width="240"><br>A task |

@@ -218,7 +218,11 @@ fun ComposerFooter(
                         attachments = attachments,
                     )
                     // Shows that the next message asks for a picture; tapping it goes back to chatting.
-                    if (isPictureMode) ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
+                    if (isPictureMode) {
+                        ComposerToggle(Icons.Filled.Brush, stringResource(R.string.picture_mode), true, presenter::togglePictureModeAction)
+                        // A photo to change is added from here, with no trip back to the plus button.
+                        PicturePhotoButton(presenter, attachments)
+                    }
                     if (isExpanded) {
                         val pictureModel = viewModel.selectedPictureModel(settings)
                         ModelChip(

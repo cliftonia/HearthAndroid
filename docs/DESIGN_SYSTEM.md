@@ -160,7 +160,7 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthSmallIconButton(icon, label, sideLength) { … }` | A symbol drawn smaller than a finger (taking a photo or a file off the message) that still answers to, and is heard over, a whole touch target, without taking more room |
 | `HearthVersionStepper(labels, hasPrevious, hasNext) { step -> … }` | The arrows either side of "2/3" that step through the versions of a reply or of a piece in the canvas, with a selection haptic each step |
 | `HearthChoiceCard { … }`, `HearthChoiceRow(title, isSelected, isLast, detail, icon, tint) { … }` | A card of choices, heard as one group, and a row of it: a symbol, the words, a line under them and a tick for the one chosen. `isSelected = null` makes a row an action rather than a choice. The project picker |
-| `HearthDropdownField(label, value, supportingText) { close -> … }` | One choice from a list as Material's exposed dropdown: an outlined field with its label inside and the ▼ that opens the menu. The effort in the model sheet and a task's model |
+| `HearthDropdownField(label, value, supportingText, valueColor) { close -> … }` | One choice from a list as Material's exposed dropdown: an outlined field with its label inside and the ▼ that opens the menu. `valueColor` draws the value in a colour of its own, as `pine` while research is on. The effort in the model sheet and a task's model |
 | `HearthCard(title, footer) { … }` | A group of controls on a card, with a title above and a note beneath, either of which may be left out |
 | `HearthSwitchRow(label, isOn, detail) { … }` | A label and a switch that act as one control, at least `touchTarget` high, with a line beneath the label on what it does, where given |
 | `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, with no arrow, as Android lists settings; TalkBack hears it as one button, by its description. Unavailable, it is heard as such |
@@ -191,10 +191,11 @@ everywhere.
 
 A haptic marks a moment, never a stretch of time: one as a reply finishes, none while it streams.
 
-Things that look like components but are used by one feature stay with it: the composer's toggles, the
-drawer's New chat and Settings buttons, the chips for files, the list and sheet of a reply's sources and the line
-above a reply that searched the web, the card of a piece of work in a reply, the heading, cards, rows and switch rows of the sheet the
-plus button opens, and a block of code with the sheet that shows it full size.
+Things that look like components but are used by one feature stay with it: the composer's toggles and the button
+beside the picture chip that adds a photo, the drawer's New chat and Settings buttons, the chips for files, the
+list and sheet of a reply's sources and the line above a reply that searched the web, the card of a piece of
+work in a reply, the heading, cards, rows (one ticked in `pine` while it is on, as Make a picture is) and switch
+rows of the sheet the plus button opens, and a block of code with the sheet that shows it full size.
 The canvas's switch is Material's segmented button as it comes, and its code is set in `type.code` on `card`,
 with the line numbers in `mute`.
 

@@ -3,11 +3,16 @@ package app.hearth.chat
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ModalBottomSheet
@@ -17,10 +22,14 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,9 +50,10 @@ import kotlinx.coroutines.launch
 
 /**
  * The sheet opened from the composer's model chip: the server's models to choose from, and the effort that goes
- * into a reply: how hard the chosen model thinks. While pictures are being made it lists the
- * picture models instead. A bottom sheet as Android draws one: a handle, the title at the leading edge, a plain list
- * of radio buttons, and no button to close it, which the handle, a tap beside it and the back button do.
+ * into a reply: how hard the chosen model thinks and, where there is a search address, whether the next messages
+ * are researched. While pictures are being made it lists the picture models instead, and nothing else.
+ * A bottom sheet as Android draws one: a handle, the title at the leading edge, a plain list of radio buttons, and no
+ * button to close it, which the handle, a tap beside it and the back button do.
  */
 @Composable
 internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>, settings: ServerSettings, presenter: ChatPresenter, onDismiss: () -> Unit) {
@@ -77,9 +87,12 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
                 }
             }
         }
-        // The effort stays in view below the list, however many models the server has. A model that does not think
-        // has nothing to choose here.
-        if (!isPictureMode && viewModel.effortChoices(settings).size > 1) EffortField(viewModel, settings, presenter::selectEffortAction)
+        // The effort stays in view below the list, however many models the server has. It is left out only where there
+        // is nothing to choose: a model that does not think, with no search address to research through.
+        val canResearch = settings.searchUrl != null
+        if (!isPictureMode && (viewModel.selectedModel?.canThink == true || canResearch)) {
+            EffortField(viewModel, settings, canResearch, presenter::selectEffortAction)
+        }
     }
 }
 
@@ -156,23 +169,41 @@ private fun EmptyNote(text: String) {
 }
 
 /**
- * The effort that goes into a reply: how hard the chosen model thinks before it. An exposed dropdown, since the
- * choices are few. Research has a switch of its own behind the plus button, and is thought about at the level chosen
- * here, so the level saved in the settings is always the one shown as chosen.
+ * The effort that goes into a reply: how hard the chosen model thinks before it, and whether it is researched. An
+ * exposed dropdown, since the choices are few. The thinking levels are one choice, and the level saved in the
+ * settings is the one shown as chosen. Under them, past a line and only where research [canResearch], is deep
+ * research, ticked while it is on: it is the plus button's Research switch again, so choosing it changes no level
+ * and choosing a level leaves it as it was. While research is on the field says so before the level, in the brand
+ * colour.
  */
 @Composable
-private fun EffortField(viewModel: ChatViewModel, settings: ServerSettings, onSelect: (EffortChoiceKind) -> Unit) {
+private fun EffortField(
+    viewModel: ChatViewModel,
+    settings: ServerSettings,
+    canResearch: Boolean,
+    onSelect: (EffortChoiceKind) -> Unit,
+) {
     val spacing = HearthTheme.spacing
     val canThink = viewModel.selectedModel?.canThink == true
-    val chosen: EffortChoiceKind = EffortChoiceKind.Thinking(settings.thinkingLevel)
+    // One choice at a time: with research on, no level is marked, and choosing a level switches research off.
+    val chosen: EffortChoiceKind = if (viewModel.isResearchChosen(settings)) EffortChoiceKind.Research else EffortChoiceKind.Thinking(settings.thinkingLevel)
+    val isResearching = chosen == EffortChoiceKind.Research
     HearthDropdownField(
         label = stringResource(R.string.model_effort),
         value = chosen.title(canThink),
         modifier = Modifier.fillMaxWidth().padding(start = spacing.screen, end = spacing.screen, top = spacing.m, bottom = spacing.xxxl),
+        valueColor = if (isResearching) HearthTheme.colors.pine else Color.Unspecified,
     ) { close ->
-        viewModel.effortChoices(settings).forEach { option ->
+        (viewModel.effortChoices(settings) + if (canResearch) listOf(EffortChoiceKind.Research) else emptyList()).forEach { option ->
             DropdownMenuItem(
-                text = { Text(option.title(canThink)) },
+                text = {
+                    Column(Modifier.padding(vertical = spacing.xs)) {
+                        Text(option.title(canThink))
+                        if (option == EffortChoiceKind.Research) {
+                            Text(stringResource(R.string.research_detail), color = HearthTheme.colors.mute, style = HearthTheme.type.footnoteSnug)
+                        }
+                    }
+                },
                 trailingIcon = { RadioButton(selected = option == chosen, onClick = null) },
                 onClick = {
                     close()

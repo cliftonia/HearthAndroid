@@ -6,6 +6,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,11 +15,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 
 /**
  * A choice of one from a list, as Material's exposed dropdown menu: an outlined field holding the [label] and the
  * [value] chosen, with the ▼ that opens the menu under it. [menu] lays out the menu's items; each is handed `close`,
  * to put the menu away once it is chosen. A line beneath, [supportingText], says more about the choice where given.
+ * The value is drawn in [valueColor] where one is given, and in the field's own colour otherwise.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +30,7 @@ fun HearthDropdownField(
     value: String,
     modifier: Modifier = Modifier,
     supportingText: String? = null,
+    valueColor: Color = Color.Unspecified,
     menu: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
     var isOpen by remember { mutableStateOf(false) }
@@ -36,6 +40,7 @@ fun HearthDropdownField(
             onValueChange = {},
             readOnly = true,
             singleLine = true,
+            textStyle = LocalTextStyle.current.copy(color = valueColor),
             label = { Text(label) },
             supportingText = supportingText?.let { { Text(it) } },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isOpen) },

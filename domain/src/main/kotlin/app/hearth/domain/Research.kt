@@ -16,7 +16,7 @@ sealed interface EffortChoiceKind {
     companion object {
         /**
          * The thinking levels on offer for a model, in the order they are listed. Research is not among them: it
-         * has a switch of its own.
+         * is switched on and off apart from them.
          *
          * A model that cannot think has one ordinary choice, which stands for the saved level without changing it.
          */
