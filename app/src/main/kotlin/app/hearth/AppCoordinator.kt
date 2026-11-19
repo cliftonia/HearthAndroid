@@ -1,6 +1,5 @@
 package app.hearth
 
-import android.util.Log
 import app.hearth.canvas.CanvasLayout
 import app.hearth.canvas.CanvasPresenter
 import app.hearth.canvas.CanvasPresenterDelegate
@@ -19,7 +18,6 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.CanvasReference
 import app.hearth.domain.ConversationId
 import app.hearth.domain.ProjectId
-import app.hearth.domain.conversationIds
 import app.hearth.drawer.DrawerPresenter
 import app.hearth.drawer.DrawerPresenterDelegate
 import app.hearth.lock.LockPresenter
@@ -35,7 +33,7 @@ import app.hearth.settings.TaskControls
 import app.hearth.settings.scheduleTaskAction
 import app.hearth.settings.tasksPageAction
 import app.hearth.shared.UndoPresenter
-import app.hearth.sync.SyncScheduler
+import app.hearth.sync.AppSync
 import app.hearth.sync.TaskChatNotifier
 import app.hearth.voice.VoicePresenter
 import app.hearth.voice.VoicePresenterDelegate
@@ -88,9 +86,6 @@ class AppCoordinator(
     private val sideListState = MutableStateFlow(true)
     private val canvasState = MutableStateFlow(false)
     private val readyState = MutableStateFlow(false)
-
-    /** Whether the saved chats, projects, memories and tasks were all read; `null` until the reading is done. */
-    private val savedDataState = MutableStateFlow<Boolean?>(null)
 
     /** Whether the window is wide enough for the chat list to sit beside the chat, and how wide it is in dp. Only the root view can tell. */
     private var isWide = false
@@ -172,22 +167,19 @@ class AppCoordinator(
         streamingMessageId = { chat.viewModel.value.let { if (it.isStreaming) it.conversation.messages.lastOrNull()?.id else null } },
     )
 
-    /** Decides when to sync with the hub: at launch, on coming back, after a change, and when asked. */
-    private val syncScheduler = SyncScheduler(
+    /** Sync as the app lives with it: when it runs, what it tells the chat, and the phone's background job. */
+    private val sync = AppSync(
         scope,
         dependencies.syncStore,
+        dependencies.syncHooks,
         runSync = dependencies.runSync,
-        log = { Log.i("Sync", it) },
-    )
-    private val syncHooks = dependencies.syncHooks
-    private val backgroundSyncJob = dependencies.backgroundSync
-
-    /** Announces the answers scheduled tasks file, as sync brings them, while the app is not on screen. */
-    private val taskNotifier = TaskChatNotifier(
-        dependencies.notifications,
-        isEnabled = { settingsStore.settings.value.isTaskNotificationsEnabled },
-        isOnScreen = { isOnScreen },
-        brand = dependencies.noticeWords.brand,
+        scheduleBackgroundJob = dependencies.backgroundSync,
+        taskNotifier = TaskChatNotifier(
+            dependencies.notifications,
+            isEnabled = { settingsStore.settings.value.isTaskNotificationsEnabled },
+            isOnScreen = { isOnScreen },
+            brand = dependencies.noticeWords.brand,
+        ),
     )
     val drawer = DrawerPresenter(
         scope,
@@ -214,7 +206,7 @@ class AppCoordinator(
             tasks = TaskControls(dependencies.taskStore),
             sync = SyncControls(
                 store = dependencies.syncStore,
-                syncNow = { syncScheduler.syncNow() },
+                syncNow = { sync.syncNow() },
                 check = { url, token -> dependencies.sync.check(url, token) },
             ),
             undo = undo,
@@ -245,7 +237,7 @@ class AppCoordinator(
         project.delegate = this
         projectPicker.delegate = this
         canvas.delegate = this
-        connectSync()
+        sync.connect(isWriting = { chat.isWriting(it) }, conversationsChangedRemotely = { chat.conversationsChangedRemotely(it) })
         scope.launch { load() }
         // The canvas follows the chat: a reply as it is written, and its piece going when the chat is changed.
         scope.launch {
@@ -264,42 +256,17 @@ class AppCoordinator(
     private suspend fun load() {
         settingsStore.load()
         syncStore.load()
-        followSyncSwitch()
+        sync.followSwitch()
         sideListState.value = !withContext(Dispatchers.IO) { sideList.isHidden() }
         drawer.restoreFoldsAction(withContext(Dispatchers.IO) { loadDrawerFolds() })
         lock.settingsLoadedAction()
         readyState.value = true
-        val isLoaded = savedData.load()
-        if (isLoaded) syncScheduler.appDidLoad()
-        savedDataState.value = isLoaded
+        sync.savedDataLoaded(savedData.load())
         chat.refreshModelsAction()
     }
 
-    /**
-     * Keeps the phone's background sync job, and the quiet passes made while the app is in front of the user, in
-     * step with whether sync is on: scheduled when it is turned on, cancelled when it is turned off or erased.
-     */
-    private fun followSyncSwitch() {
-        scope.launch {
-            syncStore.settings.map { it.canSync }.distinctUntilChanged().collect { isOn ->
-                backgroundSyncJob(isOn)
-                syncScheduler.settingsChanged()
-            }
-        }
-    }
-
-    /**
-     * One sync for the phone's background job. It waits for the saved data to have been read (starting the process
-     * for the job starts that reading), and syncs only if every store was read and sync is on.
-     */
-    suspend fun backgroundSync() {
-        val isLoaded = savedDataState.first { it != null } == true
-        if (!isLoaded) {
-            Log.w("Sync", "The background sync was skipped: the saved data was not all read")
-            return
-        }
-        syncScheduler.backgroundPass()
-    }
+    /** One sync for the phone's background job, made only once the saved data has all been read. */
+    suspend fun backgroundSync() = sync.backgroundPass()
 
     /** Runs [action] once the settings have been read: at once if they have, otherwise as soon as they are. */
     fun whenReady(action: () -> Unit) {
@@ -311,20 +278,6 @@ class AppCoordinator(
                 action()
             }
         }
-    }
-
-    /**
-     * Lets sync ask the chat whether a chat is being written to, and tells the chat of chats another device changed.
-     */
-    private fun connectSync() {
-        syncHooks.isBusy = { chat.isWriting(it) }
-        syncHooks.didApplyRemote = { keys ->
-            val ids = keys.conversationIds
-            if (ids.isNotEmpty()) chat.conversationsChangedRemotely(ids)
-        }
-        syncHooks.didReceiveTaskChats = { chats -> scope.launch { taskNotifier.announce(chats) } }
-        syncHooks.localChangeHappened = syncScheduler::localChangeHappened
-        syncHooks.stopAndReset = syncScheduler::stopAndReset
     }
 
     /** The drawer was opened or closed by hand. */
@@ -351,12 +304,11 @@ class AppCoordinator(
     fun foregroundChanged(isOnScreen: Boolean) {
         val cameBack = isOnScreen && !this.isOnScreen
         this.isOnScreen = isOnScreen
-        // Back in front of the user: sync, if sync is on, and every so often while it stays there.
-        if (cameBack) syncScheduler.appBecameActive()
+        if (cameBack) sync.appBecameActive()
         if (!isOnScreen) {
             // The app may be closed at any moment from here, so a delete waiting to be undone is carried out now.
             undo.commitAction()
-            syncScheduler.appWentToBackground()
+            sync.appWentToBackground()
         }
     }
 

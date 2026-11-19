@@ -37,7 +37,7 @@ app/src/main/kotlin/app/hearth/
 ├── project/                 The editor that makes, edits and deletes a project: presenter, view model, full-screen dialog
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
 ├── settings/                Settings: presenter, screen, the list and what each row says, one file per page (profile, memory, web search, scheduled tasks, voice, pictures, notifications, servers, sync)
-├── sync/                    When to sync (`SyncScheduler`), the background job (`BackgroundSync`), task notifications, and the hooks sync is given into the chat
+├── sync/                    When to sync (`SyncScheduler`), sync as the app lives with it (`AppSync`), the background job (`BackgroundSync`), task notifications, and the hooks sync is given into the chat
 ├── voice/                   The voice conversation: presenter (and its camera), view model, screen, controls, the camera's card and its layout
 ├── lock/                    The lock: presenter, screen
 ├── designsystem/            Colours, type, spacing, shapes, sizes, shared components and haptics
