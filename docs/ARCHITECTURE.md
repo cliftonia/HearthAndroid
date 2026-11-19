@@ -224,15 +224,16 @@ Research answers one question with a report written from pages the app searched 
 any other: it runs with the chat's selected model, streams into a reply, and is saved in the conversation. It
 mirrors the iPhone app step for step, with the same bounds, prompts and wording.
 
-- **Chosen as an effort.** The model sheet's Effort dropdown lists the thinking levels and then Deep research.
-  `EffortChoiceKind` is that choice: `Thinking(ThinkingLevel)` or `Research`. Research is never a thinking level
-  and is never sent to the model as one; while it is chosen the model thinks at the level saved in the settings.
-  A thinking level is saved for every chat (`ServerSettings.thinkingLevel`); research is only
+- **Switched on beside the thinking level.** Research is a switch in the + sheet, the first of its switches, shown
+  only where there is a search address (`toggleResearchAction`). `EffortChoiceKind` is what the next message is
+  given: `Thinking(ThinkingLevel)` or `Research`. Research is never a thinking level and is never sent to the model
+  as one; while it is on the model thinks at the level saved in the settings, and choosing another level leaves
+  research on. A thinking level is saved for every chat (`ServerSettings.thinkingLevel`); research is only
   `ChatViewModel.isResearchMode`, which belongs to the open chat, is not saved, and is cleared by a new chat, by
-  opening another chat and by picture mode. Whether it is in force is `isResearchChosen(settings)`, which also
-  wants a search address, so taking the address away takes research with it. A model that cannot think is offered
-  one ordinary choice, "Standard", and research. Without a search address research is listed, disabled, with a line
-  saying why. It is not in the + sheet.
+  opening another chat and by picture mode, as switching research on turns picture mode off. Whether it is in
+  force is `isResearchChosen(settings)`, which also wants a search address, so taking the address away takes
+  research with it. The model sheet's Effort dropdown holds the thinking levels only, and is left out for a model
+  that cannot think, which has nothing to choose there.
 - **The run** is `ResearchInteractor.run`, a `Flow` of events, built on the same `ChatDataProvider` and
   `SearchDataProvider` as a reply, so requests go to the same model through the same service and pages are read
   through `PageService` and its `PageAddressPolicy`. In order: plan (one request), search each query, choose the
@@ -254,7 +255,7 @@ mirrors the iPhone app step for step, with the same bounds, prompts and wording.
   and request under way: the pages and the notes are children of that coroutine, and the services close their
   connections when their caller is cancelled (`Call.await` in `HearthHttp.kt`), so nothing is left running.
 - **Kept** as an ordinary reply whose `Message.isResearch` is set, with the report as its text and the cited pages
-  as its `sources`, so "Try again" researches again whatever effort is then chosen, keeping the earlier report as
+  as its `sources`, so "Try again" researches again whether or not research is still switched on, keeping the earlier report as
   a version. A chat saved before there was research reads as having none. A report stopped part of the way is kept
   as far as it got, tidied in the same way; one stopped before it had a word is dropped, and the earlier report is
   shown again if it was another attempt. The sources close memory for the rest of the conversation, as any web
@@ -419,9 +420,11 @@ conversation ends on back at once. In the drawer, back inside a project's chats 
 then closes the drawer.
 
 **Android's own patterns, in Hearth's colours.** Where the iPhone app has its own idiom the Android app uses
-Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button (the sheet of
-the composer's plus button has no title, being nothing but its choices, and the sheet that shows code full size has a
-close button, since a drag down on the code scrolls the code); full-screen
+Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button (with two
+exceptions: the sheet that shows code full size has a close button, since a drag down on the code scrolls the code,
+and the sheet of the composer's plus button has a round close button, its title in the middle and Photos at the end,
+since it mirrors the iPhone app's sheet and holds switches, which are thrown without closing it, so it is not put away
+by choosing); full-screen
 editors with the close button at the start of a top app bar and Save at its end (the project editor, and the task
 editor, whose Save the settings screen's bar carries); labels inside the fields with help as supporting text; exposed
 dropdowns for one choice of a list; settings rows with how things stand beneath the title and no arrow; a top app bar
@@ -600,8 +603,8 @@ the words end. No video is recorded or sent. It mirrors the iPhone app, account 
   entry in `Message.images`: shown on the user's message, saved with the chat, sent to the model, and closing
   memory, in a private chat as in any other. A frame that cannot be taken or read, or that is ready only after
   the camera was turned off, means the turn goes without one.
-- **Take photo needs the same leave.** Once an app declares that it uses the camera, Android lets it borrow the
-  phone's camera app only if it has leave to use the camera itself. The composer's Take photo therefore asks for
+- **Camera, in the + sheet, needs the same leave.** Once an app declares that it uses the camera, Android lets it borrow the
+  phone's camera app only if it has leave to use the camera itself. The composer's Camera row therefore asks for
   that leave the first time, and says where it is given if it is refused.
 - **Trying it on an emulator.** An emulator's recogniser hears nothing. A debug build looks for a file named
   `voice-script.txt` among the app's own files; if it is there, a scripted listener takes the recogniser's place

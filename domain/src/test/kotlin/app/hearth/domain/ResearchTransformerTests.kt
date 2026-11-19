@@ -278,14 +278,11 @@ class ResearchPromptTests {
     }
 
     @Test
-    fun `research is offered after the thinking levels, and to a model that cannot think too`() {
+    fun `the thinking levels are offered to a model that thinks, and one ordinary choice to one that does not`() {
         val levels = listOf(ThinkingLevel.OFF, ThinkingLevel.LOW, ThinkingLevel.MEDIUM, ThinkingLevel.HIGH).map(EffortChoiceKind::Thinking)
 
-        assertEquals(levels + EffortChoiceKind.Research, EffortChoiceKind.choices(canThink = true, savedLevel = ThinkingLevel.LOW))
-        assertEquals(
-            listOf(EffortChoiceKind.Thinking(ThinkingLevel.LOW), EffortChoiceKind.Research),
-            EffortChoiceKind.choices(canThink = false, savedLevel = ThinkingLevel.LOW),
-        )
+        assertEquals(levels, EffortChoiceKind.choices(canThink = true, savedLevel = ThinkingLevel.LOW))
+        assertEquals(listOf(EffortChoiceKind.Thinking(ThinkingLevel.LOW)), EffortChoiceKind.choices(canThink = false, savedLevel = ThinkingLevel.LOW))
     }
 
     @Test

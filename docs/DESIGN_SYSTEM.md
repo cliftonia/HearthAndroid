@@ -67,7 +67,7 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `message` | 16 / 23 | A message the user sent |
 | `lead` | 17 / 25 | The caption of a voice conversation |
 | `title` | 17 | The title of a sheet |
-| `listRow` | 16 | The name of a chat or a project in the chat list, and of a source in the sources sheet |
+| `listRow` | 16 | The name of a chat or a project in the chat list, of a source in the sources sheet, and of a row in the sheet the composer's plus button opens |
 | `subhead`, `subheadSnug`, `subheadStrong` | 15 | Row labels; multi-line text; a prominent button |
 | `callout`, `calloutSnug`, `calloutTight`, `calloutStrong` | 14 | Status lines; thinking; error text; error title |
 | `footnote`, `footnoteStrong`, `footnoteSnug` | 13 | Group titles and chips; the name on a chip that is a button; multi-line notices |
@@ -103,7 +103,7 @@ menu item.
 | `card` | 16 | A group of settings |
 | `bubble` | 20 | A message the user sent |
 | `preview` | 20 | The live picture of the camera in a voice conversation |
-| `composer` | 24 | The composer |
+| `composer` | 24 | The composer, and the cards of the sheet its plus button opens |
 | `pill` | half the height | Chips and buttons with fully rounded ends |
 | `circle` | | Round buttons, dots, halos |
 
@@ -118,7 +118,6 @@ menu item.
 | `sourceMark`, `sourceMarkOverlap` | 20, 6 | The circle that stands for a source's site, and how far each lies over the one before |
 | `avatarS` `avatarL` | 44 96 | The user's avatar: in a row of the settings; at the head of the profile page |
 | `thumbnailS` `thumbnailL` | 64 96 | A photo in the composer; in a sent message |
-| `attachmentTile` | 84 | The least height of one of the large buttons in the sheet the composer's plus button opens |
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
@@ -167,7 +166,7 @@ by two features, or in two files of one, and is about looks and not about what a
 | `HearthPageRow(description, onClick, enabled) { … }` | A settings row that opens a page, at least `touchTarget` high, with no arrow, as Android lists settings; TalkBack hears it as one button, by its description. Unavailable, it is heard as such |
 | `HearthPageRow(title, status, onClick, enabled)` | The common page row: a title and beneath it how things stand on the page or, unavailable, the reason. Heard as "Memory, On, 12 saved" |
 | `HearthAvatar(photo, initials, diameter, isLarge)` | The user as a circle: their photo, else their initials, else a figure |
-| `HearthSheetHeader(title)` | The title of a bottom sheet, at the leading edge under its handle. No close button: the handle, the scrim and back close it |
+| `HearthSheetHeader(title)` | The title of a bottom sheet, at the leading edge under its handle. No close button: the handle, the scrim and back close it. The sheet of the composer's plus button has a heading of its own instead, with a close button: it mirrors the iPhone app's sheet and holds switches, so it is not put away by choosing |
 | `HearthSegmentedChoice(options, selected) { value -> … }` | A few short choices: Material's segmented buttons without the tick, each label on one line; with large text, a list of radio buttons. The theme and how often a task repeats |
 | `isLargeFont()` | Whether the phone's text is set large (1.3 and up). A line cut short at the usual size is given a second line: drawer titles, the model sheet's rows |
 | `HearthPermissionNotice(icon, message, actionTitle) { … }` | A card saying that the phone is holding something back, with a button that leads to where that is changed; the button is left out where there is nowhere to send the user |
@@ -194,8 +193,8 @@ A haptic marks a moment, never a stretch of time: one as a reply finishes, none 
 
 Things that look like components but are used by one feature stay with it: the composer's toggles, the
 drawer's New chat and Settings buttons, the chips for files, the list and sheet of a reply's sources and the line
-above a reply that searched the web, the card of a piece of work in a reply, the tiles and rows of the sheet the plus
-button opens, and a block of code with the sheet that shows it full size.
+above a reply that searched the web, the card of a piece of work in a reply, the heading, cards, rows and switch rows of the sheet the
+plus button opens, and a block of code with the sheet that shows it full size.
 The canvas's switch is Material's segmented button as it comes, and its code is set in `type.code` on `card`,
 with the line numbers in `mute`.
 

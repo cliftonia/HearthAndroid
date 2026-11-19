@@ -18,44 +18,43 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
-// Deep research: choosing it as the effort, running it, and keeping the report it writes.
+// Deep research: switching it on, running it, and keeping the report it writes.
 
 // Choosing
 
 /** Whether what is sent next is researched. Research needs a search server, and gives way to picture mode. */
 fun ChatViewModel.isResearchChosen(settings: ServerSettings): Boolean = isResearchMode && settings.searchUrl != null && !isPictureMode
 
-/** What is chosen in the effort menu: research, or the thinking level saved in the settings. */
+/** What the next message will be given: research, or thought at the level saved in the settings. */
 fun ChatViewModel.effortChoice(settings: ServerSettings): EffortChoiceKind =
     if (isResearchChosen(settings)) EffortChoiceKind.Research else EffortChoiceKind.Thinking(settings.thinkingLevel)
 
-/** The choices the effort menu offers for the chosen model. */
+/** The thinking levels the effort menu offers for the chosen model; a single one for a model that cannot think. */
 fun ChatViewModel.effortChoices(settings: ServerSettings): List<EffortChoiceKind> =
     EffortChoiceKind.choices(canThink = selectedModel?.canThink == true, savedLevel = settings.thinkingLevel)
-
-/** Whether a choice can be made now. Research cannot without a search address. */
-fun EffortChoiceKind.isAvailable(settings: ServerSettings): Boolean = when (this) {
-    is EffortChoiceKind.Thinking -> true
-    EffortChoiceKind.Research -> settings.searchUrl != null
-}
 
 /** Whether what the open chat sends next is researched. */
 internal val ChatPresenter.isResearchChosen: Boolean
     get() = state.value.isResearchChosen(dependencies.settingsStore.settings.value)
 
 /**
- * Chooses how the next replies are made. A thinking level is saved for every chat; research is kept for this chat
- * only, and leaves the saved level as it was for the model to think at.
+ * Chooses how hard the model thinks, for every chat. Research, if it is switched on, stays on: its report is thought
+ * about at the level chosen here.
  */
 fun ChatPresenter.selectEffortAction(choice: EffortChoiceKind) {
-    val settings = dependencies.settingsStore.settings.value
     when (choice) {
-        is EffortChoiceKind.Thinking -> {
-            state.update { it.copy(isResearchMode = false) }
-            if (choice.level != settings.thinkingLevel) thinkingLevelAction(choice.level)
-        }
-        EffortChoiceKind.Research -> state.update { it.copy(isResearchMode = choice.isAvailable(settings)) }
+        is EffortChoiceKind.Thinking -> if (choice.level != dependencies.settingsStore.settings.value.thinkingLevel) thinkingLevelAction(choice.level)
+        EffortChoiceKind.Research -> setResearch(true)
     }
+}
+
+/** Switches research on or off for this chat. It needs a search address, and takes the place of picture mode. */
+fun ChatPresenter.toggleResearchAction() = setResearch(!isResearchChosen)
+
+private fun ChatPresenter.setResearch(isOn: Boolean) {
+    val isResearching = isOn && dependencies.settingsStore.settings.value.searchUrl != null
+    // A message asks for a picture or for research, never both.
+    state.update { it.copy(isResearchMode = isResearching, isPictureMode = it.isPictureMode && !isResearching) }
 }
 
 // Running

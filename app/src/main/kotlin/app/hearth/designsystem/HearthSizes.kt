@@ -60,9 +60,6 @@ class HearthSizes {
     /** The most room, each way, a picture the app made takes in a reply. */
     val pictureMaxSide: Dp = 420.dp
 
-    /** The least height of one of the large buttons in the sheet the composer's plus button opens. */
-    val attachmentTile: Dp = 84.dp
-
     /** The dot that shows whether the server can be reached. */
     val statusDot: Dp = 8.dp
 

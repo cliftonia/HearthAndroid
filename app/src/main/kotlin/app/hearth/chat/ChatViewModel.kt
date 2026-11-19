@@ -38,7 +38,7 @@ data class ChatViewModel(
     /** Whether what is sent asks for a picture, not for a reply from the chat model. */
     val isPictureMode: Boolean = false,
     /**
-     * Whether deep research is chosen as the effort for this chat, so that what is sent is researched on the web.
+     * Whether research is switched on for this chat, so that what is sent is researched on the web.
      * It belongs to the open chat and is never saved: a new chat, another chat and picture mode all clear it.
      */
     val isResearchMode: Boolean = false,

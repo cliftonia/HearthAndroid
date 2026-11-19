@@ -78,16 +78,18 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
 }
 
 /**
- * The plus button and the sheet it opens: the ways to add a photo or a file to the message being written, where there
- * is a picture server the switch that makes the next message ask for a picture, where replies can be spoken the switch
- * that has each one read aloud, the way to make what is written a scheduled task, and a new project.
- * [isReadingAloud] is `null` where there is no speech server.
+ * The plus button and the sheet it opens: the ways to add a photo or a file to the message being written, the way to
+ * make what is written a scheduled task, a new project, and, thrown without closing the sheet, where there is a search
+ * address the switch that has the next messages researched, where there is a picture server the switch that makes the
+ * next message ask for a picture and where replies can be spoken the switch that has each one read aloud.
+ * [isResearching] is `null` where there is no search address, and [isReadingAloud] where there is no speech server.
  */
 @Composable
 internal fun AttachMenu(
     canSee: Boolean,
     canMakePictures: Boolean,
     isPictureMode: Boolean,
+    isResearching: Boolean?,
     isReadingAloud: Boolean?,
     presenter: ChatPresenter,
     attachments: AttachmentLoader,
@@ -139,6 +141,7 @@ internal fun AttachMenu(
                 if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
             }
             AttachmentChoiceKind.PHOTO_LIBRARY -> library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            AttachmentChoiceKind.RESEARCH -> presenter.toggleResearchAction()
             AttachmentChoiceKind.PICTURE_MODE -> presenter.togglePictureModeAction()
             AttachmentChoiceKind.READ_ALOUD -> presenter.toggleAutoReadAction()
             AttachmentChoiceKind.SCHEDULE_TASK -> presenter.scheduleTaskAction()
@@ -149,18 +152,22 @@ internal fun AttachMenu(
     HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
     if (isOpen) {
         val configuration = AttachmentSheetConfiguration(
-            attachments = listOfNotNull(AttachmentChoiceKind.CAMERA.takeIf { hasCamera }, AttachmentChoiceKind.PHOTO_LIBRARY, AttachmentChoiceKind.FILE),
-            // What Hearth makes and does: a picture, replies read aloud, a task, offered whether or not sync is on
-            // (without it, the tasks page says why none can be added), and last a new project.
-            extras = listOfNotNull(
+            // The photo library is a button in the sheet's heading, so the first card holds the camera and files. The
+            // second holds what is made: a task, offered whether or not sync is on (without it, the tasks page says why
+            // none can be added), and a new project.
+            groups = listOf(
+                listOfNotNull(AttachmentChoiceKind.CAMERA.takeIf { hasCamera }, AttachmentChoiceKind.FILE),
+                listOf(AttachmentChoiceKind.SCHEDULE_TASK, AttachmentChoiceKind.NEW_PROJECT),
+            ),
+            // What the next message asks for, and how replies are given.
+            switches = listOfNotNull(
+                AttachmentChoiceKind.RESEARCH.takeIf { isResearching != null },
                 AttachmentChoiceKind.PICTURE_MODE.takeIf { canMakePictures },
                 AttachmentChoiceKind.READ_ALOUD.takeIf { isReadingAloud != null },
-                AttachmentChoiceKind.SCHEDULE_TASK,
-                AttachmentChoiceKind.NEW_PROJECT,
             ),
             // Photos can be chosen only where they can be used: by a model that can look at them, or by the picture server.
             isEnabled = { it.isAvailable(canSee) },
-            isOn = { it.isOn(isPictureMode, isReadingAloud == true) },
+            isOn = { it.isOn(isResearching == true, isPictureMode, isReadingAloud == true) },
         )
         AttachmentSheet(
             configuration,
@@ -168,6 +175,8 @@ internal fun AttachMenu(
                 isOpen = false
                 perform(choice)
             },
+            // A switch is thrown where it stands, and the sheet stays open.
+            onToggle = ::perform,
             onDismiss = { isOpen = false },
         )
     }
@@ -177,6 +186,7 @@ internal fun AttachMenu(
 private fun AttachmentChoiceKind.isAvailable(canSee: Boolean): Boolean = when (this) {
     AttachmentChoiceKind.CAMERA, AttachmentChoiceKind.PHOTO_LIBRARY -> canSee
     AttachmentChoiceKind.FILE,
+    AttachmentChoiceKind.RESEARCH,
     AttachmentChoiceKind.PICTURE_MODE,
     AttachmentChoiceKind.READ_ALOUD,
     AttachmentChoiceKind.SCHEDULE_TASK,
@@ -185,7 +195,8 @@ private fun AttachmentChoiceKind.isAvailable(canSee: Boolean): Boolean = when (t
 }
 
 /** Whether the choice is a switch that is on. */
-private fun AttachmentChoiceKind.isOn(isPictureMode: Boolean, isReadingAloud: Boolean): Boolean = when (this) {
+private fun AttachmentChoiceKind.isOn(isResearching: Boolean, isPictureMode: Boolean, isReadingAloud: Boolean): Boolean = when (this) {
+    AttachmentChoiceKind.RESEARCH -> isResearching
     AttachmentChoiceKind.PICTURE_MODE -> isPictureMode
     AttachmentChoiceKind.READ_ALOUD -> isReadingAloud
     AttachmentChoiceKind.FILE,

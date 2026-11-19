@@ -10,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -42,7 +41,7 @@ import kotlinx.coroutines.launch
 
 /**
  * The sheet opened from the composer's model chip: the server's models to choose from, and the effort that goes
- * into a reply: how hard the chosen model thinks, or deep research. While pictures are being made it lists the
+ * into a reply: how hard the chosen model thinks. While pictures are being made it lists the
  * picture models instead. A bottom sheet as Android draws one: a handle, the title at the leading edge, a plain list
  * of radio buttons, and no button to close it, which the handle, a tap beside it and the back button do.
  */
@@ -78,8 +77,9 @@ internal fun ModelPickerSheet(viewModel: ChatViewModel, models: List<ChatModel>,
                 }
             }
         }
-        // The effort stays in view below the list, however many models the server has.
-        if (!isPictureMode) EffortField(viewModel, settings, presenter::selectEffortAction)
+        // The effort stays in view below the list, however many models the server has. A model that does not think
+        // has nothing to choose here.
+        if (!isPictureMode && viewModel.effortChoices(settings).size > 1) EffortField(viewModel, settings, presenter::selectEffortAction)
     }
 }
 
@@ -156,47 +156,29 @@ private fun EmptyNote(text: String) {
 }
 
 /**
- * The effort that goes into a reply: how hard the chosen model thinks before it, for a model that thinks, and deep
- * research for any model. An exposed dropdown, since the choices are few and research needs a line to say what it
- * does. Research is listed but cannot be chosen until there is a search address, and says so.
+ * The effort that goes into a reply: how hard the chosen model thinks before it. An exposed dropdown, since the
+ * choices are few. Research has a switch of its own behind the plus button, and is thought about at the level chosen
+ * here, so the level saved in the settings is always the one shown as chosen.
  */
 @Composable
 private fun EffortField(viewModel: ChatViewModel, settings: ServerSettings, onSelect: (EffortChoiceKind) -> Unit) {
     val spacing = HearthTheme.spacing
     val canThink = viewModel.selectedModel?.canThink == true
-    val chosen = viewModel.effortChoice(settings)
+    val chosen: EffortChoiceKind = EffortChoiceKind.Thinking(settings.thinkingLevel)
     HearthDropdownField(
         label = stringResource(R.string.model_effort),
         value = chosen.title(canThink),
         modifier = Modifier.fillMaxWidth().padding(start = spacing.screen, end = spacing.screen, top = spacing.m, bottom = spacing.xxxl),
     ) { close ->
         viewModel.effortChoices(settings).forEach { option ->
-            val isAvailable = option.isAvailable(settings)
             DropdownMenuItem(
-                text = { EffortOption(option, canThink, isAvailable) },
-                trailingIcon = { RadioButton(selected = option == chosen, onClick = null, enabled = isAvailable) },
-                enabled = isAvailable,
+                text = { Text(option.title(canThink)) },
+                trailingIcon = { RadioButton(selected = option == chosen, onClick = null) },
                 onClick = {
                     close()
                     Haptics.play(HapticKind.SELECTION)
                     onSelect(option)
                 },
-            )
-        }
-    }
-}
-
-/** One effort in the menu. Research has a line beneath saying what it does, or what it is waiting for. */
-@Composable
-private fun EffortOption(option: EffortChoiceKind, canThink: Boolean, isAvailable: Boolean) {
-    Column(Modifier.padding(vertical = HearthTheme.spacing.xs)) {
-        Text(option.title(canThink))
-        if (option == EffortChoiceKind.Research) {
-            Text(
-                stringResource(if (isAvailable) R.string.research_detail else R.string.research_needs_search),
-                // Unavailable, the line fades with the name above it; available, it is the quieter of the two.
-                color = if (isAvailable) HearthTheme.colors.mute else LocalContentColor.current,
-                style = HearthTheme.type.footnoteSnug,
             )
         }
     }

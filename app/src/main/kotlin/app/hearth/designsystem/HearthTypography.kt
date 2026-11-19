@@ -49,7 +49,7 @@ class HearthTypography {
     /** The title of a sheet. */
     val title = Plain.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
 
-    /** The name of a chat or a project in the chat list. */
+    /** The name of a chat or a project in the chat list, and of a row in the sheet the composer's plus button opens. */
     val listRow = Plain.copy(fontSize = 16.sp)
 
     /** Row labels and short explanations. */

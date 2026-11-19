@@ -3,8 +3,8 @@ package app.hearth.domain
 /**
  * How much work goes into the next reply: thinking at one of the levels, or researching the question on the web.
  *
- * Research is a choice of its own beside the thinking levels, never a level sent to the model: while it is
- * chosen the model still thinks at the level saved in the settings.
+ * Research is switched on beside the thinking levels, never a level sent to the model: while it is on, the model
+ * still thinks at the level chosen, so a report can be thought about as hard or as lightly as any reply.
  */
 sealed interface EffortChoiceKind {
     /** An ordinary reply, thought about this hard. */
@@ -15,14 +15,13 @@ sealed interface EffortChoiceKind {
 
     companion object {
         /**
-         * The choices on offer for a model, in the order they are listed.
+         * The thinking levels on offer for a model, in the order they are listed. Research is not among them: it
+         * has a switch of its own.
          *
          * A model that cannot think has one ordinary choice, which stands for the saved level without changing it.
          */
-        fun choices(canThink: Boolean, savedLevel: ThinkingLevel): List<EffortChoiceKind> {
-            val levels = if (canThink) ThinkingLevel.entries else listOf(savedLevel)
-            return levels.map(::Thinking) + Research
-        }
+        fun choices(canThink: Boolean, savedLevel: ThinkingLevel): List<EffortChoiceKind> =
+            (if (canThink) ThinkingLevel.entries else listOf(savedLevel)).map(::Thinking)
     }
 }
 

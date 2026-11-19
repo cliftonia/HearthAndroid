@@ -61,13 +61,13 @@ class ChatResearchTests {
     // Choosing
 
     @Test
-    fun `research is chosen as an effort of its own, and leaves the saved thinking level alone`() = runTest {
+    fun `research is switched on beside the thinking level, which goes on being chosen`() = runTest {
         val fixture = fixture()
         val levels = listOf(ThinkingLevel.OFF, ThinkingLevel.LOW, ThinkingLevel.MEDIUM, ThinkingLevel.HIGH).map(EffortChoiceKind::Thinking)
 
-        assertEquals(levels + research, fixture.view.effortChoices(fixture.settingsStore.settings.value))
+        assertEquals(levels, fixture.view.effortChoices(fixture.settingsStore.settings.value))
         assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.LOW), fixture.choice)
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
         assertEquals(research, fixture.choice)
         assertTrue(fixture.subject.isResearchChosen)
@@ -75,39 +75,53 @@ class ChatResearchTests {
 
         fixture.subject.selectEffortAction(EffortChoiceKind.Thinking(ThinkingLevel.HIGH))
 
-        assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.HIGH), fixture.choice)
-        assertFalse(fixture.subject.isResearchChosen)
+        assertTrue(fixture.subject.isResearchChosen)
         assertEquals(ThinkingLevel.HIGH, fixture.settingsStore.settings.value.thinkingLevel)
+
+        fixture.subject.toggleResearchAction()
+
+        assertFalse(fixture.subject.isResearchChosen)
+        assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.HIGH), fixture.choice)
     }
 
     @Test
-    fun `a model that cannot think is still offered research, beside one ordinary choice`() = runTest {
+    fun `a model that cannot think has nothing to choose, and can still research`() = runTest {
         val fixture = fixture(model = ChatModel(ModelId("plain:latest")))
 
-        assertEquals(listOf(EffortChoiceKind.Thinking(ThinkingLevel.LOW), research), fixture.view.effortChoices(fixture.settingsStore.settings.value))
-        fixture.subject.selectEffortAction(research)
+        assertEquals(listOf(EffortChoiceKind.Thinking(ThinkingLevel.LOW)), fixture.view.effortChoices(fixture.settingsStore.settings.value))
+        fixture.subject.toggleResearchAction()
 
         assertEquals(research, fixture.choice)
     }
 
     @Test
-    fun `without a search address research is listed but cannot be chosen`() = runTest {
+    fun `without a search address research cannot be switched on`() = runTest {
         val fixture = fixture(settings(searchAddress = ""))
-        val settings = fixture.settingsStore.settings.value
 
-        assertTrue(research in fixture.view.effortChoices(settings))
-        assertFalse(research.isAvailable(settings))
-        assertTrue(EffortChoiceKind.Thinking(ThinkingLevel.HIGH).isAvailable(settings))
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
+        assertFalse(fixture.subject.isResearchChosen)
         assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.LOW), fixture.choice)
         assertFalse(fixture.view.isResearchMode)
     }
 
     @Test
+    fun `switching research on takes the place of picture mode`() = runTest {
+        val fixture = fixture()
+        fixture.subject.togglePictureModeAction()
+        advanceUntilIdle()
+        assertTrue(fixture.view.isPictureMode)
+
+        fixture.subject.toggleResearchAction()
+
+        assertTrue(fixture.subject.isResearchChosen)
+        assertFalse(fixture.view.isPictureMode)
+    }
+
+    @Test
     fun `a search address taken away leaves research no longer chosen`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
         fixture.settingsStore.update(fixture.settingsStore.settings.value.copy(searchAddress = ""))
 
@@ -119,16 +133,16 @@ class ChatResearchTests {
         val other = Conversation(title = "Other", messages = listOf(Message(role = MessageRole.USER, text = "Hello")))
         val fixture = fixture(stored = listOf(other))
 
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         fixture.subject.newChatAction()
         assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.LOW), fixture.choice)
 
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         fixture.subject.selectConversationAction(other.id)
         assertEquals(other.id, fixture.view.conversation.id)
         assertEquals(EffortChoiceKind.Thinking(ThinkingLevel.LOW), fixture.choice)
 
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         fixture.subject.resetAction()
         assertFalse(fixture.view.isResearchMode)
     }
@@ -137,7 +151,7 @@ class ChatResearchTests {
     fun `a message asks for a picture or for research, never both`() = runTest {
         val fixture = fixture()
 
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         fixture.subject.togglePictureModeAction()
         advanceUntilIdle()
 
@@ -151,7 +165,7 @@ class ChatResearchTests {
     @Test
     fun `a researched question is answered with a report that is kept with its sources and its mark`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
         ask(fixture)
 
@@ -174,10 +188,10 @@ class ChatResearchTests {
     @Test
     fun `with research switched off again, the next question in the chat is an ordinary one`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         ask(fixture)
 
-        fixture.subject.selectEffortAction(EffortChoiceKind.Thinking(ThinkingLevel.LOW))
+        fixture.subject.toggleResearchAction()
         ask(fixture, "Thanks. And in summer?")
 
         val reply = fixture.view.conversation.messages.last()
@@ -192,7 +206,7 @@ class ChatResearchTests {
     @Test
     fun `a suggested question is researched while research is chosen`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
         fixture.subject.followUpAction("And in winter?")
         advanceUntilIdle()
@@ -204,9 +218,9 @@ class ChatResearchTests {
     @Test
     fun `trying a report again researches again, even with research no longer chosen`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         ask(fixture)
-        fixture.subject.selectEffortAction(EffortChoiceKind.Thinking(ThinkingLevel.LOW))
+        fixture.subject.toggleResearchAction()
 
         fixture.subject.regenerateAction()
         advanceUntilIdle()
@@ -223,7 +237,7 @@ class ChatResearchTests {
     fun `when no page can be read it says so, writes nothing, and retrying researches again`() = runTest {
         val fixture = fixture()
         fixture.page = { throw IOException("bad server response") }
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
 
         ask(fixture)
 
@@ -265,7 +279,7 @@ class ChatResearchTests {
             delay(60_000)
             ChatPresenterFixture.RESEARCH_PAGE
         }
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         fixture.subject.draftAction(question)
 
         fixture.subject.sendAction()
@@ -286,7 +300,7 @@ class ChatResearchTests {
     @Test
     fun `stopping another attempt at a report puts the earlier report back`() = runTest {
         val fixture = fixture()
-        fixture.subject.selectEffortAction(research)
+        fixture.subject.toggleResearchAction()
         ask(fixture)
         val first = fixture.view.conversation.messages.last()
         fixture.page = {
@@ -312,13 +326,13 @@ class ChatResearchTests {
     fun `a finished report is felt on screen and announced off it, as any reply is`() = runTest {
         val onScreen = fixture()
         onScreen.isOnScreen = true
-        onScreen.subject.selectEffortAction(research)
+        onScreen.subject.toggleResearchAction()
         ask(onScreen)
         assertEquals(listOf(HapticKind.SOFT), onScreen.played)
         assertTrue(onScreen.posted.isEmpty())
 
         val offScreen = fixture(settings(isNotifying = true))
-        offScreen.subject.selectEffortAction(research)
+        offScreen.subject.toggleResearchAction()
         ask(offScreen)
         assertEquals(listOf(offScreen.view.conversation.id), offScreen.posted.map { it.conversationId })
         assertTrue(offScreen.played.isEmpty())

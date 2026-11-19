@@ -212,6 +212,7 @@ fun ComposerFooter(
                         canSee = model?.canSee == true || isPictureMode,
                         canMakePictures = settings.imageUrl != null,
                         isPictureMode = isPictureMode,
+                        isResearching = isResearchChosen.takeIf { settings.searchUrl != null },
                         isReadingAloud = settings.isAutoReadEnabled.takeIf { settings.speechUrl != null },
                         presenter = presenter,
                         attachments = attachments,
@@ -225,8 +226,8 @@ fun ComposerFooter(
                                 !isPictureMode -> model?.displayName ?: stringResource(R.string.chat_no_model)
                                 else -> pictureModel?.shortName() ?: stringResource(R.string.picture_section)
                             },
-                            // The effort is shown beside the model and chosen with it: research always, a thinking level
-                            // only for a model that thinks.
+                            // The effort is shown beside the model: research whenever it is switched on, a thinking
+                            // level only for a model that thinks.
                             effort = when {
                                 isPictureMode -> ""
                                 isResearchChosen || model?.canThink == true -> viewModel.effortChoice(settings).title(canThink = model?.canThink == true)

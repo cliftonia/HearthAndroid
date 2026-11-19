@@ -115,8 +115,7 @@
     <string name="canvas_preview_unavailable">The preview could not be shown on this phone. The code is still here.</string>
 
     <string name="research_title">Deep research</string>
-    <string name="research_detail">Searches, reads the pages and writes a sourced report</string>
-    <string name="research_needs_search">Add a search address in Settings</string>
+    <string name="research_switch">Research</string>
     <string name="research_placeholder">Ask a question to research</string>
     <string name="research_planning">Planning</string>
     <string name="research_searching">Searching %1$d of %2$d</string>
@@ -307,8 +306,10 @@
     <string name="memory_notice_updated">Memory updated: %1$s</string>
     <string name="memory_notice_forgotten">Forgotten: %1$s</string>
     <string name="composer_attach">Attach</string>
-    <string name="composer_choose_file">Choose file</string>
-    <string name="composer_take_photo">Take photo</string>
+    <string name="composer_add_title">Add to chat</string>
+    <string name="composer_photos">Photos</string>
+    <string name="composer_choose_file">Add files</string>
+    <string name="composer_take_photo">Camera</string>
     <string name="composer_schedule_task">Schedule a task</string>
     <string name="composer_photo_library">Photo library</string>
     <string name="composer_remove_file">Remove file %1$s</string>
