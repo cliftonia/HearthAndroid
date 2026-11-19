@@ -3,12 +3,15 @@ package app.hearth.domain
 import app.hearth.data.OllamaChatRequestDto
 import app.hearth.data.OllamaMessageDto
 import app.hearth.data.OllamaModelDto
+import app.hearth.data.OllamaOptionsDto
 import app.hearth.data.OllamaService
 import app.hearth.data.OllamaToolArgumentsDto
 import app.hearth.data.OllamaToolCallDto
 import app.hearth.data.OllamaToolFunctionDto
 import app.hearth.data.OllamaTools
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.transform
 
 /** The model server as the domain sees it. Each function takes the server's address first. */
@@ -24,17 +27,29 @@ class ChatDataProvider(
         /** The provider that talks to a real Ollama server. */
         fun live(): ChatDataProvider = live(OllamaService())
 
-        internal fun live(service: OllamaService): ChatDataProvider = ChatDataProvider(
-            fetchModels = { baseUrl -> service.fetchModels(baseUrl).mapNotNull(::chatModel) },
-            streamChat = { baseUrl, request ->
-                service.streamChat(baseUrl, requestDto(request, stream = true)).transform { chunk ->
-                    chunk.message?.thinking?.takeIf { it.isNotEmpty() }?.let { emit(ChatDelta.Thinking(it)) }
-                    chunk.message?.content?.takeIf { it.isNotEmpty() }?.let { emit(ChatDelta.Text(it)) }
-                    chunk.message?.toolCalls.orEmpty().mapNotNull(::delta).forEach { emit(it) }
-                }
-            },
-            complete = { baseUrl, request -> service.chat(baseUrl, requestDto(request, stream = false)).message?.content.orEmpty() },
-        )
+        internal fun live(service: OllamaService): ChatDataProvider {
+            val contexts = ContextRoomCache { baseUrl, model ->
+                val shown = service.showModel(baseUrl, model.raw)
+                ModelContext(limit = shown.contextLength, fixed = shown.fixedContextLength)
+            }
+            return ChatDataProvider(
+                fetchModels = { baseUrl -> service.fetchModels(baseUrl).mapNotNull(::chatModel) },
+                streamChat = { baseUrl, request ->
+                    flow {
+                        val room = contexts.room(request, baseUrl)
+                        emitAll(service.streamChat(baseUrl, requestDto(request, stream = true, room = room)))
+                    }.transform { chunk ->
+                        chunk.message?.thinking?.takeIf { it.isNotEmpty() }?.let { emit(ChatDelta.Thinking(it)) }
+                        chunk.message?.content?.takeIf { it.isNotEmpty() }?.let { emit(ChatDelta.Text(it)) }
+                        chunk.message?.toolCalls.orEmpty().mapNotNull(::delta).forEach { emit(it) }
+                    }
+                },
+                complete = { baseUrl, request ->
+                    val room = contexts.room(request, baseUrl)
+                    service.chat(baseUrl, requestDto(request, stream = false, room = room)).message?.content.orEmpty()
+                },
+            )
+        }
 
         /** `null` for models that cannot hold a conversation, such as embedding models. */
         internal fun chatModel(dto: OllamaModelDto): ChatModel? {
@@ -67,8 +82,11 @@ class ChatDataProvider(
             }
         }
 
-        /** The request as Ollama takes it. Tools and thinking are offered only to models that have them. */
-        internal fun requestDto(request: ChatRequest, stream: Boolean): OllamaChatRequestDto {
+        /**
+         * The request as Ollama takes it. Tools and thinking are offered only to models that have them. [room] is how
+         * many tokens of conversation to ask the server to make room for; `null` leaves the server to its own size.
+         */
+        internal fun requestDto(request: ChatRequest, stream: Boolean, room: Int? = null): OllamaChatRequestDto {
             val canUseTools = request.model.canUseTools
             val tools = buildList {
                 if (canUseTools && request.isWebSearchOffered) add(OllamaTools.webSearch)
@@ -85,6 +103,7 @@ class ChatDataProvider(
                 stream = stream,
                 think = think,
                 tools = tools.ifEmpty { null },
+                options = room?.let(::OllamaOptionsDto),
             )
         }
 

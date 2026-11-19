@@ -108,6 +108,27 @@ class OllamaDtoTests {
     }
 
     @Test
+    fun `a context size is sent as num_ctx among the options, and left out when there is none`() {
+        val sized = OllamaChatRequestDto("m", emptyList(), stream = true, options = OllamaOptionsDto(contextLength = 8192))
+        val plain = OllamaChatRequestDto("m", emptyList(), stream = true)
+
+        assertTrue("\"options\":{\"num_ctx\":8192}" in hearthJson.encodeToString(OllamaChatRequestDto.serializer(), sized))
+        assertFalse("options" in hearthJson.encodeToString(OllamaChatRequestDto.serializer(), plain))
+    }
+
+    @Test
+    fun `what a model can read at once, and any size its settings fix, are read from its description`() {
+        val open = """{"parameters": "top_p 0.95\ntemperature    1", """ +
+            """"model_info": {"general.name": "x", "qwen35.context_length": 262144, "tokens": ["a"]}}"""
+        val fixed = """{"parameters": "stop \"<end>\"\nnum_ctx                        131072", """ +
+            """"model_info": {"gemma3.context_length": 131072}}"""
+
+        assertEquals(OllamaModelShowDto(contextLength = 262_144, fixedContextLength = null), OllamaModelShowDto.fromJson(open))
+        assertEquals(OllamaModelShowDto(contextLength = 131_072, fixedContextLength = 131_072), OllamaModelShowDto.fromJson(fixed))
+        assertEquals(OllamaModelShowDto(contextLength = null, fixedContextLength = null), OllamaModelShowDto.fromJson("{}"))
+    }
+
+    @Test
     fun `a model without capabilities decodes`() {
         val tags = hearthJson.decodeFromString(OllamaTagsDto.serializer(), """{"models":[{"name":"a:latest","details":{"parameter_size":"7B"}}]}""")
         assertEquals("7B", tags.models.single().details?.parameterSize)
@@ -144,6 +165,15 @@ class OllamaServiceTests {
             assertEquals(200, failure.code)
             assertEquals(answer, failure.body)
         }
+    }
+
+    @Test
+    fun `a model's description is read, and an answer that is not one is a failure of the server`() = runBlocking {
+        val shown = service("""{"model_info":{"gemma3.context_length":131072}}""").showModel("http://host.example", "gemma3:latest")
+        assertEquals(OllamaModelShowDto(contextLength = 131_072, fixedContextLength = null), shown)
+
+        val failure = assertFailsWith<HttpError.Status> { service("<html></html>").showModel("http://host.example", "gemma3:latest") }
+        assertEquals(200, failure.code)
     }
 
     @Test

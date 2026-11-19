@@ -3,6 +3,9 @@ package app.hearth.data
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 /** The answer to `/api/tags`: every model the server has. */
 @Serializable
@@ -22,6 +25,41 @@ data class OllamaModelDto(
     /** What the model can do, such as "completion", "thinking", "vision" or "tools". Older servers leave it out. */
     val capabilities: List<String>? = null,
 )
+
+/**
+ * The answer to `/api/show`: what one model was built with. Only what bears on how much it can read at once is kept.
+ */
+data class OllamaModelShowDto(
+    /** The most tokens the model itself can take in, as its file records it; `null` when the server does not say. */
+    val contextLength: Int?,
+    /** The context size the model's own settings fix on the server, when whoever made it chose one. */
+    val fixedContextLength: Int?,
+) {
+    companion object {
+        private val whitespace = Regex("\\s+")
+
+        /** Reads the answer as the server sends it. Throws when it is not a JSON object at all. */
+        fun fromJson(text: String): OllamaModelShowDto {
+            val answer = hearthJson.decodeFromString(JsonObject.serializer(), text)
+            // The model's details are keyed by its family, as in `gemma3.context_length`, among values of every kind.
+            val details = answer["model_info"] as? JsonObject
+            val length = details?.entries?.firstOrNull { it.key.endsWith(".context_length") }?.value as? JsonPrimitive
+            // The settings come as lines of text, a name and a value on each: `num_ctx    8192`.
+            val settings = (answer["parameters"] as? JsonPrimitive)?.takeIf { it.isString }?.content.orEmpty()
+            val fixed = settings.lines()
+                .map { line -> line.split(whitespace).filter { it.isNotEmpty() } }
+                .firstOrNull { it.firstOrNull() == "num_ctx" }
+            return OllamaModelShowDto(
+                contextLength = length?.takeIf { !it.isString }?.intOrNull,
+                fixedContextLength = fixed?.last()?.toIntOrNull(),
+            )
+        }
+    }
+}
+
+/** The body of a request to `/api/show`. */
+@Serializable
+data class OllamaShowRequestDto(val model: String)
 
 /** The answer to `/api/ps`: the models the server has in memory right now. */
 @Serializable
@@ -70,6 +108,13 @@ data class OllamaMessageDto(
     @SerialName("tool_name") val toolName: String? = null,
 )
 
+/** How the server should run the model for one request. Only the context size is ever set. */
+@Serializable
+data class OllamaOptionsDto(
+    /** How many tokens of conversation the model is given room for. */
+    @SerialName("num_ctx") val contextLength: Int,
+)
+
 /** The body of a request to `/api/chat`. */
 @Serializable
 data class OllamaChatRequestDto(
@@ -81,6 +126,8 @@ data class OllamaChatRequestDto(
     val think: JsonElement? = null,
     /** Left out unless the model may call tools in this request. */
     val tools: List<JsonElement>? = null,
+    /** Left out to run the model as the server would by itself. */
+    val options: OllamaOptionsDto? = null,
 )
 
 /** The part of the reply carried by one chunk: text, reasoning, or tool calls. */

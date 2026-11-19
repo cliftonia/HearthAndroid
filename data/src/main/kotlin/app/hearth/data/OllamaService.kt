@@ -30,6 +30,21 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
     }
 
     /**
+     * What one model was built with: how much it can read at once, and whether its settings fix a context size.
+     * Cancelling the caller closes the connection.
+     */
+    suspend fun showModel(baseUrl: String, name: String): OllamaModelShowDto {
+        val body = hearthJson.encodeToString(OllamaShowRequestDto.serializer(), OllamaShowRequestDto(name))
+        val request = Request.Builder().url(HearthHttp.url(baseUrl, "api/show")).post(body.toRequestBody(HearthHttp.jsonMediaType)).build()
+        return client.newBuilder().readTimeout(15, TimeUnit.SECONDS).build().newCall(request).await { response ->
+            val answer = response.body.string()
+            if (!response.isSuccessful) throw HttpError.Status(response.code, answer.take(500))
+            // An answer that is not Ollama's, such as another service's page at that address, is the server's failure.
+            runCatching { OllamaModelShowDto.fromJson(answer) }.getOrNull() ?: throw HttpError.Status(response.code, answer.take(500))
+        }
+    }
+
+    /**
      * Asks the server to let go of every model it has loaded, so its memory is free for other work.
      * A model that was unloaded is loaded again the next time it is spoken to.
      */
