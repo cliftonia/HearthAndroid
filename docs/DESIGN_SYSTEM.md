@@ -43,6 +43,12 @@ the appearance, so it is the only part read from the composition.
 | `onDangerFill` | Text and symbols on `dangerFill`: white in both appearances |
 | `dangerSoft` | A quiet wash of `danger`, with `ink` on it: Material's error container. Light `#F6E1DB`, dark `#3D2420` |
 | `online` | The server can be reached: the status dot only. It is too light for text, so a check that succeeded is worded in `pine` |
+| `codeKeyword` | The words a language reserves, in a block of code. Light `#2C6B5A`, dark `#6FC2A8` |
+| `codeString` | Text in quotes, in a block of code. Light `#8A4B12`, dark `#E0B15A` |
+| `codeNumber` | Numbers, in a block of code. Light `#3B5BA5`, dark `#8FB0F0` |
+
+The three code colours are the iPhone app's, and each is dark or light enough for small text on `bubble` and on
+`card` in both appearances. A comment in code is `mute`, and everything else `ink`.
 
 ### Type: `HearthTheme.type`
 
@@ -54,8 +60,7 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `brand` | 22 serif bold | The app's name; a screen's title |
 | `display` | 26 / 32 serif | The one large line on an empty screen |
 | `heading(level)` | 22, 19, 17 serif | Headings in a reply |
-| `reply` | 16 / 26 | Paragraphs of a reply |
-| `replyTable` | 14 / 20 | Table cells in a reply |
+| `reply` | 16 / 26 | Paragraphs of a reply, and the cells of a table in one, whose header row is semibold |
 | `code` | 13 / 19 mono | Code blocks |
 | `math` | 19 / 26 serif | Display maths |
 | `input`, `inputHint` | 16 / 22, 16 / 24 | The composer's text and its prompt |
@@ -113,6 +118,7 @@ menu item.
 | `sourceMark`, `sourceMarkOverlap` | 20, 6 | The circle that stands for a source's site, and how far each lies over the one before |
 | `avatarS` `avatarL` | 44 96 | The user's avatar: in a row of the settings; at the head of the profile page |
 | `thumbnailS` `thumbnailL` | 64 96 | A photo in the composer; in a sent message |
+| `attachmentTile` | 84 | The least height of one of the large buttons in the sheet the composer's plus button opens |
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
 | `statusDot`, `progress` | 8, 14 | The connection dot; the small spinner |
 | `fieldMinHeight`, `fieldMaxHeight` | 24, 140 | The composer's field |
@@ -187,8 +193,9 @@ everywhere.
 A haptic marks a moment, never a stretch of time: one as a reply finishes, none while it streams.
 
 Things that look like components but are used by one feature stay with it: the composer's toggles, the
-drawer's New chat and Settings buttons, the chips for files, the list and sheet of a reply's sources, the card of a
-piece of work in a reply.
+drawer's New chat and Settings buttons, the chips for files, the list and sheet of a reply's sources and the line
+above a reply that searched the web, the card of a piece of work in a reply, the tiles and rows of the sheet the plus
+button opens, and a block of code with the sheet that shows it full size.
 The canvas's switch is Material's segmented button as it comes, and its code is set in `type.code` on `card`,
 with the line numbers in `mute`.
 

@@ -25,11 +25,8 @@ class HearthTypography {
     /** The one large line on an otherwise empty screen. */
     val display = TextStyle(fontFamily = FontFamily.Serif, fontSize = 26.sp, lineHeight = 32.sp)
 
-    /** The paragraphs of a reply. */
+    /** The paragraphs of a reply, and the cells of a table in one. */
     val reply = TextStyle(fontSize = 16.sp, lineHeight = 26.sp)
-
-    /** The cells of a table in a reply. */
-    val replyTable = TextStyle(fontSize = 14.sp, lineHeight = 20.sp)
 
     /** A block of code in a reply. */
     val code = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp, lineHeight = 19.sp)

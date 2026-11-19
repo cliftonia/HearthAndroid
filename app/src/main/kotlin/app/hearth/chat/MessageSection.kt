@@ -118,6 +118,8 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
         Column(group.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
+            // Once the reply is written, a line stays to say the web was searched for it.
+            if (sources.isNotEmpty() && !message.isResearch && !configuration.isStreaming) ReplySearchedLine(sources)
             val picture = message.images.firstOrNull()
             val pictureWork = configuration.pictureWork
             val researchStep = configuration.researchStep

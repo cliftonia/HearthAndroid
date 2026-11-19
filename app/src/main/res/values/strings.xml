@@ -79,6 +79,7 @@
     </plurals>
     <string name="message_show_thinking">Show thinking</string>
     <string name="message_hide_thinking">Hide thinking</string>
+    <string name="message_expand_code">Open code full size</string>
     <string name="message_copy_code">Copy code</string>
     <string name="message_code">code</string>
     <string name="message_writing">Writing a reply</string>
@@ -124,6 +125,7 @@
     <string name="research_checking">Checking for gaps</string>
     <string name="research_writing">Writing</string>
     <string name="research_sources">Sources</string>
+    <string name="sources_searched">Searched the web</string>
     <string name="sources_heading">Sources:</string>
     <plurals name="sources_count">
         <item quantity="one">%1$d source</item>

@@ -8,29 +8,16 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Brush
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconToggleButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,8 +30,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import app.hearth.R
@@ -93,9 +78,10 @@ internal fun ComposerToggle(icon: ImageVector, label: String, isOn: Boolean, onT
 }
 
 /**
- * The ways to add a photo or a file to the message being written, the way to make what is written a scheduled task,
- * where there is a picture server the switch that makes the next message ask for a picture, and where replies can be
- * spoken the switch that has each one read aloud. [isReadingAloud] is `null` where there is no speech server.
+ * The plus button and the sheet it opens: the ways to add a photo or a file to the message being written, where there
+ * is a picture server the switch that makes the next message ask for a picture, where replies can be spoken the switch
+ * that has each one read aloud, the way to make what is written a scheduled task, and a new project.
+ * [isReadingAloud] is `null` where there is no speech server.
  */
 @Composable
 internal fun AttachMenu(
@@ -143,83 +129,71 @@ internal fun AttachMenu(
     val cameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) takePhoto() else presenter.cameraDeniedAction()
     }
-    Box {
-        HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
-        DropdownMenu(expanded = isOpen, onDismissRequest = { isOpen = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.composer_choose_file)) },
-                leadingIcon = { Icon(Icons.Outlined.Description, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                onClick = {
-                    isOpen = false
-                    pickFiles()
-                },
-            )
-            // Photos are offered only where they can be used: by a model that can look at them, or by the picture server.
-            if (canSee) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.composer_take_photo)) },
-                    leadingIcon = { Icon(Icons.Outlined.PhotoCamera, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                    onClick = {
-                        isOpen = false
-                        val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                        if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.composer_photo_library)) },
-                    leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                    onClick = {
-                        isOpen = false
-                        library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
-                )
+    val hasCamera = remember(context) { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
+
+    fun perform(choice: AttachmentChoiceKind) {
+        when (choice) {
+            AttachmentChoiceKind.FILE -> pickFiles()
+            AttachmentChoiceKind.CAMERA -> {
+                val isAllowed = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                if (isAllowed) takePhoto() else cameraPermission.launch(Manifest.permission.CAMERA)
             }
-            // Below the ways to attach, what Hearth makes and does: a picture, replies read aloud, a task, offered whether
-            // or not sync is on (without it, the tasks page says why none can be added), and last a new project.
-            HorizontalDivider(color = HearthTheme.colors.line)
-            if (canMakePictures) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.picture_mode)) },
-                    leadingIcon = { Icon(if (isPictureMode) Icons.Outlined.Check else Icons.Outlined.Brush, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                    modifier = Modifier.semantics { selected = isPictureMode },
-                    onClick = {
-                        isOpen = false
-                        presenter.togglePictureModeAction()
-                    },
-                )
-            }
-            if (isReadingAloud != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.composer_read_replies)) },
-                    leadingIcon = {
-                        val icon = if (isReadingAloud) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.VolumeUp
-                        Icon(icon, null, Modifier.size(HearthTheme.sizes.iconS))
-                    },
-                    modifier = Modifier.semantics { selected = isReadingAloud },
-                    onClick = {
-                        isOpen = false
-                        presenter.toggleAutoReadAction()
-                    },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.composer_schedule_task)) },
-                leadingIcon = { Icon(Icons.Outlined.Schedule, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                onClick = {
-                    isOpen = false
-                    presenter.scheduleTaskAction()
-                },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.project_new)) },
-                leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null, Modifier.size(HearthTheme.sizes.iconS)) },
-                onClick = {
-                    isOpen = false
-                    presenter.newProjectAction()
-                },
-            )
+            AttachmentChoiceKind.PHOTO_LIBRARY -> library.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            AttachmentChoiceKind.PICTURE_MODE -> presenter.togglePictureModeAction()
+            AttachmentChoiceKind.READ_ALOUD -> presenter.toggleAutoReadAction()
+            AttachmentChoiceKind.SCHEDULE_TASK -> presenter.scheduleTaskAction()
+            AttachmentChoiceKind.NEW_PROJECT -> presenter.newProjectAction()
         }
     }
+
+    HearthIconButton(Icons.Outlined.Add, stringResource(R.string.composer_attach), tint = HearthTheme.colors.mute) { isOpen = true }
+    if (isOpen) {
+        val configuration = AttachmentSheetConfiguration(
+            attachments = listOfNotNull(AttachmentChoiceKind.CAMERA.takeIf { hasCamera }, AttachmentChoiceKind.PHOTO_LIBRARY, AttachmentChoiceKind.FILE),
+            // What Hearth makes and does: a picture, replies read aloud, a task, offered whether or not sync is on
+            // (without it, the tasks page says why none can be added), and last a new project.
+            extras = listOfNotNull(
+                AttachmentChoiceKind.PICTURE_MODE.takeIf { canMakePictures },
+                AttachmentChoiceKind.READ_ALOUD.takeIf { isReadingAloud != null },
+                AttachmentChoiceKind.SCHEDULE_TASK,
+                AttachmentChoiceKind.NEW_PROJECT,
+            ),
+            // Photos can be chosen only where they can be used: by a model that can look at them, or by the picture server.
+            isEnabled = { it.isAvailable(canSee) },
+            isOn = { it.isOn(isPictureMode, isReadingAloud == true) },
+        )
+        AttachmentSheet(
+            configuration,
+            onChoose = { choice ->
+                isOpen = false
+                perform(choice)
+            },
+            onDismiss = { isOpen = false },
+        )
+    }
+}
+
+/** Whether the choice can be made: a photo only while there is something to look at it, anything else always. */
+private fun AttachmentChoiceKind.isAvailable(canSee: Boolean): Boolean = when (this) {
+    AttachmentChoiceKind.CAMERA, AttachmentChoiceKind.PHOTO_LIBRARY -> canSee
+    AttachmentChoiceKind.FILE,
+    AttachmentChoiceKind.PICTURE_MODE,
+    AttachmentChoiceKind.READ_ALOUD,
+    AttachmentChoiceKind.SCHEDULE_TASK,
+    AttachmentChoiceKind.NEW_PROJECT,
+    -> true
+}
+
+/** Whether the choice is a switch that is on. */
+private fun AttachmentChoiceKind.isOn(isPictureMode: Boolean, isReadingAloud: Boolean): Boolean = when (this) {
+    AttachmentChoiceKind.PICTURE_MODE -> isPictureMode
+    AttachmentChoiceKind.READ_ALOUD -> isReadingAloud
+    AttachmentChoiceKind.FILE,
+    AttachmentChoiceKind.CAMERA,
+    AttachmentChoiceKind.PHOTO_LIBRARY,
+    AttachmentChoiceKind.SCHEDULE_TASK,
+    AttachmentChoiceKind.NEW_PROJECT,
+    -> false
 }
 
 /** Starts and stops dictation, asking for the microphone the first time it is needed. */

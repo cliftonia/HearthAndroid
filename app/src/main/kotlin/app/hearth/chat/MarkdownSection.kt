@@ -14,18 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
@@ -37,16 +33,13 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import app.hearth.R
 import app.hearth.designsystem.HearthColors
-import app.hearth.designsystem.HearthIconButton
 import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.InlineMarkdownTransformer
 import app.hearth.domain.MarkdownBlock
 import app.hearth.domain.MarkdownTransformer
 import app.hearth.domain.MathTransformer
 import app.hearth.domain.SearchSource
-import app.hearth.shared.rememberCopy
 
 /** A reply laid out from its Markdown: headings, lists, code, tables and maths. */
 @Composable
@@ -57,7 +50,7 @@ fun MarkdownSection(markdown: String, modifier: Modifier = Modifier) {
             when (block) {
                 is MarkdownBlock.Heading -> InlineText(block.text, HearthTheme.type.heading(block.level), Modifier.semantics { heading() })
                 is MarkdownBlock.Paragraph -> InlineText(block.text, HearthTheme.type.reply)
-                is MarkdownBlock.Code -> CodeBlock(block)
+                is MarkdownBlock.Code -> CodeBlockSection(block.language, block.text)
                 is MarkdownBlock.ItemList -> ItemList(block)
                 is MarkdownBlock.Quote -> Quote(block.text)
                 is MarkdownBlock.Table -> Table(block)
@@ -109,27 +102,6 @@ private fun annotated(text: String, colors: HearthColors, uriHandler: UriHandler
     }
 }
 
-/** Code on a panel that scrolls sideways, under its language and a button to copy it. */
-@Composable
-private fun CodeBlock(block: MarkdownBlock.Code) {
-    val colors = HearthTheme.colors
-    val copy = rememberCopy()
-    Column(Modifier.fillMaxWidth().clip(HearthTheme.shapes.tile).background(colors.bubble)) {
-        Row(Modifier.fillMaxWidth().padding(start = HearthTheme.spacing.xxl), verticalAlignment = Alignment.CenterVertically) {
-            Text(block.language ?: stringResource(R.string.message_code), color = colors.mute, style = HearthTheme.type.caption, modifier = Modifier.weight(1f))
-            HearthIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.message_copy_code), tint = colors.mute) { copy(block.text) }
-        }
-        Text(
-            block.text,
-            style = HearthTheme.type.code,
-            color = colors.ink,
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(start = HearthTheme.spacing.xxl, end = HearthTheme.spacing.xxl, bottom = HearthTheme.spacing.xxl),
-        )
-    }
-}
-
 /** A list, numbered or bulleted. */
 @Composable
 private fun ItemList(block: MarkdownBlock.ItemList) {
@@ -152,7 +124,7 @@ private fun Quote(text: String) {
     }
 }
 
-/** A table of fixed-width columns that scrolls sideways, its header row shaded. */
+/** A table of fixed-width columns, set in the reply's own size of text, that scrolls sideways; its header row is shaded and bolder. */
 @Composable
 private fun Table(block: MarkdownBlock.Table) {
     val colors = HearthTheme.colors
@@ -167,7 +139,7 @@ private fun Table(block: MarkdownBlock.Table) {
         (listOf(block.header) + block.rows).forEachIndexed { rowIndex, row ->
             Row(Modifier.height(IntrinsicSize.Min).background(if (rowIndex == 0) colors.bubble else Color.Transparent)) {
                 repeat(columnCount) { column ->
-                    val style = HearthTheme.type.replyTable.copy(fontWeight = if (rowIndex == 0) FontWeight.SemiBold else null)
+                    val style = HearthTheme.type.reply.copy(fontWeight = if (rowIndex == 0) FontWeight.SemiBold else null)
                     val cell = Modifier.width(columnWidth).padding(horizontal = HearthTheme.spacing.l, vertical = HearthTheme.spacing.m)
                     InlineText(row.getOrElse(column) { "" }, style, cell)
                 }

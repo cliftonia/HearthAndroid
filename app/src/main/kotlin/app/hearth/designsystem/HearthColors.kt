@@ -33,6 +33,12 @@ data class HearthColors(
     val dangerSoft: Color,
     /** The server can be reached. */
     val online: Color,
+    /** The words a language reserves, in a block of code. Each of the three code colours reads on [bubble] and on [card]. */
+    val codeKeyword: Color,
+    /** Text in quotes, in a block of code. */
+    val codeString: Color,
+    /** Numbers, in a block of code. */
+    val codeNumber: Color,
 )
 
 /** The palette by day. */
@@ -41,6 +47,7 @@ internal val LightColors = HearthColors(
     pine = Color(0xFF2C6B5A), pineSoft = Color(0xFFDCEAE4), bubble = Color(0xFFE6EBE5), onPine = Color(0xFFFFFFFF),
     danger = Color(0xFFB0472F), dangerFill = Color(0xFFB0472F), onDangerFill = Color(0xFFFFFFFF), online = Color(0xFF3FA66B),
     dangerSoft = Color(0xFFF6E1DB),
+    codeKeyword = Color(0xFF2C6B5A), codeString = Color(0xFF8A4B12), codeNumber = Color(0xFF3B5BA5),
 )
 
 /** The palette by night. */
@@ -50,6 +57,7 @@ internal val DarkColors = HearthColors(
     // The text red is too light for white on it, so a filled button is a deeper one (white on it 5.10:1).
     danger = Color(0xFFE0705A), dangerFill = Color(0xFFB54E3A), onDangerFill = Color(0xFFFFFFFF), online = Color(0xFF57C283),
     dangerSoft = Color(0xFF3D2420),
+    codeKeyword = Color(0xFF6FC2A8), codeString = Color(0xFFE0B15A), codeNumber = Color(0xFF8FB0F0),
 )
 
 /** Carries the palette of the chosen appearance down to every screen. */

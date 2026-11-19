@@ -17,8 +17,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -86,6 +90,33 @@ internal fun ReplySourcesSection(sources: List<SourceViewConfiguration>, modifie
             }
         }
     }
+}
+
+/** Above a reply that searched the web: a quiet line that says so, and lists the pages it found when tapped. */
+@Composable
+internal fun ReplySearchedLine(sources: List<SourceViewConfiguration>, modifier: Modifier = Modifier) {
+    val colors = HearthTheme.colors
+    var isOpen by remember { mutableStateOf(false) }
+    val title = stringResource(R.string.sources_searched)
+    // Heard with how many pages there are to see, which is what a tap leads to.
+    val description = "$title, ${pluralStringResource(R.plurals.sources_count, sources.size, sources.size)}"
+    Row(
+        modifier
+            .clip(HearthTheme.shapes.pill)
+            .clickable(role = Role.Button) { isOpen = true }
+            .heightIn(min = HearthTheme.sizes.touchTarget)
+            .clearAndSetSemantics {
+                contentDescription = description
+                role = Role.Button
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HearthTheme.spacing.s),
+    ) {
+        Icon(Icons.Outlined.Language, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
+        Text(title, color = colors.mute, style = HearthTheme.type.footnote, maxLines = 1)
+        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null, tint = colors.mute, modifier = Modifier.size(HearthTheme.sizes.iconXs))
+    }
+    if (isOpen) ReplySourcesSheet(sources) { isOpen = false }
 }
 
 /** Beside a reply's actions: the marks of its first few sources and how many there are. Tapping it lists them all. */
