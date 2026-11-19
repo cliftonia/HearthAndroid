@@ -1,15 +1,18 @@
 package app.hearth.shared
 
+import android.content.ClipData
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
+import kotlinx.coroutines.launch
 
 /**
  * Puts text on the clipboard, felt as something done. Every Copy in the app goes through this. From Android 13 the
@@ -17,12 +20,15 @@ import app.hearth.designsystem.Haptics
  */
 @Composable
 fun rememberCopy(): (String) -> Unit {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     return { text ->
-        clipboard.setText(AnnotatedString(text))
-        Haptics.play(HapticKind.SUCCESS)
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showCopied(context)
+        scope.launch {
+            clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(null, text)))
+            Haptics.play(HapticKind.SUCCESS)
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) showCopied(context)
+        }
     }
 }
 

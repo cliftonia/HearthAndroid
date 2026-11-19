@@ -118,7 +118,8 @@ class ChatInteractor(
             }
             var hasActed = false
             val remember = turn.remember
-            if (offersMemory && remember != null && memoryChanges.isNotEmpty()) {
+            // Memory is offered only where there is something to remember with, which the compiler follows.
+            if (offersMemory && memoryChanges.isNotEmpty()) {
                 for (change in memoryChanges.take(MAXIMUM_MEMORY_WRITES - progress.memoryWrites)) {
                     val outcome = remember(change)
                     progress.memoryWrites += 1
@@ -128,7 +129,8 @@ class ChatInteractor(
                 }
                 hasActed = true
             }
-            if (offersSearch && searchUrl != null && searches.isNotEmpty()) {
+            // Likewise, search is offered only where there is a search address.
+            if (offersSearch && searches.isNotEmpty()) {
                 progress.searchRounds += 1
                 val fresh = mutableListOf<SearchSource>()
                 for (search in searches) {

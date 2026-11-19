@@ -256,7 +256,7 @@ class ImageService internal constructor(
                     override fun onResponse(call: Call, response: Response) {
                         val result = runCatching {
                             response.use {
-                                val body = it.body?.bytes() ?: ByteArray(0)
+                                val body = it.body.bytes()
                                 if (!it.isSuccessful) throw HttpError.Status(it.code, body.toString(Charsets.UTF_8).take(500))
                                 body
                             }

@@ -31,7 +31,7 @@ class SearchService internal constructor(private val client: OkHttpClient) {
             .build()
         return client.newBuilder().readTimeout(20, TimeUnit.SECONDS).build()
             .newCall(Request.Builder().url(url).build()).await { response ->
-                val body = response.body?.string().orEmpty()
+                val body = response.body.string()
                 if (!response.isSuccessful) throw HttpError.Status(response.code, body.take(500))
                 hearthJson.decodeFromString(SearchResponseDto.serializer(), body).results
             }

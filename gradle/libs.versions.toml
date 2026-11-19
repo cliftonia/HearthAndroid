@@ -1,17 +1,16 @@
 [versions]
-agp = "8.11.2"
-kotlin = "1.9.0"
-composeCompiler = "1.5.1"
-composeBom = "2024.12.01"
-activityCompose = "1.9.0"
-lifecycle = "2.7.0"
-coreKtx = "1.13.1"
-coroutines = "1.8.0"
-serialization = "1.6.0"
-okhttp = "4.12.0"
+agp = "9.5.1"
+kotlin = "2.4.21"
+composeBom = "2026.09.00"
+activityCompose = "1.13.0"
+lifecycle = "2.11.0"
+coreKtx = "1.19.1"
+coroutines = "1.11.0"
+serialization = "1.13.0"
+okhttp = "5.5.1"
 junit = "4.13.2"
 biometric = "1.1.0"
-fragment = "1.6.2"
+fragment = "1.9.1"
 pdfbox = "2.0.27.0"
 webkit = "1.18.0"
 
@@ -36,6 +35,6 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

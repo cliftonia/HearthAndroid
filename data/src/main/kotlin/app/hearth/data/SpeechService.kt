@@ -36,7 +36,7 @@ class SpeechService internal constructor(client: OkHttpClient) {
         val request = Request.Builder().url(HearthHttp.url(baseUrl, "v1/audio/speech")).post(body.toRequestBody(JSON)).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw HttpError.Status(response.code, "")
-            response.body?.bytes() ?: ByteArray(0)
+            response.body.bytes()
         }
     }
 
@@ -45,7 +45,7 @@ class SpeechService internal constructor(client: OkHttpClient) {
         val request = Request.Builder().url(HearthHttp.url(baseUrl, "v1/audio/voices")).build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw HttpError.Status(response.code, "")
-            voices(response.body?.string().orEmpty())
+            voices(response.body.string())
         }
     }
 

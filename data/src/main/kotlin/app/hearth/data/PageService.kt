@@ -43,7 +43,7 @@ class PageService internal constructor(client: OkHttpClient) {
             if (response.header("Content-Type")?.lowercase()?.contains("html") != true) {
                 throw PageNotAllowedException("not an HTML page")
             }
-            val source = response.body?.source() ?: return@await ""
+            val source = response.body.source()
             // Pages are cut off here; what a reader needs is near the top, and some pages never end.
             source.request(MAXIMUM_BYTES)
             source.buffer.readUtf8(minOf(source.buffer.size, MAXIMUM_BYTES))
@@ -63,7 +63,7 @@ class PageService internal constructor(client: OkHttpClient) {
             // Some sites send their icon as plain bytes without naming it a picture.
             val kind = response.header("Content-Type")?.lowercase().orEmpty()
             if (!kind.startsWith("image/") && "octet-stream" !in kind) throw PageNotAllowedException("not a picture")
-            val source = response.body?.source() ?: throw PageNotAllowedException("no picture")
+            val source = response.body.source()
             source.request(MAXIMUM_ICON_BYTES + 1)
             if (source.buffer.size == 0L || source.buffer.size > MAXIMUM_ICON_BYTES) throw PageNotAllowedException("not a small picture")
             source.buffer.readByteArray()

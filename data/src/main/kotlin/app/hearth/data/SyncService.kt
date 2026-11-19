@@ -60,7 +60,7 @@ class SyncService internal constructor(client: OkHttpClient) {
                 in 200..299 -> SyncPutResultDto.Accepted(answer(response).item)
                 409 -> SyncPutResultDto.Conflict(answer(response).item)
                 413 -> SyncPutResultDto.TooLarge
-                else -> throw HttpError.Status(response.code, response.body?.string().orEmpty().take(500))
+                else -> throw HttpError.Status(response.code, response.body.string().take(500))
             }
         }
     }
@@ -69,11 +69,11 @@ class SyncService internal constructor(client: OkHttpClient) {
         if (token.isNullOrEmpty()) this else header("Authorization", "Bearer $token")
 
     private fun answer(response: Response): SyncPutAnswerDto =
-        SyncWire.json.decodeFromString(SyncPutAnswerDto.serializer(), response.body?.string().orEmpty())
+        SyncWire.json.decodeFromString(SyncPutAnswerDto.serializer(), response.body.string())
 
     /** The answer read as the given shape. A failure status is thrown, and so is an answer of another shape. */
     private fun <Value> decode(response: Response, serializer: KSerializer<Value>): Value {
-        val text = response.body?.string().orEmpty()
+        val text = response.body.string()
         if (!response.isSuccessful) throw HttpError.Status(response.code, text.take(500))
         return SyncWire.json.decodeFromString(serializer, text)
     }

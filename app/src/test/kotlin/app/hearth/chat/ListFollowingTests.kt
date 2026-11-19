@@ -1,8 +1,8 @@
 package app.hearth.chat
 
-import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.Test
 
 class ListFollowingTests {
     @Test

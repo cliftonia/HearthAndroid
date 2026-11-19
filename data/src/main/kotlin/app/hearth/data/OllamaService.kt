@@ -21,7 +21,7 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
     suspend fun fetchModels(baseUrl: String): List<OllamaModelDto> = withContext(Dispatchers.IO) {
         val request = Request.Builder().url(HearthHttp.url(baseUrl, "api/tags")).build()
         client.newBuilder().readTimeout(15, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body.string()
             if (!response.isSuccessful) throw HttpError.Status(response.code, body.take(500))
             // An answer that is not Ollama's, such as another service's page at that address, is the server's failure.
             val tags = runCatching { hearthJson.decodeFromString(OllamaTagsDto.serializer(), body) }.getOrNull()
@@ -36,7 +36,7 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
     suspend fun unloadModels(baseUrl: String) = withContext(Dispatchers.IO) {
         val quick = client.newBuilder().readTimeout(30, TimeUnit.SECONDS).build()
         val loaded = quick.newCall(Request.Builder().url(HearthHttp.url(baseUrl, "api/ps")).build()).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body.string()
             if (!response.isSuccessful) throw HttpError.Status(response.code, body.take(500))
             runCatching { hearthJson.decodeFromString(OllamaLoadedModelsDto.serializer(), body) }.getOrNull()
                 ?: throw HttpError.Status(response.code, body.take(500))
@@ -53,7 +53,7 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
     /** A single, non-streamed reply. Cancelling the caller closes the connection. */
     suspend fun chat(baseUrl: String, request: OllamaChatRequestDto): OllamaChatChunkDto =
         client.newCall(chatRequest(baseUrl, request)).await { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body.string()
             val chunk = runCatching { OllamaChatChunkDto.fromLine(body) }.getOrNull()
             chunk?.error?.let { throw HttpError.Server(it) }
             if (!response.isSuccessful || chunk == null) throw HttpError.Status(response.code, body.take(500))
@@ -66,7 +66,7 @@ class OllamaService internal constructor(private val client: OkHttpClient) {
         launch(Dispatchers.IO) {
             try {
                 call.execute().use { response ->
-                    val source = response.body?.source() ?: throw HttpError.Status(response.code, "")
+                    val source = response.body.source()
                     while (true) {
                         val line = source.readUtf8Line() ?: break
                         if (line.isBlank()) continue

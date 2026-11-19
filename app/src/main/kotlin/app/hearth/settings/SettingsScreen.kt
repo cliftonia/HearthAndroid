@@ -22,6 +22,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -80,8 +81,10 @@ fun SettingsScreen(
     val listScroll = rememberScrollState()
     val scrolls = remember { mutableMapOf<SettingsPageKind, ScrollState>() }
     val pageScroll = remember(page) { (if (page == SettingsPageKind.MAIN) listScroll else ScrollState(0)).also { scrolls[page] = it } }
+    // Asked only whether the page has moved at all, so the bar is not drawn again for every step of a scroll.
+    val isScrolledUnderBar by remember(pageScroll) { derivedStateOf { pageScroll.value > 0 } }
     val barColor by animateColorAsState(
-        if (pageScroll.value > 0) HearthTheme.colors.bubble else HearthTheme.colors.paper,
+        if (isScrolledUnderBar) HearthTheme.colors.bubble else HearthTheme.colors.paper,
         label = "settings bar",
     )
     Column(modifier.fillMaxSize()) {
