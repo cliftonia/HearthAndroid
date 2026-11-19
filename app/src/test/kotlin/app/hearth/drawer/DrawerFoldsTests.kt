@@ -5,8 +5,10 @@ import app.hearth.domain.ConversationStore
 import app.hearth.domain.ProjectDataProvider
 import app.hearth.domain.ProjectStore
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -39,22 +41,64 @@ class DrawerFoldsTests {
             .forEach { assertNull(it.foldKind) }
     }
 
-    @Test
-    fun `the presenter starts from the stored folds, toggles one and keeps the change`() = runTest {
-        val saved = mutableListOf<String>()
-        val subject = DrawerPresenter(
-            this,
-            ConversationStore(ConversationDataProvider(loadAll = { emptyList() }, save = {}, delete = {})),
-            ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {})),
-            loadFolds = { "projects" },
-            saveFolds = { saved += it },
-        )
-        assertEquals(setOf(DrawerFoldKind.PROJECTS), subject.folds.value)
+    private val saved = mutableListOf<String>()
 
+    private fun TestScope.makeTestSubject() = DrawerPresenter(
+        this,
+        ConversationStore(ConversationDataProvider(loadAll = { emptyList() }, save = {}, delete = {})),
+        ProjectStore(ProjectDataProvider(loadAll = { emptyList() }, save = {}, delete = {})),
+        saveFolds = { saved += it },
+    )
+
+    @Test
+    fun `the presenter restores the stored folds, toggles one and keeps the change`() = runTest {
+        val subject = makeTestSubject()
+        assertTrue(subject.folds.value.isEmpty())
+
+        subject.restoreFoldsAction("projects")
         subject.toggleFoldAction(DrawerFoldKind.PINNED)
         subject.toggleFoldAction(DrawerFoldKind.PROJECTS)
 
         assertEquals(setOf(DrawerFoldKind.PINNED), subject.folds.value)
         assertEquals(listOf("pinned,projects", "pinned"), saved)
+    }
+
+    @Test
+    fun `the search button opens the field, and closing it forgets what was searched for`() = runTest {
+        val subject = makeTestSubject()
+
+        subject.toggleSearchAction()
+        assertTrue(subject.isSearchOpen.value)
+
+        subject.queryAction("tomatoes")
+        subject.toggleSearchAction()
+        assertFalse(subject.isSearchOpen.value)
+        assertEquals("", subject.query.value)
+    }
+
+    @Test
+    fun `a field left holding words is closed, not opened, by its button`() = runTest {
+        val subject = makeTestSubject()
+        subject.queryAction("tomatoes")
+
+        subject.toggleSearchAction()
+
+        assertFalse(subject.isSearchOpen.value)
+        assertEquals("", subject.query.value)
+    }
+
+    @Test
+    fun `an erase forgets the search, the folds and what was stored of them`() = runTest {
+        val subject = makeTestSubject()
+        subject.restoreFoldsAction("pinned")
+        subject.toggleSearchAction()
+        subject.queryAction("tomatoes")
+
+        subject.resetAction()
+
+        assertTrue(subject.folds.value.isEmpty())
+        assertFalse(subject.isSearchOpen.value)
+        assertEquals("", subject.query.value)
+        assertEquals(listOf(""), saved)
     }
 }

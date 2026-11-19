@@ -27,14 +27,14 @@ import app.hearth.designsystem.HearthTheme
 import app.hearth.domain.SearchSource
 import app.hearth.domain.TextPatterns
 
-/** One source of a report as it is listed: the number the report cites it by, its title and its site. */
-data class ResearchSourceViewConfiguration(val url: String, val number: Int, val title: String, val host: String, val isLast: Boolean) {
+/** One source of a reply or a report as it is listed: the number it is cited by, its title and its site. */
+data class SourceViewConfiguration(val url: String, val number: Int, val title: String, val host: String, val isLast: Boolean) {
     companion object {
-        /** The sources of a report, numbered from one in the order the report cites them. */
-        fun list(sources: List<SearchSource>): List<ResearchSourceViewConfiguration> = sources.mapIndexed { index, source ->
+        /** The sources, numbered from one in the order they are cited. */
+        fun list(sources: List<SearchSource>): List<SourceViewConfiguration> = sources.mapIndexed { index, source ->
             val title = source.title.trim().replace(TextPatterns.WHITESPACE, " ")
             val host = source.host.trim().replace(TextPatterns.WHITESPACE, " ")
-            ResearchSourceViewConfiguration(source.url, index + 1, title.ifEmpty { host }, host, isLast = index == sources.lastIndex)
+            SourceViewConfiguration(source.url, index + 1, title.ifEmpty { host }, host, isLast = index == sources.lastIndex)
         }
     }
 }
@@ -46,7 +46,7 @@ data class ResearchSourceViewConfiguration(val url: String, val number: Int, val
  * sources, and each is cited by number, so the numbers are worth the room.
  */
 @Composable
-internal fun ResearchSourcesSection(sources: List<ResearchSourceViewConfiguration>, modifier: Modifier = Modifier) {
+internal fun ResearchSourcesSection(sources: List<SourceViewConfiguration>, modifier: Modifier = Modifier) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(spacing.s)) {
@@ -67,7 +67,7 @@ internal fun ResearchSourcesSection(sources: List<ResearchSourceViewConfiguratio
 
 /** One source. Tapping it opens the page, if its address is a web page's. */
 @Composable
-private fun SourceRow(source: ResearchSourceViewConfiguration) {
+private fun SourceRow(source: SourceViewConfiguration) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     val uriHandler = LocalUriHandler.current

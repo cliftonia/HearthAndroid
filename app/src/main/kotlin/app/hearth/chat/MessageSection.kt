@@ -113,6 +113,8 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
     if (message.role == MessageRole.USER) {
         UserMessage(message, configuration.canEdit, actions.onEdit, group)
     } else {
+        // Listed under the reply and again behind the button beside its actions, so they are numbered once.
+        val sources = remember(message.sources) { SourceViewConfiguration.list(message.sources) }
         Column(group.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.l)) {
             if (message.thinking.isNotEmpty()) ThinkingDisclosure(message, isThinking = configuration.isStreaming && message.text.isEmpty())
             configuration.searchingFor?.let { Activity(stringResource(R.string.message_searching, it)) }
@@ -135,8 +137,7 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
             }
             // A report lists its sources in full once it is finished, when their numbers are settled; an ordinary reply
             // that searched the web lists its first few pages, and the button beside its actions opens them all.
-            if (message.sources.isNotEmpty() && !configuration.isStreaming) {
-                val sources = ResearchSourceViewConfiguration.list(message.sources)
+            if (sources.isNotEmpty() && !configuration.isStreaming) {
                 if (message.isResearch) ResearchSourcesSection(sources) else ReplySourcesSection(sources)
             }
             if (configuration.hasSearchFailed) Notice(stringResource(R.string.notice_search_failed))
@@ -147,6 +148,7 @@ fun MessageSection(configuration: MessageViewConfiguration, actions: MessageActi
                 Actions(
                     configuration,
                     actions,
+                    sources,
                     if (configuration.isStreaming) Modifier.alpha(0f).clearAndSetSemantics { }.blockingTouches() else Modifier,
                 )
             }
@@ -323,7 +325,7 @@ private fun Notice(text: String) {
 
 /** What may be done with a finished reply: hear it, copy it, share it, ask for it again, look back at earlier versions, and see its sources. */
 @Composable
-private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions, modifier: Modifier = Modifier) {
+private fun Actions(configuration: MessageViewConfiguration, actions: MessageActions, sources: List<SourceViewConfiguration>, modifier: Modifier = Modifier) {
     val canRetry = configuration.canRetry
     val onRetry = actions.onRetry
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -331,7 +333,7 @@ private fun Actions(configuration: MessageViewConfiguration, actions: MessageAct
         if (!configuration.message.isPicture) TextActions(configuration, actions.onSpeak)
         if (canRetry) HearthIconButton(Icons.Outlined.Refresh, stringResource(R.string.message_retry), tint = HearthTheme.colors.mute, onClick = onRetry)
         if (configuration.message.versionCount > 1) VersionStepper(configuration.message, actions.onVersion)
-        if (configuration.message.sources.isNotEmpty()) ReplySourcesButton(ResearchSourceViewConfiguration.list(configuration.message.sources))
+        if (sources.isNotEmpty()) ReplySourcesButton(sources)
     }
 }
 

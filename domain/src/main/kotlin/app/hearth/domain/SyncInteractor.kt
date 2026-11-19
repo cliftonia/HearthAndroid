@@ -129,7 +129,11 @@ class SyncInteractor(
         fun SyncFailureKind.name(): String = when (this) {
             is SyncFailureKind.HubFailed -> "hub failed ($status)"
             is SyncFailureKind.TooLarge -> "too large ($count)"
-            else -> javaClass.simpleName
+            SyncFailureKind.NotConfigured -> "not configured"
+            SyncFailureKind.Unreachable -> "unreachable"
+            SyncFailureKind.TokenNeeded -> "token needed"
+            SyncFailureKind.TokenRefused -> "token refused"
+            SyncFailureKind.Unreadable -> "unreadable"
         }
     }
 }

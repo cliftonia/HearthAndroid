@@ -79,6 +79,9 @@ class HearthSizes {
     /** The circle that stands for a source's site. */
     val sourceMark: Dp = 20.dp
 
+    /** How far each source's mark lies over the one before it, beside a reply's actions. */
+    val sourceMarkOverlap: Dp = 6.dp
+
     /** One column of a table in a reply. */
     val tableColumn: Dp = 150.dp
 

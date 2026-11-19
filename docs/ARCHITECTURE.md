@@ -33,7 +33,7 @@ app/src/main/kotlin/app/hearth/
 ├── RootView.kt              Drawer or two columns, back button, which screen is drawn
 ├── chat/                    The conversation: presenter, view model, screen, composer, hold to talk, greeting, messages, pictures, research, the canvas's cards
 ├── canvas/                  The canvas: presenter, view model, screen, the code view, the web view and its guard, the wide layout
-├── drawer/                  The chat list: presenter, projects, sections, rows, floating buttons
+├── drawer/                  The chat list: presenter, projects, sections, folds, rows, floating buttons
 ├── project/                 The editor that makes, edits and deletes a project: presenter, view model, full-screen dialog
 ├── projectpicker/           The sheet that files a chat in a project: presenter, view model, sheet
 ├── settings/                Settings: presenter, screen, the list and what each row says, one file per page (profile, memory, web search, scheduled tasks, voice, pictures, notifications, servers, sync)
@@ -202,7 +202,10 @@ reference files closes the memory tools for its chats, exactly as an attached fi
 not be able to plant a memory. A project with instructions alone leaves memory open, since the user typed those.
 
 **The screens.** The drawer lists the projects above the chats: Pinned, then Scheduled tasks (the chats a task
-filed, newest first, with **Manage** leading to the tasks page), then the dated groups. Each chat is under one
+filed, newest first, with **Manage** leading to the tasks page), then the dated groups. Projects, Pinned and
+Scheduled tasks fold away under their headings (`DrawerFolds`, `DrawerFoldingHeading`); which are folded is the
+presenter's state, kept between launches by `DrawerFoldPreference` and forgotten by an erase, and every section is
+open while searching. Search is a round button beside the brand that opens the field. Each chat is under one
 heading only, so a task's chat is not listed again under its day, and a pinned one stays under Pinned. Choosing a
 project narrows the list to its chats, and `DrawerSections` does the narrowing and the grouping. Two sheets belong to projects, each a feature
 of its own: `project` makes and edits one (a full-screen dialog on a phone, a dialog in the middle of a wider window),
@@ -253,7 +256,11 @@ mirrors the iPhone app step for step, with the same bounds, prompts and wording.
   search does, and research itself reads no memories. It is announced like any reply when it finishes.
 - **On screen**, `ChatPresenterResearch.kt` keeps the step in `ChatViewModel.researchStep`, which `MessageSection`
   words as a line in place of the report until its first words arrive, and `ResearchSourcesSection` lists the
-  sources under a finished report by number, title and site. The composer's chip names the effort in the brand
+  sources under a finished report by number, title and site. An ordinary reply that searched lists its first few
+  sources as links (`ReplySourcesSection`), and every reply with sources has a button beside its actions that opens
+  them all in a sheet. Each source's mark is its site's icon, which `SiteIconProvider` fetches from the site once
+  (`PageService.fetchIcon`, under the same public-address rules as a page) and keeps among the caches; it is asked
+  for only while page reading is on, and until it comes the mark is the site's first letter. The composer's chip names the effort in the brand
   colour and its field asks for a question to research. The logs hold counts only: never the question, a page's
   text or an address. Reducing a page to text is done off the main thread.
 

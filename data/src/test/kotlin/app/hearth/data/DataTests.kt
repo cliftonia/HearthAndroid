@@ -150,7 +150,9 @@ class OllamaServiceTests {
     fun `a refusal is reported with its status`() = runBlocking {
         val failure = assertFailsWith<HttpError.Status> { service("not found", code = 404).fetchModels("http://host.example") }
         assertEquals(404, failure.code)
-        assertTrue(failure is IOException)
+        // A refusal is an input/output failure, so callers that catch those catch it too.
+        val asIoFailure: IOException = failure
+        assertEquals(failure, asIoFailure)
     }
 }
 

@@ -28,7 +28,7 @@ class HearthSpacing {
     /** The margin round a screen whose content sits in the middle. */
     val screen: Dp = 24.dp
 
-    /** Above and below the text of a link chip. */
+    /** Above and below the text of a small outlined button, such as a picture's Save and Share. */
     val chipInset: Dp = 7.dp
 
     /** Above and below the name in a file chip. */

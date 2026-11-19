@@ -44,6 +44,7 @@ import app.hearth.domain.ModelStore
 import app.hearth.domain.SettingsStore
 import app.hearth.shared.ErrorDialog
 import app.hearth.shared.RenameDialog
+import java.time.LocalDate
 
 /**
  * The chat list: the brand beside the search button, the projects, the chats grouped by day, and Settings and New
@@ -72,7 +73,9 @@ fun DrawerContent(
     val error by presenter.error.collectAsStateWithLifecycle()
     // A project deleted while its chats were being looked at leaves the list showing every chat.
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
-    val sections = remember(conversations, projects, selectedProject?.id, query) {
+    // Keyed by the day as well, so that Today and Yesterday are right again after midnight.
+    val today = LocalDate.now().toEpochDay()
+    val sections = remember(conversations, projects, selectedProject?.id, query, today) {
         DrawerSections.build(conversations, query, System.currentTimeMillis(), projectId = selectedProject?.id, projects = projects)
     }
     val listedProjects = remember(projects, query) { DrawerSections.projects(projects, query) }
@@ -81,8 +84,8 @@ fun DrawerContent(
     val isSearching = query.isNotBlank()
     val isFolded = { kind: DrawerFoldKind -> !isSearching && kind in folds }
     var renaming by remember { mutableStateOf<Conversation?>(null) }
-    // Whether the search field has been opened with its button. It also shows while it holds words.
-    var isSearchOpen by remember { mutableStateOf(false) }
+    // The search field shows once its button has opened it, and while it holds words.
+    val isSearchOpen by presenter.isSearchOpen.collectAsStateWithLifecycle()
     val isSearchShowing = isSearchOpen || query.isNotEmpty()
     val searchFocus = remember { FocusRequester() }
     Column(modifier.fillMaxHeight().padding(horizontal = spacing.xl)) {
@@ -99,10 +102,8 @@ fun DrawerContent(
             HearthCircleButton(
                 if (isSearchShowing) Icons.Outlined.Close else Icons.Outlined.Search,
                 stringResource(if (isSearchShowing) R.string.drawer_search_close else R.string.drawer_search),
-            ) {
-                if (isSearchShowing) presenter.queryAction("")
-                isSearchOpen = !isSearchShowing
-            }
+                onClick = presenter::toggleSearchAction,
+            )
         }
         if (isSearchShowing) {
             OutlinedTextField(

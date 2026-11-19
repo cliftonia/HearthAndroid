@@ -1,9 +1,14 @@
 package app.hearth.domain
 
+import java.io.IOException
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -49,6 +54,55 @@ class SiteIconCacheTests {
 
         assertContentEquals(kept, subject.icon("kept.example"))
         assertEquals(0, fetchCount)
+    }
+
+    @Test
+    fun `an asker that goes away mid-fetch leaves the next one free to try again`() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val subject = SiteIconCache(
+            fetch = {
+                fetchCount += 1
+                if (fetchCount == 1) {
+                    started.complete(Unit)
+                    awaitCancellation()
+                }
+                byteArrayOf(7)
+            },
+            read = { null },
+            write = { _, _ -> },
+        )
+        val first = launch { subject.icon("slow.example") }
+        started.await()
+        first.cancelAndJoin()
+
+        assertContentEquals(byteArrayOf(7), subject.icon("slow.example"))
+        assertEquals(2, fetchCount)
+    }
+
+    @Test
+    fun `a site that could not be reached is asked again the next time`() = runTest {
+        val subject = SiteIconCache(
+            fetch = {
+                fetchCount += 1
+                throw IOException("offline")
+            },
+            read = { null },
+            write = { _, _ -> },
+        )
+
+        assertNull(subject.icon("offline.example"))
+        assertNull(subject.icon("offline.example"))
+        assertEquals(2, fetchCount)
+    }
+
+    @Test
+    fun `icons are asked for only while they are allowed`() = runTest {
+        var isAllowed = false
+        val subject = SiteIconProvider { byteArrayOf(1) }.onlyWhen { isAllowed }
+
+        assertNull(subject.load("news.example"))
+        isAllowed = true
+        assertContentEquals(byteArrayOf(1), subject.load("news.example"))
     }
 
     @Test

@@ -63,7 +63,7 @@ private const val MARK_COUNT = 3
 
 /** The web pages a reply was written from, under its words: a heading and a list of their titles, each a link. */
 @Composable
-internal fun ReplySourcesSection(sources: List<ResearchSourceViewConfiguration>, modifier: Modifier = Modifier) {
+internal fun ReplySourcesSection(sources: List<SourceViewConfiguration>, modifier: Modifier = Modifier) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     val uriHandler = LocalUriHandler.current
@@ -90,7 +90,7 @@ internal fun ReplySourcesSection(sources: List<ResearchSourceViewConfiguration>,
 
 /** Beside a reply's actions: the marks of its first few sources and how many there are. Tapping it lists them all. */
 @Composable
-internal fun ReplySourcesButton(sources: List<ResearchSourceViewConfiguration>, modifier: Modifier = Modifier) {
+internal fun ReplySourcesButton(sources: List<SourceViewConfiguration>, modifier: Modifier = Modifier) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     var isOpen by remember { mutableStateOf(false) }
@@ -109,7 +109,7 @@ internal fun ReplySourcesButton(sources: List<ResearchSourceViewConfiguration>, 
         horizontalArrangement = Arrangement.spacedBy(spacing.s),
     ) {
         // Each mark lies a little over the one before it, ringed in the paper's colour to keep them apart.
-        Row(horizontalArrangement = Arrangement.spacedBy((-6).dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(-HearthTheme.sizes.sourceMarkOverlap)) {
             sources.take(MARK_COUNT).forEach { SourceMark(it.host, it.url, Modifier.border(HearthTheme.strokes.hairline, colors.paper, CircleShape)) }
         }
         Text(title, color = colors.mute, style = HearthTheme.type.footnote, maxLines = 1)
@@ -120,7 +120,7 @@ internal fun ReplySourcesButton(sources: List<ResearchSourceViewConfiguration>, 
 /** Every page a reply was written from: its mark, its title and its site, each a link. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ReplySourcesSheet(sources: List<ResearchSourceViewConfiguration>, onDismiss: () -> Unit) {
+private fun ReplySourcesSheet(sources: List<SourceViewConfiguration>, onDismiss: () -> Unit) {
     val colors = HearthTheme.colors
     val spacing = HearthTheme.spacing
     val uriHandler = LocalUriHandler.current
@@ -178,7 +178,7 @@ private fun SourceMark(host: String, url: String, modifier: Modifier = Modifier)
     val siteName = remember(url) { url.toUri().host }
     val icon by produceState<ImageBitmap?>(null, siteName) {
         val bytes = siteName?.let { loadIcon(it) } ?: return@produceState
-        value = withContext(Dispatchers.Default) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
+        value = withContext(Dispatchers.Default) { decodedIcon(bytes) }
     }
     val shown = icon
     val fill = if (shown == null) HearthTheme.colors.pineSoft else HearthTheme.colors.card
@@ -189,6 +189,18 @@ private fun SourceMark(host: String, url: String, modifier: Modifier = Modifier)
             Image(shown, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
     }
+}
+
+/** How large an icon is decoded, at most: enough for the mark on the sharpest screens, however large the site's file. */
+private const val ICON_DECODE_SIDE = 96
+
+/** The icon as a picture, halved in size as it is decoded until it is no larger than the mark needs; `null` if it is no picture. */
+private fun decodedIcon(bytes: ByteArray): ImageBitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= ICON_DECODE_SIDE) sample *= 2
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
 }
 
 /** Opens a source's page, if its address is a web page's. Links from a search are untrusted. */

@@ -194,9 +194,9 @@ class AppCoordinator(
         dependencies.conversationStore,
         dependencies.projectStore,
         undo,
-        loadFolds = dependencies.drawerFolds.load,
         saveFolds = dependencies.drawerFolds.save,
     )
+    private val loadDrawerFolds = dependencies.drawerFolds.load
     val project = ProjectPresenter(scope, dependencies.projectStore, dependencies.conversationStore, dependencies.projects)
     val projectPicker = ProjectPickerPresenter(scope, dependencies.projectStore, dependencies.conversationStore)
     val settings = SettingsPresenter(
@@ -266,6 +266,7 @@ class AppCoordinator(
         syncStore.load()
         followSyncSwitch()
         sideListState.value = !withContext(Dispatchers.IO) { sideList.isHidden() }
+        drawer.restoreFoldsAction(withContext(Dispatchers.IO) { loadDrawerFolds() })
         lock.settingsLoadedAction()
         readyState.value = true
         val isLoaded = savedData.load()
@@ -575,8 +576,7 @@ class AppCoordinator(
         drawerState.value = false
         projectSheetState.value = null
         sideListState.value = true
-        drawer.queryAction("")
-        drawer.allChatsAction()
+        drawer.resetAction()
         scope.launch { chat.resetAction() }
     }
 }

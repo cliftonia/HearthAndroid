@@ -1,5 +1,6 @@
 package app.hearth.integrations
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -32,6 +33,8 @@ class HubTokenVault(context: Context) {
     }
 
     /** Keeps the token, replacing any kept before, or forgets it and its key with `null`. */
+    // Written with `commit()` itself, not the `edit { }` shorthand, whose answer on whether the write was made is lost.
+    @SuppressLint("UseKtx")
     fun write(token: String?) {
         if (token == null) {
             if (!preferences.edit().remove(TOKEN_KEY).commit()) throw IOException("The token could not be forgotten")

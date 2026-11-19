@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import app.hearth.R
 import app.hearth.designsystem.HapticKind
 import app.hearth.designsystem.Haptics
@@ -130,7 +131,7 @@ internal fun AttachMenu(
         val address = attachments.newCameraAddress()
         cameraAddress = address
         try {
-            camera.launch(Uri.parse(address))
+            camera.launch(address.toUri())
         } catch (failure: ActivityNotFoundException) {
             Log.w(ChatPresenter.TAG, "No camera app: ${failure.javaClass.simpleName}")
             presenter.cameraUnavailableAction()
@@ -173,8 +174,8 @@ internal fun AttachMenu(
                     },
                 )
             }
-            // Below the ways to attach, what Hearth makes: a picture, a task, offered whether or not sync is on (without it,
-            // the tasks page says why none can be added), and last a new project.
+            // Below the ways to attach, what Hearth makes and does: a picture, replies read aloud, a task, offered whether
+            // or not sync is on (without it, the tasks page says why none can be added), and last a new project.
             HorizontalDivider(color = HearthTheme.colors.line)
             if (canMakePictures) {
                 DropdownMenuItem(

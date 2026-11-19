@@ -326,7 +326,7 @@ class ChatResearchTests {
 
     @Test
     fun `a report's sources are listed by the numbers it cites them by`() {
-        val list = ResearchSourceViewConfiguration.list(
+        val list = SourceViewConfiguration.list(
             listOf(
                 SearchSource(title = "  Heat pumps\n explained ", url = "https://www.site1.example/a", snippet = ""),
                 SearchSource(title = "", url = "https://site2.example/b", snippet = ""),

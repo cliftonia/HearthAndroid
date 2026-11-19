@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import app.hearth.domain.clipped
 import java.io.File
 
@@ -25,7 +26,7 @@ fun share(context: Context, text: String) {
 
 /** Hands a picture to the system's share sheet, lending whichever app is chosen leave to read it. */
 fun sharePicture(context: Context, address: String, type: String) {
-    start(context, chooser(context, streamIntent(Uri.parse(address), type)))
+    start(context, chooser(context, streamIntent(address.toUri(), type)))
 }
 
 /** The folder in the app's cache that a long export is lent from; only the latest is kept. */

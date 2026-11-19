@@ -163,7 +163,11 @@ class MainActivity : FragmentActivity() {
             return@whenReady
         }
         when (intent?.action) {
-            ACTION_VOICE -> coordinator.startVoice(isFromOutside = true)
+            ACTION_VOICE -> {
+                // The launcher is told the shortcut was used, so that it may offer it where it will be wanted.
+                ShortcutManagerCompat.reportShortcutUsed(this, VOICE_SHORTCUT_ID)
+                coordinator.startVoice(isFromOutside = true)
+            }
             ACTION_NEW_CHAT -> coordinator.startNewChat()
             ACTION_OPEN_CHAT -> openNotifiedChat(intent)
             Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> receiveShare(intent)

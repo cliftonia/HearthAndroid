@@ -4,7 +4,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
-import android.net.Uri
+import androidx.core.graphics.scale
+import androidx.core.net.toUri
 import java.io.ByteArrayOutputStream
 import kotlin.math.ceil
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ class ProfilePhotoLoader(private val context: Context) {
      */
     suspend fun avatarJpeg(address: String): ByteArray? = withContext(Dispatchers.IO) {
         runCatching {
-            val source = ImageDecoder.createSource(context.contentResolver, Uri.parse(address))
+            val source = ImageDecoder.createSource(context.contentResolver, address.toUri())
             val bitmap = ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
                 // Decoded no larger than is needed: its shorter side is what the square is cut from.
                 val shortest = minOf(info.size.width, info.size.height)
@@ -45,7 +46,7 @@ class ProfilePhotoLoader(private val context: Context) {
         internal fun squareJpeg(bitmap: Bitmap): ByteArray {
             val side = minOf(bitmap.width, bitmap.height)
             val square = Bitmap.createBitmap(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side)
-            val sized = if (side == SIDE) square else Bitmap.createScaledBitmap(square, SIDE, SIDE, true)
+            val sized = if (side == SIDE) square else square.scale(SIDE, SIDE)
             return ByteArrayOutputStream().also { sized.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }.toByteArray()
         }
 

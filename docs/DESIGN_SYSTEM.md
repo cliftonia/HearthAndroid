@@ -54,7 +54,7 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `brand` | 22 serif bold | The app's name; a screen's title |
 | `display` | 26 / 32 serif | The one large line on an empty screen |
 | `heading(level)` | 22, 19, 17 serif | Headings in a reply |
-| `reply` | 16 / 24 | Paragraphs of a reply |
+| `reply` | 16 / 26 | Paragraphs of a reply |
 | `replyTable` | 14 / 20 | Table cells in a reply |
 | `code` | 13 / 19 mono | Code blocks |
 | `math` | 19 / 26 serif | Display maths |
@@ -62,6 +62,7 @@ Serif is for the brand, titles and headings; the rest is the phone's sans-serif.
 | `message` | 16 / 23 | A message the user sent |
 | `lead` | 17 / 25 | The caption of a voice conversation |
 | `title` | 17 | The title of a sheet |
+| `listRow` | 16 | The name of a chat or a project in the chat list, and of a source in the sources sheet |
 | `subhead`, `subheadSnug`, `subheadStrong` | 15 | Row labels; multi-line text; a prominent button |
 | `callout`, `calloutSnug`, `calloutTight`, `calloutStrong` | 14 | Status lines; thinking; error text; error title |
 | `footnote`, `footnoteStrong`, `footnoteSnug` | 13 | Group titles and chips; the name on a chip that is a button; multi-line notices |
@@ -80,7 +81,7 @@ menu item.
 | `xxs` `xs` `s` `m` `l` `xl` `xxl` `xxxl` | 2 4 6 8 10 12 14 16 | The everyday scale: padding inside a component, gaps between its parts |
 | `gapS` `gapM` `gapL` `gapXl` `gapXxl` | 18 20 22 28 36 | Between whole blocks on a screen |
 | `screen` | 24 | The margin round a screen whose content is centred |
-| `chipInset`, `chipInsetTall` | 7, 9 | Above and below the text of a link chip and a file chip |
+| `chipInset`, `chipInsetTall` | 7, 9 | Above and below the text of a picture's buttons and a file chip |
 | `badgeInset` | 9 | A status dot, in from the corner of its button |
 | `messageIndent` | 48 | How far the user's messages stop short of the left edge |
 | `floatingClearance` | 96 | Under a list, so the last row clears floating buttons |
@@ -108,7 +109,8 @@ menu item.
 | `iconXs` `iconS` `iconM` `iconL` `iconXl` | 14 18 20 22 28 | Symbols, from one tucked into text to one on a voice button |
 | `controlXs` `controlS` `controlM` `controlL` `controlXl` | 24 32 36 40 64 | Round controls, from the remove-photo button to the voice buttons |
 | `touchTarget` | 48 | The least a finger needs; the height of the floating buttons |
-| `markS` `markM` `markL` | 28 56 64 | The app's mark |
+| `markS` `markM` `markL` | 28 40 64 | The app's mark |
+| `sourceMark`, `sourceMarkOverlap` | 20, 6 | The circle that stands for a source's site, and how far each lies over the one before |
 | `avatarS` `avatarL` | 44 96 | The user's avatar: in a row of the settings; at the head of the profile page |
 | `thumbnailS` `thumbnailL` | 64 96 | A photo in the composer; in a sent message |
 | `pictureMaxSide` | 420 | The most room, each way, a picture the app made takes in a reply |
@@ -185,7 +187,8 @@ everywhere.
 A haptic marks a moment, never a stretch of time: one as a reply finishes, none while it streams.
 
 Things that look like components but are used by one feature stay with it: the composer's toggles, the
-drawer's New chat and Settings buttons, the chips for sources and files, the card of a piece of work in a reply.
+drawer's New chat and Settings buttons, the chips for files, the list and sheet of a reply's sources, the card of a
+piece of work in a reply.
 The canvas's switch is Material's segmented button as it comes, and its code is set in `type.code` on `card`,
 with the line numbers in `mute`.
 

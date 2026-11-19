@@ -57,13 +57,12 @@ class DrawerPresenter(
     private val projectStore: ProjectStore,
     /** Holds a delete back while it can be undone. */
     private val undo: UndoPresenter = UndoPresenter(),
-    /** Reads which sections were folded away, as `DrawerFolds` stores them. */
-    loadFolds: () -> String = { "" },
     /** Keeps which sections are folded away, for the next launch. */
     private val saveFolds: (String) -> Unit = {},
 ) {
     private val queryState = MutableStateFlow("")
-    private val foldsState = MutableStateFlow(DrawerFolds.parse(loadFolds()))
+    private val searchOpenState = MutableStateFlow(false)
+    private val foldsState = MutableStateFlow(emptySet<DrawerFoldKind>())
     private val selectedProjectState = MutableStateFlow<ProjectId?>(null)
     private val errorState = MutableStateFlow<ErrorViewConfiguration?>(null)
 
@@ -98,6 +97,30 @@ class DrawerPresenter(
      * never folded out of sight.
      */
     val folds: StateFlow<Set<DrawerFoldKind>> = foldsState.asStateFlow()
+
+    /** Whether the search field has been opened with its button. The view also shows it while it holds words. */
+    val isSearchOpen: StateFlow<Boolean> = searchOpenState.asStateFlow()
+
+    /** Opens the search field, or closes it and forgets what was searched for. */
+    fun toggleSearchAction() {
+        val isShowing = searchOpenState.value || queryState.value.isNotEmpty()
+        if (isShowing) queryState.value = ""
+        searchOpenState.value = !isShowing
+    }
+
+    /** Folds the sections that were folded when the app last ran, given as `DrawerFolds` stores them. */
+    fun restoreFoldsAction(stored: String) {
+        foldsState.value = DrawerFolds.parse(stored)
+    }
+
+    /** Forgets every choice made in the list: what was searched for, the project looked at, and the sections folded. */
+    fun resetAction() {
+        queryState.value = ""
+        searchOpenState.value = false
+        selectedProjectState.value = null
+        foldsState.value = emptySet()
+        saveFolds("")
+    }
 
     /** Folds an open section, or opens a folded one, and remembers it. */
     fun toggleFoldAction(kind: DrawerFoldKind) {

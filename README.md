@@ -166,7 +166,9 @@ delegate. Dependencies are passed as closures and small provider classes; there 
 ## Privacy
 
 - **Your servers, your data.** The app talks only to the addresses you give it, and to public web pages when a
-  search or research reads them. There is no analytics and no crash reporting.
+  search or research reads them. With page reading on, it also asks each source's site for its small icon, to show
+  beside the source; turn page reading off in Settings and neither is fetched. There is no analytics and no crash
+  reporting.
 - **On the phone.** Chats, projects, memories and settings are files in the app's own storage. Erasing removes
   them all.
 - **Sync sends only what it should.** Private chats never reach the hub, not even as a deletion; nor do settings,

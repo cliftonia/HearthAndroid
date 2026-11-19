@@ -1,5 +1,6 @@
 package app.hearth.data
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -11,6 +12,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 
 /** What this app knows of the hub's wire format, and the conversions between its DTOs and raw JSON. */
+// Leaving absent values out (`explicitNulls`) and reading a serializer's field names are still marked experimental
+// by the library.
+@OptIn(ExperimentalSerializationApi::class)
 object SyncWire {
     /** The schema this app writes. */
     const val SCHEMA = 1

@@ -1,6 +1,7 @@
 package app.hearth.integrations
 
 import android.content.Context
+import androidx.core.content.edit
 
 /** Whether the user has put the chat list away on a wide screen, kept from one launch to the next. */
 class SideListPreference(
@@ -16,7 +17,7 @@ class SideListPreference(
             val preferences = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
             return SideListPreference(
                 isHidden = { preferences.getBoolean(HIDDEN_KEY, false) },
-                setHidden = { isHidden -> preferences.edit().putBoolean(HIDDEN_KEY, isHidden).apply() },
+                setHidden = { isHidden -> preferences.edit { putBoolean(HIDDEN_KEY, isHidden) } },
             )
         }
     }

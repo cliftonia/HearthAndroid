@@ -9,6 +9,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import app.hearth.domain.AttachedDocument
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -28,7 +29,7 @@ class AttachmentLoader(private val context: Context) {
 
     /** Each photo scaled down and held as a JPEG in Base64, the form the model server takes. */
     suspend fun photos(addresses: List<String>): List<String> = withContext(Dispatchers.IO) {
-        addresses.mapNotNull { address -> runCatching { jpegBase64(Uri.parse(address)) }.getOrNull() }
+        addresses.mapNotNull { address -> runCatching { jpegBase64(address.toUri()) }.getOrNull() }
     }
 
     /**
@@ -41,7 +42,7 @@ class AttachmentLoader(private val context: Context) {
 
     /** The text of each file that has any. A PDF is read with a library, since Android can draw one but not read it. */
     suspend fun documents(addresses: List<String>): Documents = withContext(Dispatchers.IO) {
-        val read = addresses.map { address -> runCatching { document(Uri.parse(address)) }.getOrNull() }
+        val read = addresses.map { address -> runCatching { document(address.toUri()) }.getOrNull() }
         Documents(read.filterNotNull(), read.count { it == null })
     }
 
@@ -75,7 +76,7 @@ class AttachmentLoader(private val context: Context) {
         val documents = mutableListOf<AttachedDocument>()
         var unreadableCount = 0
         for (address in addresses.take(MAXIMUM_SHARED_ITEMS)) {
-            val uri = Uri.parse(address)
+            val uri = address.toUri()
             val isLent = isLentByAnotherApp(uri)
             val isPicture = isLent && context.contentResolver.getType(uri)?.startsWith("image/") == true
             val image = if (isPicture) runCatching { jpegBase64(uri) }.getOrNull() else null

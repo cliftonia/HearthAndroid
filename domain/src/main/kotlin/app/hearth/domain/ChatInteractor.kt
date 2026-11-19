@@ -1,12 +1,15 @@
 package app.hearth.domain
 
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.withContext
 
 /** Runs one turn of a conversation: the model's streamed reply, with any web searches and memory changes along the way. */
 class ChatInteractor(
@@ -128,8 +131,8 @@ class ChatInteractor(
             if (offersSearch && searchUrl != null && searches.isNotEmpty()) {
                 progress.searchRounds += 1
                 val fresh = mutableListOf<SearchSource>()
-                for (request in searches) {
-                    fresh += found(request, searchUrl, progress.sources + fresh) { emit(it) }
+                for (search in searches) {
+                    fresh += found(search, searchUrl, progress.sources + fresh) { emit(it) }
                 }
                 val pages = if (turn.settings.isPageReadingEnabled) pageTexts(fresh) else emptyMap()
                 val results = builder.searchResultsText(
@@ -192,7 +195,13 @@ class ChatInteractor(
     private suspend fun pageTexts(sources: List<SearchSource>): Map<String, String> = coroutineScope {
         sources.take(MAXIMUM_PAGES_READ).map { source ->
             async {
-                val text = runCatching { HtmlTextTransformer().text(search.fetchPage(source.url), PAGE_EXCERPT_LENGTH) }.getOrNull()
+                val html = try {
+                    search.fetchPage(source.url)
+                } catch (_: IOException) {
+                    null
+                }
+                // A page can be a megabyte of markup, so it is read through away from the main thread.
+                val text = html?.let { withContext(Dispatchers.Default) { HtmlTextTransformer().text(it, PAGE_EXCERPT_LENGTH) } }
                 source.url to text?.takeIf { it.length > 200 }
             }
         }.awaitAll().mapNotNull { (url, text) -> text?.let { url to it } }.toMap()

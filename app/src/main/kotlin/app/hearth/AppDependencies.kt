@@ -132,14 +132,15 @@ class AppDependencies(
             val profileStore = ProfileStore(ProfilePhotoProvider.live(files))
             val notifications = NotificationProvider.live(application)
             val sideList = SideListPreference.live(application)
-            // What the app keeps outside the stores: a photo taken for a message, a picture or a long chat lent to
-            // another app, a memory file set aside because it could not be read, and whether the chat list was put away.
             val dictation = DictationProvider.live(application)
             val speech = SpeechInteractor(SpeechDataProvider.live(), AudioPlaybackProvider.live(application))
             val deviceCamera = DeviceCamera(application)
             val cameraLeave = CameraLeave.live(application)
+            // What the app keeps outside the stores: a photo taken for a message, a picture or a long chat lent to
+            // another app, the icons of sources' sites, and a memory file set aside because it could not be read.
+            val siteIconFolder = File(application.cacheDir, "site-icons")
             val leftovers = listOf(File(application.cacheDir, "camera"), File(application.cacheDir, "pictures"),
-                File(application.cacheDir, SHARE_EXPORTS_FOLDER), File(files, "Memory"))
+                File(application.cacheDir, SHARE_EXPORTS_FOLDER), siteIconFolder, File(files, "Memory"))
             val syncHooks = SyncHooks()
             val syncStore = SyncStore(
                 syncStoreProvider(application, files),
@@ -204,7 +205,8 @@ class AppDependencies(
                 profilePhotos = ProfilePhotoLoader(application),
                 sideList = sideList,
                 drawerFolds = DrawerFoldPreference.live(application),
-                siteIcons = SiteIconProvider.live(File(application.cacheDir, "site-icons")),
+                // A site is asked for its icon only where the pages of a search may be read.
+                siteIcons = SiteIconProvider.live(siteIconFolder).onlyWhen { settingsStore.settings.value.isPageReadingEnabled },
                 syncStore = syncStore,
                 sync = sync,
                 runSync = showcaseSync(application) { sync.sync() },
