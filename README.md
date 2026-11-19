@@ -190,3 +190,7 @@ delegate. Dependencies are passed as closures and small provider classes; there 
 - Dictation stops at the first pause, as Android's recogniser takes one utterance at a time.
 - A photo sent to a model is at most 1,568 pixels on its longest side.
 - Turning the phone round starts a page in the canvas afresh.
+
+## Licence
+
+[MIT](LICENSE).
