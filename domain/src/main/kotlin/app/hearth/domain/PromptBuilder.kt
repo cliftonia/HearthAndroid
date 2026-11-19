@@ -36,7 +36,7 @@ class PromptBuilder(
         offersMemory: Boolean = false,
         style: ReplyStyle = ReplyStyle.CHAT,
     ): List<PromptMessage> {
-        var system = systemText(sources, now, style)
+        var system = systemText(sources, now, style, question(history))
         if (offersMemory) system += "\n\n" + MEMORY_GUIDANCE
         if (offersSearch) system += "\n\n" + SEARCH_GUIDANCE
         val turns = history.filterNot { it.isEmpty }.map { message ->
@@ -47,9 +47,23 @@ class PromptBuilder(
         return listOf(PromptMessage(PromptRole.SYSTEM, system)) + turns
     }
 
-    /** The message as the model reads it: any attached files first, then what was typed. */
+    /**
+     * The message as the model reads it: any attached files first, then what was typed.
+     *
+     * A file too long to send whole is sent as the passages that best match what was typed with it, and the model
+     * is told so; when nothing typed matches anything in it, as its beginning.
+     */
     private fun text(message: Message): String {
-        val files = message.documents.map { "Attached file \"${it.name}\":\n${it.text.clipped(MAXIMUM_DOCUMENT_LENGTH)}" }
+        val files = message.documents.map { document ->
+            val limit = MAXIMUM_DOCUMENT_LENGTH
+            val excerpt = PassageFinder().excerpts(listOf(document.text), message.text, limit)?.firstOrNull()
+            if (excerpt == null) {
+                "Attached file \"${document.name}\":\n${document.text.clipped(limit)}"
+            } else {
+                "Attached file \"${document.name}\", too long to give you whole. These are the passages of it that best match " +
+                    "the message, with ${PassageFinder.GAP} where text was left out:\n$excerpt"
+            }
+        }
         return (files + message.text).filter { it.isNotEmpty() }.joinToString("\n\n")
     }
 
@@ -117,7 +131,7 @@ class PromptBuilder(
      * What the model is told before the conversation: the date, how to reply, who the user is, the user's instructions, the
      * project's instructions and files, and what it knows of the user.
      */
-    private fun systemText(sources: List<SearchSource>, now: Long, style: ReplyStyle): String {
+    private fun systemText(sources: List<SearchSource>, now: Long, style: ReplyStyle, question: String): String {
         val today = dateText(now, timeZone)
         val parts = mutableListOf(
             "You are a helpful, direct assistant. Today is $today.",
@@ -131,7 +145,7 @@ class PromptBuilder(
         if (instructions.isNotEmpty()) {
             parts += "The user has given these standing instructions. Follow them:\n$instructions"
         }
-        if (project != null) parts += projectParts(project, projectFence)
+        if (project != null) parts += projectParts(project, projectFence, question)
         if (isPrivate) {
             parts += "This is a private conversation. You have no memory of earlier conversations here and cannot save anything " +
                 "for later ones. If the user asks you to remember something, tell them plainly that this chat is private " +
@@ -170,6 +184,13 @@ class PromptBuilder(
          */
         fun dateText(now: Long, timeZone: TimeZone = TimeZone.getDefault()): String =
             SimpleDateFormat("EEEE d MMMM yyyy", Locale.ENGLISH).apply { this.timeZone = timeZone }.format(Date(now))
+
+        /**
+         * What the user is asking about now, for choosing passages of a project's files: their latest message, and the
+         * one before it, since a follow-up such as "and in winter?" leans on what it follows.
+         */
+        internal fun question(history: List<Message>): String =
+            history.filter { it.role == MessageRole.USER && it.text.isNotEmpty() }.takeLast(2).joinToString("\n") { it.text }
 
         /** A marker that no web page, and no file, can predict. */
         fun makeFence(prefix: String = "WEB"): String = "$prefix-" + UUID.randomUUID().toString().replace("-", "").take(16)

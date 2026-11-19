@@ -40,7 +40,8 @@ a design and a feature list, not code.
 - **Follow-up questions**, **edit and resend**, and **Try again** with earlier replies kept to step back through
 - **Memory**: lasting facts you tell a model are kept on the phone and given to every chat. A **private chat**
   uses none and adds none
-- **Projects** gather chats round a subject, with instructions and reference files every chat in it is given
+- **Projects** gather chats round a subject, with instructions and reference files every chat in it is given; long
+  files are searched for the passages that bear on each question
 - **Share to Hearth** from other apps: words, links, pictures, PDFs and text files land in the composer
 
 ### Voice
@@ -62,7 +63,7 @@ a design and a feature list, not code.
 - **Scheduled tasks**: a question and a time ("Every day at 7:30", "Every Friday at 18:00", "Once, 10 Dec at
   9:00"). Your hub asks it at that time, searching the web first if you like, and files the answer as a new chat
   that reaches every device. The **Automatic** model, the default, leaves the choice to the hub; otherwise you pick a
-  cloud model. Start one from Settings or from **Schedule a task** in the composer's + menu
+  cloud model. Start one from Settings or from **Schedule a task** in the composer's + sheet
 - **Notifications** when a reply or a picture finishes while Hearth is not on screen, and when a scheduled task's
   answer arrives. A private chat's notification says only that a reply is ready
 - **Lock** with fingerprint, face or the phone's screen lock; while it is on the app is hidden in the recent apps
@@ -78,7 +79,7 @@ a design and a feature list, not code.
 | | | |
 |---|---|---|
 | <img src="docs/screenshots/greeting.png" alt="An empty chat greeting Sam by name" width="240"><br>A new chat greets you by name | <img src="docs/screenshots/chat.png" alt="A reply with a Kotlin code block and a list" width="240"><br>A reply with code | <img src="docs/screenshots/research.png" alt="A research report with a table and numbered sources" width="240"><br>Deep research with its sources |
-| <img src="docs/screenshots/canvas.png" alt="A Pomodoro timer page open in the canvas" width="240"><br>A page open in the canvas | <img src="docs/screenshots/voice.png" alt="The voice conversation screen, listening" width="240"><br>A voice conversation | <img src="docs/screenshots/plus-menu.png" alt="The composer's + menu: file, photo, library, picture, read replies aloud, schedule a task, new project" width="240"><br>The + menu |
+| <img src="docs/screenshots/canvas.png" alt="A Pomodoro timer page open in the canvas" width="240"><br>A page open in the canvas | <img src="docs/screenshots/voice.png" alt="The voice conversation screen, listening" width="240"><br>A voice conversation | <img src="docs/screenshots/plus-menu.png" alt="The composer's + sheet: take photo, photo library and choose file, then make a picture, read replies aloud, schedule a task and new project" width="240"><br>The + sheet |
 | <img src="docs/screenshots/drawer.png" alt="The side list with a project, pinned, scheduled task and dated chats" width="240"><br>The side list | <img src="docs/screenshots/project.png" alt="Editing the Garden project's name, instructions and files" width="240"><br>A project | <img src="docs/screenshots/lock.png" alt="The lock screen with its Unlock button" width="240"><br>The lock |
 | <img src="docs/screenshots/settings.png" alt="Settings: profile, memory, follow-ups, web search, scheduled tasks, voice, pictures" width="240"><br>Settings | <img src="docs/screenshots/settings-bottom.png" alt="Settings: theme, vibration, lock, servers, sync and erase" width="240"><br>More settings | <img src="docs/screenshots/servers.png" alt="The four server addresses with Test connection" width="240"><br>Servers |
 | <img src="docs/screenshots/sync.png" alt="Sync: hub address, access key, the switch and the last sync" width="240"><br>Sync | <img src="docs/screenshots/tasks.png" alt="Three scheduled tasks with their schedules, models and switches" width="240"><br>Scheduled tasks | <img src="docs/screenshots/task-editor.png" alt="Editing the Morning briefing task with the Automatic model" width="240"><br>A task |

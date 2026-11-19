@@ -31,7 +31,7 @@ app/src/main/kotlin/app/hearth/
 ├── AppCoordinator.kt        Owns the presenters; decides which screen shows
 ├── AppDependencies.kt       Builds the stores, interactors and providers, once
 ├── RootView.kt              Drawer or two columns, back button, which screen is drawn
-├── chat/                    The conversation: presenter, view model, screen, composer, hold to talk, greeting, messages, pictures, research, the canvas's cards
+├── chat/                    The conversation: presenter, view model, screen, composer, the plus button's sheet, hold to talk, greeting, messages, code blocks, pictures, research, the canvas's cards
 ├── canvas/                  The canvas: presenter, view model, screen, the code view, the web view and its guard, the wide layout
 ├── drawer/                  The chat list: presenter, projects, sections, folds, rows, floating buttons
 ├── project/                 The editor that makes, edits and deletes a project: presenter, view model, full-screen dialog
@@ -57,7 +57,7 @@ domain/src/main/kotlin/app/hearth/domain/
 ├── Canvas.kt, CanvasExtractor.kt, CanvasVersionMatcher.kt, CanvasWebPolicy.kt      The canvas: its models and pure decisions
 ├── ConversationTitle.kt, TextLimit.kt                                              Titles (first message, renamed, from the model), and cutting text to a limit
 ├── ReplyJoiner.kt                                                                 Keeps the parts of a reply written round a search or a memory change apart
-└── PromptBuilder.kt, PromptBuilderProject.kt, MarkdownTransformer.kt, …            Pure text work
+└── PromptBuilder.kt, PromptBuilderProject.kt, PassageFinder.kt, MarkdownTransformer.kt, CodeHighlighter.kt, …   Pure text work
 
 data/src/main/kotlin/app/hearth/data/
 ├── OllamaService.kt, SearchService.kt, SpeechService.kt, ImageService.kt, …       One service per server
@@ -196,8 +196,13 @@ the chats are kept and none is left pointing at a project that is gone.
 
 **What the model is told.** `ChatInteractor.Turn` carries the project, and `PromptBuilder` puts it in the system
 message after the user's own instructions (`PromptBuilderProject.kt`). Reference files are quoted between a
-marker made up afresh for every turn and described as material, never instructions. They share 60,000
-characters in order; the model is told which file was cut short and which were left out. A project that has
+marker made up afresh for every turn and described as material, never instructions. They share one allowance of
+60,000 characters. Files that fit it are given whole. Longer ones are searched: `PassageFinder` cuts them into
+passages, scores each by the words it shares with the user's last two messages (BM25, so it matches words, not
+meanings, and needs no model or server), and the best that fit are quoted in the order they stand, with `[…]`
+where text was left out. When nothing in the question matches, the files are taken in order instead and the
+model is told which was cut short and which left out. A long file attached to a message is searched the same
+way, by what was typed with it. `Spec/vectors/passages.json` holds both apps to the same choice. A project that has
 reference files closes the memory tools for its chats, exactly as an attached file does: what is in a file must
 not be able to plant a memory. A project with instructions alone leaves memory open, since the user typed those.
 
@@ -227,7 +232,7 @@ mirrors the iPhone app step for step, with the same bounds, prompts and wording.
   opening another chat and by picture mode. Whether it is in force is `isResearchChosen(settings)`, which also
   wants a search address, so taking the address away takes research with it. A model that cannot think is offered
   one ordinary choice, "Standard", and research. Without a search address research is listed, disabled, with a line
-  saying why. It is not in the + menu.
+  saying why. It is not in the + sheet.
 - **The run** is `ResearchInteractor.run`, a `Flow` of events, built on the same `ChatDataProvider` and
   `SearchDataProvider` as a reply, so requests go to the same model through the same service and pages are read
   through `PageService` and its `PageAddressPolicy`. In order: plan (one request), search each query, choose the
@@ -256,9 +261,9 @@ mirrors the iPhone app step for step, with the same bounds, prompts and wording.
   search does, and research itself reads no memories. It is announced like any reply when it finishes.
 - **On screen**, `ChatPresenterResearch.kt` keeps the step in `ChatViewModel.researchStep`, which `MessageSection`
   words as a line in place of the report until its first words arrive, and `ResearchSourcesSection` lists the
-  sources under a finished report by number, title and site. An ordinary reply that searched lists its first few
-  sources as links (`ReplySourcesSection`), and every reply with sources has a button beside its actions that opens
-  them all in a sheet. Each source's mark is its site's icon, which `SiteIconProvider` fetches from the site once
+  sources under a finished report by number, title and site. An ordinary reply that searched has a quiet line above
+  it, "Searched the web" (`ReplySearchedLine`), lists its first few sources as links under it (`ReplySourcesSection`),
+  and every reply with sources has a button beside its actions; the line and the button open them all in one sheet. Each source's mark is its site's icon, which `SiteIconProvider` fetches from the site once
   (`PageService.fetchIcon`, under the same public-address rules as a page) and keeps among the caches; it is asked
   for only while page reading is on, and until it comes the mark is the site's first letter. The composer's chip names the effort in the brand
   colour and its field asks for a question to research. The logs hold counts only: never the question, a page's
@@ -414,7 +419,9 @@ conversation ends on back at once. In the drawer, back inside a project's chats 
 then closes the drawer.
 
 **Android's own patterns, in Hearth's colours.** Where the iPhone app has its own idiom the Android app uses
-Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button; full-screen
+Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button (the sheet of
+the composer's plus button has no title, being nothing but its choices, and the sheet that shows code full size has a
+close button, since a drag down on the code scrolls the code); full-screen
 editors with the close button at the start of a top app bar and Save at its end (the project editor, and the task
 editor, whose Save the settings screen's bar carries); labels inside the fields with help as supporting text; exposed
 dropdowns for one choice of a list; settings rows with how things stand beneath the title and no arrow; a top app bar
@@ -637,7 +644,7 @@ respected, since the taps are played through the view.
 The iPhone app is a separate code base that must behave like this one. What the two have to agree on is written down
 as data in the iPhone repository's `Spec/` folder (its `README.md` says how it is laid out and how to add to it).
 `tools/sync-spec.sh` copies it into `domain/src/test/resources/spec` (vectors and wire examples) and
-`data/src/test/resources/spec` (wire examples); `SpecPromptTests`, `SpecTextTests` and `SpecWireMappingTests` in the
+`data/src/test/resources/spec` (wire examples); `SpecPromptTests`, `SpecTextTests`, `PassageFinderTests` and `SpecWireMappingTests` in the
 domain and `SpecWireTests` in the data layer read the copy, and `SpecCopyTests` fails while it differs from
 `../Hearth/Spec`, and is skipped where that folder is not there. Hearth Hub round-trips the wire examples. So far
 the vectors cover pure functions only, and they settle these:
@@ -661,6 +668,16 @@ the vectors cover pure functions only, and they settle these:
   units, as `take` does, but never ends between the two halves of a surrogate pair, so an emoji is never cut in
   half. Swift counts whole characters, so an emoji with a skin tone or a letter with a combining accent is one
   there. The same long text may be cut at a different place on each; no attempt is made to make the counts agree.
+- **Passages of long files.** `PassageFinder` is the iPhone app's step for step: the same passage length, the same
+  common words, the same scoring summed in the same order, and equal scores settled by place, so that both choose the
+  passages `passages.json` says. Lengths count UTF-16 units here and whole characters there, and a word is made of
+  what `Char.isLetterOrDigit` takes for a letter or a digit, so the two can cut or choose differently in text with
+  emoji, accents written apart or letters beyond the basic plane.
+- **Code colouring.** `CodeHighlighter` is the iPhone app's rule for rule: the same families of languages, the same
+  reserved words, the same 20,000-character limit, and the same tests. Two things follow from how each platform sees
+  text. The limit counts UTF-16 units here and whole characters there. And Swift reads a letter with an accent written
+  apart as one character, where this reads the code a code point at a time and takes such an accent as part of the
+  word before it; so the two can differ only on code that hangs a combining mark on a quote or a digit.
 - **The canvas start script** does three things the iOS one does not, each a Chromium matter: it has `sendBeacon`
   answer that nothing was sent (on iOS the content rules block a beacon like any other load, so nothing leaves
   either way); it replaces `Document.parseHTMLUnsafe` only where the engine has it (iOS puts it in place always,
