@@ -11,14 +11,20 @@ import kotlinx.serialization.encoding.Encoder
 /** The picture models the app can ask for, in the order they are offered. */
 @Serializable
 enum class ImageModelKind {
-    /** Quick and good at most things; the one to start with. */
+    /** Quick and good at most things. */
     Z_IMAGE_TURBO,
 
-    /** The most photographic, and the slowest. */
+    /** The most photographic, and the slowest; the one used until another is chosen. */
     KREA2_TURBO,
 
     /** An older, painterly model. */
     JUGGERNAUT_XL,
+    ;
+
+    companion object {
+        /** The model used where none has been chosen: Krea 2 Turbo if the server offers it, otherwise the first it offers. */
+        fun preferred(models: List<ImageModelKind>): ImageModelKind? = KREA2_TURBO.takeIf { it in models } ?: models.firstOrNull()
+    }
 }
 
 /** What the picture server can do. */

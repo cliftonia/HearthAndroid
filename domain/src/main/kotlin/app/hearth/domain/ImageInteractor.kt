@@ -35,11 +35,11 @@ class ImageInteractor(private val provider: ImageDataProvider) {
     }
 
     /**
-     * The model to use: the chosen one if the server has it, otherwise the first it offers.
+     * The model to use: the chosen one if the server has it, otherwise the preferred one of those it offers.
      * Changing and enlarging use tools of their own, and only need those to be there.
      */
     private fun model(request: ImageRequest, settings: ServerSettings, capabilities: ImageCapabilities): ImageModelKind = when (request) {
-        is ImageRequest.Create -> settings.imageModel?.takeIf { it in capabilities.models } ?: capabilities.models.firstOrNull() ?: throw ImageError.NoModel
+        is ImageRequest.Create -> settings.imageModel?.takeIf { it in capabilities.models } ?: ImageModelKind.preferred(capabilities.models) ?: throw ImageError.NoModel
         is ImageRequest.Edit -> if (capabilities.canEdit) settings.imageModel ?: ImageModelKind.Z_IMAGE_TURBO else throw ImageError.CannotEdit
         is ImageRequest.Enlarge -> if (capabilities.canEnlarge) settings.imageModel ?: ImageModelKind.Z_IMAGE_TURBO else throw ImageError.CannotEnlarge
     }

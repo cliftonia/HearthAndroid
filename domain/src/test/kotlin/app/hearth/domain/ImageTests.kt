@@ -159,4 +159,13 @@ class ImageTests {
         assertEquals(true, history[1].isPicture)
         assertEquals(false, history[0].isPicture)
     }
+
+    @Test
+    fun `with no model chosen Krea 2 Turbo is preferred, and otherwise the first the server offers`() {
+        val all = listOf(ImageModelKind.Z_IMAGE_TURBO, ImageModelKind.KREA2_TURBO, ImageModelKind.JUGGERNAUT_XL)
+
+        assertEquals(ImageModelKind.KREA2_TURBO, ImageModelKind.preferred(all))
+        assertEquals(ImageModelKind.Z_IMAGE_TURBO, ImageModelKind.preferred(listOf(ImageModelKind.Z_IMAGE_TURBO, ImageModelKind.JUGGERNAUT_XL)))
+        assertNull(ImageModelKind.preferred(emptyList()))
+    }
 }

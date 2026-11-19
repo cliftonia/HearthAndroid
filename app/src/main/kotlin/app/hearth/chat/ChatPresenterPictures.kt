@@ -50,7 +50,7 @@ class PictureWords(
 
 /** The model new pictures are made with: the one chosen if the server has it, otherwise the first it offers. */
 fun ChatViewModel.selectedPictureModel(settings: ServerSettings): ImageModelKind? =
-    settings.imageModel?.takeIf { it in pictureModels } ?: pictureModels.firstOrNull()
+    settings.imageModel?.takeIf { it in pictureModels } ?: ImageModelKind.preferred(pictureModels)
 
 /**
  * Turns picture mode on or off. While it is on, what is sent asks for a picture, and the composer's model chip
