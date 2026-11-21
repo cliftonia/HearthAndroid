@@ -63,6 +63,12 @@ import app.hearth.shared.shortName
 private const val HELD_SCALE = 1.06f
 
 /** Where a message is written, with the controls that shape the reply. */
+/**
+ * How much of the card colour the composer keeps. It floats over the conversation, and the rest lets what scrolls
+ * beneath show through without making what is typed hard to read.
+ */
+private const val COMPOSER_ALPHA = 0.84f
+
 @Composable
 fun ComposerFooter(
     viewModel: ChatViewModel,
@@ -100,7 +106,9 @@ fun ComposerFooter(
         isPictureMode -> stringResource(R.string.picture_change_placeholder)
         // Research says so in the field too, where it shows even while the composer is at rest.
         isResearchChosen -> stringResource(R.string.research_placeholder)
-        // At rest the composer says what can be done with it; once opened it says who is being written to.
+        // At rest the composer says what can be done with it, a reply once the chat is under way; once opened it
+        // says who is being written to.
+        !isExpanded && viewModel.conversation.messages.isNotEmpty() -> stringResource(R.string.composer_placeholder_reply)
         !isExpanded -> stringResource(R.string.composer_placeholder_resting)
         model != null -> stringResource(R.string.composer_placeholder_model, model.displayName)
         else -> stringResource(R.string.composer_placeholder)
@@ -148,7 +156,8 @@ fun ComposerFooter(
             }
             // Touches stop here, so that the conversation beneath is not scrolled through it.
             .pointerInput(Unit) { }
-            .background(colors.card, HearthTheme.shapes.composer)
+            // See-through, so the conversation that scrolls on beneath the composer shows faintly through it.
+            .background(colors.card.copy(alpha = COMPOSER_ALPHA), HearthTheme.shapes.composer)
             // Its edge turns the brand colour while something it can take is held over it.
             .border(HearthTheme.strokes.hairline, if (isDropHovering) colors.pine else colors.line, HearthTheme.shapes.composer)
             .takesDrops(attachments, onHovering = { isDropHovering = it }) { text, shared ->

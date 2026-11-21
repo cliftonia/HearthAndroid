@@ -56,6 +56,12 @@ import app.hearth.shared.errorTitle
 private const val FADE_SOLID_REACH = 0.6f
 
 /**
+ * How much of the paper veils the conversation where it passes beneath the composer: enough to quieten it, and little
+ * enough that it still shows through the composer, which is see-through.
+ */
+private const val FOOT_VEIL_ALPHA = 0.7f
+
+/**
  * The conversation: its messages or what stands in for them, with the header floating over their head and the
  * composer, under any error, floating over their foot.
  */
@@ -124,7 +130,7 @@ private fun ChatLayout(
     val paper = HearthTheme.colors.paper
     val clear = paper.copy(alpha = 0f)
     val headFade = Modifier.background(Brush.verticalGradient(FADE_SOLID_REACH to paper, 1f to clear))
-    val footFade = Modifier.background(Brush.verticalGradient(0f to clear, 1f - FADE_SOLID_REACH to paper))
+    val footFade = Modifier.background(Brush.verticalGradient(0f to clear, 1f - FADE_SOLID_REACH to paper.copy(alpha = FOOT_VEIL_ALPHA)))
     SubcomposeLayout(modifier) { constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight

@@ -54,6 +54,7 @@
 
     <string name="composer_placeholder">Message</string>
     <string name="composer_placeholder_resting">Type or hold to talk</string>
+    <string name="composer_placeholder_reply">Reply or hold to talk</string>
     <string name="composer_release_to_stop">Release to stop</string>
     <string name="composer_placeholder_model">Message %1$s</string>
     <string name="composer_thinking_off">Off</string>
