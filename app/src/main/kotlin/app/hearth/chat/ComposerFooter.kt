@@ -42,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -145,6 +146,8 @@ fun ComposerFooter(
                 scaleX = heldScale
                 scaleY = heldScale
             }
+            // Touches stop here, so that the conversation beneath is not scrolled through it.
+            .pointerInput(Unit) { }
             .background(colors.card, HearthTheme.shapes.composer)
             // Its edge turns the brand colour while something it can take is held over it.
             .border(HearthTheme.strokes.hairline, if (isDropHovering) colors.pine else colors.line, HearthTheme.shapes.composer)

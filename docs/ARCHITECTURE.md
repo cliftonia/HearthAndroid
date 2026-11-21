@@ -430,6 +430,17 @@ drawing the page a little smaller or lower as the gesture is made, and go back o
 conversation ends on back at once. In the drawer, back inside a project's chats first goes up to every chat, and only
 then closes the drawer.
 
+**The conversation runs beneath the header and the composer.** `ChatLayout` in `ChatScreen.kt` gives the conversation
+the whole of the chat's room and floats the header over its head and the composer, under any error, over its foot;
+replies scroll on beneath both and fade into the paper there. It measures the composer first, then the error and the
+header where they fit, and tells the conversation how tall they are: `MessageList` adds those to its content padding,
+so its first and last lines stop clear only once scrolled to either end, and the greeting of an empty chat is
+centred in the room between them. The foot's padding changes as the composer grows a line, takes an attachment or
+gains the error above it; the keyboard shortens the chat's room instead (`RootView` holds the chat above it and the
+navigation bar). Either leaves a list that was at its end with further to scroll, and a list that is following
+(`ListFollowing`) goes to its end again, so the latest reply rises with them. The composer and the error stop
+touches on themselves; the fade beside and above them does not, so the conversation scrolls from there too.
+
 **Android's own patterns, in Hearth's colours.** Where the iPhone app has its own idiom the Android app uses
 Material's: ⋮ for a menu; bottom sheets with a handle, a title at the leading edge and no close button (with two
 exceptions: the sheet that shows code full size has a close button, since a drag down on the code scrolls the code,

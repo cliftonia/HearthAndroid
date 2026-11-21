@@ -37,9 +37,21 @@ import app.hearth.integrations.PictureLibrary
 /** The last thing in the list, with nothing to show: somewhere to scroll to that is always past the reply. */
 private val EndAnchorHeight = 1.dp
 
-/** The messages of the conversation, oldest first, with the suggested questions after the last. */
+/**
+ * The messages of the conversation, oldest first, with the suggested questions after the last.
+ *
+ * The list runs on beneath the header floating over its head and the composer floating over its foot. [topPadding]
+ * and [bottomPadding] are how tall those are, so that its first and last lines stop clear of them at either end.
+ */
 @Composable
-internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, canSpeak: Boolean, pictures: PictureLibrary, topPadding: Dp = 0.dp) {
+internal fun MessageList(
+    viewModel: ChatViewModel,
+    presenter: ChatPresenter,
+    canSpeak: Boolean,
+    pictures: PictureLibrary,
+    topPadding: Dp = 0.dp,
+    bottomPadding: Dp = 0.dp,
+) {
     val messages = viewModel.conversation.messages
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
@@ -58,7 +70,8 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
     LaunchedEffect(messages.size, last?.text?.length, last?.thinking?.length, last?.images?.size, viewModel.followUps.size) {
         if (following.isFollowing) listState.scrollToItem(messages.size + 1)
     }
-    // A picture takes its place a moment after its reply arrives, and the list follows that as well.
+    // A picture takes its place a moment after its reply arrives, and the list follows that as well. So it does when
+    // the keyboard rises or the composer grows: either leaves more of the list to scroll, and its end rises with them.
     LaunchedEffect(listState, following) {
         snapshotFlow { listState.canScrollForward && !listState.isScrollInProgress }.collect { hasGrown ->
             if (hasGrown && following.isFollowing) listState.scrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
@@ -71,12 +84,13 @@ internal fun MessageList(viewModel: ChatViewModel, presenter: ChatPresenter, can
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            // Clear of the header floating above, at the top; the list itself runs on beneath it.
+            // Clear of the header floating over its head and of the composer floating over its foot, once scrolled to
+            // either end; the list itself runs on beneath both.
             contentPadding = PaddingValues(
                 start = margin,
                 top = topPadding + HearthTheme.spacing.xl,
                 end = margin,
-                bottom = HearthTheme.spacing.xl,
+                bottom = bottomPadding + HearthTheme.spacing.xl,
             ),
             verticalArrangement = Arrangement.spacedBy(HearthTheme.spacing.gapS),
         ) {
